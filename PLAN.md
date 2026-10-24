@@ -31,7 +31,7 @@ is a separate project once the desktop setup is stable.
 ## Items
 
 - [x] 1. Config skeleton
-- [ ] 2. Build and install Emacs 31.1
+- [x] 2. Build and install Emacs 31.1
 - [ ] 3. Grill the design
 - [ ] 4. Org basics
 - [ ] 5. Notes: org-node, journal, capture
@@ -60,18 +60,20 @@ as a user daemon, with Fedora's 30.2 left installed as a fallback.
 **Acceptance tests:** the checks in
 [docs/emacs-build.md](docs/emacs-build.md#checks-after-installing) all pass.
 
-**Handoff:** Installed on 2026-10-25. Passed: version, PATH, tree-sitter,
-native compilation, pgtk, SELinux contexts, and the daemon (31.1 from
-`/opt`, unit loaded from `/usr/local/lib/systemd/user`). Pending: the KDE
-menu check (launch Emacs from the menu and confirm it's 31.1); tick this
-item once Tim confirms it. Two install fixes went into the recipe: create
-the `/usr/local` folders before `alternatives`, and install the systemd
-unit as a plain file instead of an alternatives follower (see Gotchas in
-`docs/emacs-build.md`). The daemon currently loads the **old** config from
-`main`, which errors on 31.1 (stale Emacs 30 bytecode in `elpa/`); item 4
-switches to the new config. Later, optional: cross-check the signing key
-against the release announcement, and report the SELinux configure bug
-upstream.
+**Handoff:** Done on 2026-10-25. All checks passed: version and PATH,
+tree-sitter, native compilation, pgtk, SELinux contexts, the daemon (31.1
+from `/opt`, unit loaded from `/usr/local/lib/systemd/user`), and the KDE
+menu (launches 31.1). The recipe in `docs/emacs-build.md` is the one that
+actually worked, including two install fixes: create the `/usr/local`
+folders before `alternatives`, and install the systemd unit as a plain file
+rather than an alternatives follower. Fedora's 30.2 is still installed as a
+fallback. Gotchas: the daemon loads the **old** config from `main`, which
+errors on 31.1 because of stale Emacs 30 bytecode in `elpa/`; item 3
+decides how the new config replaces it. Optional loose ends: cross-check
+the signing key against the 31.1 release announcement, and report the
+SELinux configure bug upstream. Not merged: this branch also carries the
+untested new config (item 1), and merging it now would switch
+`~/.emacs.d` to it before item 3 decides how.
 
 ### 3. Grill the design
 
