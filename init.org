@@ -1,3434 +1,409 @@
 #+TITLE: Tim's Emacs Configuration
 #+AUTHOR: Tim Jim
-:PROPERTIES:
-#+PROPERTY: header-args :tangle yes
-#+OPTIONS: toc:2
+#+PROPERTY: header-args:emacs-lisp :tangle init.el :results silent
 #+STARTUP: overview
-:END:
-
-[[./images/config-screenshot.png]]
 
 * About
 
-This is my Emacs configuration, tangled into an org file. As I'm forgetful, I hope that this will help me remember what everything does.
+My Emacs configuration, written as a literate Org file. Code blocks are
+tangled into =early-init.el= and =init.el= every time this file is saved (see
+[[*Tangle on save][Tangle on save]]), and both generated files are committed so a fresh
+machine can start from a plain clone.
 
-This config is forked from [[https://github.com/SophieBosio/.emacs.d][SophieBosio/emacs.d]]'s GitHub repo.
+This is a fresh rebuild aimed at a notes and knowledge system in Org mode,
+plus light IDE-style coding. The previous config (forked from
+[[https://github.com/SophieBosio/.emacs.d][SophieBosio/.emacs.d]]) is in the git history.
 
-I write all my initialisation code in this document as code blocks and then use
-=org-babel-tangle= to extract those code blocks into a separate file. That new,
-generated file becomes my =init.el=. This way, I can document my code and explain
-my choices to my future self - and to anyone else who might be interested in looking at it. I've stolen the code for doing this and several other tidbits from [[https://github.com/larstvei/dot-emacs/blob/master/init.org][Lars Tveito]].
+Target: Emacs 31.1, pgtk build, on Fedora KDE (Wayland).
 
-If you're interested in this approach to writing and sharing your config, it's
-called a "literate configuration" and there are lots of great blog posts out
-there with inspiration and tips!
+** Build order
 
-I've lifted a lot of code from other people's configurations, including:
-- [[https://github.com/larstvei/dot-emacs/blob/master/init.org][Lars Tveito]]
-- [[https://github.com/jakebox/jake-emacs][Jacob Boxerman]]
-- [[https://github.com/purcell/emacs.d][Steve Purcell]]
-- [[https://github.com/rougier][Nicolas Rougier]] (especially his Org setup)
+Each step adds a top-level section to this file.
 
-I can heartily recommend checking those out.
+1. [X] Skeleton: startup, packages, housekeeping, look, completion, git
+2. [ ] Org basics: directories, visuals, equations, images, Babel
+3. [ ] Notes: org-node, daily notes, capture templates, graph
+4. [ ] Tasks, agenda and Google Calendar (org-gcal)
+5. [ ] Coding: eglot, tree-sitter, ruff, formatting, debugging, direnv
+6. [ ] References: citar, org-noter
+7. [ ] Extras: KDE capture shortcut, org-protocol, gptel
 
-* Setup
-** Prerequisites
+** Prerequisites (Fedora)
 
-You probably don't want to run this configuration as-is, since it's highly personal and very likely contains things you don't want in your Emacs.
+#+begin_src sh :tangle no
+sudo dnf install ripgrep fd-find enchant2-devel pkgconf \
+     rsms-inter-fonts jetbrains-mono-fonts
+#+end_src
 
-However, if you do want to try it, or if you want to steal a chunk and something's not working right, this is the software that I have installed in addition to Emacs and that is present in this config, one way or another.
+- =ripgrep= / =fd= are used by Consult for searching.
+- =enchant2-devel= and =pkgconf= let Jinx build its spell-checking module.
+- Inter (prose) and JetBrains Mono (code) are the fonts used below.
+- Nerd Font icons: run =M-x nerd-icons-install-fonts= once.
 
-This doubles as a memo to myself for when I need to set up a new machine.
+* Start-up
+** Early init
 
-- [[https://www.mozilla.org/en-US/firefox/][Firefox Browser]]
-- [[https://github.com/BurntSushi/ripgrep][ripgrep]] search utility
-- [[https://github.com/ggreer/the_silver_searcher][ag (The Silver Searcher)]] search utility
-- [[https://tree-sitter.github.io/tree-sitter/][Tree-Sitter]] parser generator & incremental parsing library
-- [[https://github.com/AbiWord/enchant][Enchant]] spellchecker library & [[https://aspell.net/][GNU Aspell]]
-- [[https://www.tug.org/interest.html#free][LaTeX]] type-setting system
-
-I use these fonts. They are used both in [[#visuals][Visuals]] > [[#fonts][Fonts]] and in [[#org][Org]] > [[#visuals-1][Visuals]] > [[#fonts-1][Fonts]].
-
-- [[https://github.com/weiweihuanghuang/fragment-mono][Fragment Mono]]
-- [[https://fonts.google.com/specimen/Open+Sans][Open Sans]]
-- [[https://www.nerdfonts.com/font-downloads][Roboto Mono (Nerd Font)]]
-
-The rest of what you need *should* be downloaded by this configuration file. If you try it and find anything missing from this list, please let me know!
-
-** =init.el= Code
-
-As mentioned above, I use =org-babel-tangle= and this document, written in Org mode.
-
-The code below extracts the elisp configuration code and creates/overwrites the
-=~/.emacs.d/init.el= configuration file when the =.org=-file is saved.
-Therefore, changes are only done in the =.org=-file, where writing longer
-comments about how things work and why things are added is easier, and then the resulting =init.el=-file remains clean and without excessive comments.
-
-This is what the =init.el= file should look like, prompting it to tangle the =init.org= file and replace itself with that code.
-
-#+BEGIN_SRC emacs-lisp :tangle no
-;; We need org in order to make use of the tangling functionality
-(require 'org)
-;; Open the org-mode configuration
-(find-file (concat user-emacs-directory "init.org"))
-;; Tangle the file
-(org-babel-tangle)
-;; Load the tangled file
-(load-file (concat user-emacs-directory "init.el"))
-;; Byte-compile it
-(byte-compile-file (concat user-emacs-directory "init.el"))
-#+END_SRC
-
-** Git Tracking & Practicalities
-
-Now we also don't need to track the generated =init.el= file on Git, since it is directly derived from =init.org=.
-
-This code makes Git ignore changes to =init.el=:
-
-#+BEGIN_SRC sh :tangle no
-git update-index --assume-unchanged init.el
-#+END_SRC
-
-If you do want to start tracking the file again, you can use:
-
-#+BEGIN_SRC sh :tangle no
-git update-index --no-assume-unchanged init.el
-#+END_SRC
-
-** Lexical Binding
-
-First, I want lexical scoping for the =init=-file, so I will add that to the top of the file.
-
-#+BEGIN_SRC emacs-lisp
-;;; -*- lexical-binding: t -*-
-#+END_SRC
-
-** Tangling
-
-Now to tangling! The rest of the text and code in this section is lifted directly from Lars' configuration.
-
-The =init.el= should (after the first run) mirror the source blocks in the =init.org=. We can use =C-c C-v t= to run =org-babel-tangle=, which extracts the code blocks from the current file into a source-specific file (in this case a =.el=-file).
-
-To avoid doing this each time a change is made we can add a function to the =after-save-hook= ensuring to always tangle and byte-compile =.org=-document after changes.
-
-#+BEGIN_SRC emacs-lisp
-   (defun tangle-init ()
-     "If the current buffer is init.org the code-blocks are
-   tangled, and the tangled file is compiled."
-     (when (equal (buffer-file-name)
-                  (expand-file-name (concat user-emacs-directory "init.org")))
-       ;; Avoid running hooks when tangling.
-       (let ((prog-mode-hook nil))
-         (org-babel-tangle)
-         (byte-compile-file (concat user-emacs-directory "init.el")))))
-
-   (add-hook 'after-save-hook 'tangle-init)
-#+END_SRC
-
-* Start-Up
-** Early Init
-
-Emacs 27 introduced =early-init.el=, which is like =init.el= but ran before that, and before the UI and packages are initialised. I've taken code snippets from other configs to put in my =early-init.el= and the blocks in this section tangle to =early-init.el= instead of =init.el=.
-
-In particular, the code below is a combination of code from:
-- [[https://github.com/ogdenwebb/snug-emacs/blob/main/early-init.el][ogdenwebb's snug-emacs]]
-- [[https://github.com/mnewt/dotemacs/blob/master/early-init.el][mnewt's dotemacsl]]
-- [[https://github.com/jamescherti/minimal-emacs.d/blob/main/early-init.el][jamescherti's minimal emacs]]
+=early-init.el= runs before the package system and the first frame are set
+up, so it's the place to hide UI elements (no flicker) and to relax the
+garbage collector while starting.
 
 #+begin_src emacs-lisp :tangle early-init.el
-;;; -*- lexical-binding: t -*-
+;;; early-init.el --- Tangled from init.org -*- lexical-binding: t -*-
 
-;; Defer garbage collection
-(setq gc-cons-percentage 0.6)
-
-;; Change default max size for reading processes
-(setq read-process-output-max (* 1024 1024)) ;; 1mb
-
-(set-language-environment "UTF-8")
-
-;; Set-language-environment sets default-input-method, which is unwanted.
-(setq default-input-method nil)
-
-;; Prefer loading newer compiled files
-(setq load-prefer-newer t)
-
-;; Prevent the glimpse of un-styled Emacs by disabling these UI elements early.
-(setq default-frame-alist
-      '((vertical-scroll-bars . nil)
-        (menu-bar-lines       . 0)
-        (tool-bar-lines       . 0)))
-
-(setq default-frame-scroll-bars 'right)
-(setq scroll-bar-mode nil)
-
-;; Resizing the Emacs frame can be a terribly expensive part of changing the
-;; font. By inhibiting this, we easily halve startup times with fonts that are
-;; larger than the system default.
-(setq frame-inhibit-implied-resize t
-      frame-resize-pixelwise       t)
-
-;; Font compacting can be very resource-intensive, especially when rendering
-;; icon fonts on Windows. This will increase memory usage.
-(setq inhibit-compacting-font-caches t)
-
-;; Ignore X resources; its settings would be redundant with the other settings
-;; in this file and can conflict with later config (particularly where the
-;; cursor color is concerned).
-(advice-add #'x-apply-session-resources :override #'ignore)
-
-;; A second, case-insensitive pass over `auto-mode-alist' is time wasted.
-;; No second pass of case-insensitive search over auto-mode-alist.
-(setq auto-mode-case-fold nil)
-
-;; Disable bidirectional text scanning for a modest performance boost.
-(setq-default bidi-display-reordering  'left-to-right
-              bidi-paragraph-direction 'left-to-right)
-
-;; Give up some bidirectional functionality for slightly faster re-display.
-(setq bidi-inhibit-bpa t)
-
-;; In PGTK, this timeout introduces latency. Reducing it from the default 0.1
-;; improves responsiveness of childframes and related packages.
-(when (boundp 'pgtk-wait-for-event-timeout)
-  (setq pgtk-wait-for-event-timeout 0.001))
-
-;; Disable warnings from the legacy advice API. They aren't useful.
-(setq ad-redefinition-action 'accept)
-
-;; Font compacting can be very resource-intensive, especially when rendering
-;; icon fonts on Windows. This will increase memory usage.
-(setq inhibit-compacting-font-caches t)
-
-;; Unset `file-name-handler-alist' too (temporarily). Every file opened and
-;; loaded by Emacs will run through this list to check for a proper handler for
-;; the file, but during startup, it won’t need any of them.
-(defvar file-name-handler-alist-old file-name-handler-alist)
-(setq file-name-handler-alist nil)
+;; Collect garbage rarely while starting, then go back to a sane value.
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.6)
 (add-hook 'emacs-startup-hook
           (lambda ()
-            (setq file-name-handler-alist file-name-handler-alist-old)))
+            (setq gc-cons-threshold (* 64 1024 1024)
+                  gc-cons-percentage 0.1)))
 
-;; For LSP mode, use plists for deserialization
-;; For more info, see https://emacs-lsp.github.io/lsp-mode/page/performance/#use-plists-for-deserialization
-(setenv "LSP_USE_PLISTS" "true")
+;; Language servers send a lot of data; read it in bigger chunks.
+(setq read-process-output-max (* 4 1024 1024))
 
-;; Remove "For information about GNU Emacs..." message at startup
-(advice-add #'display-startup-echo-area-message :override #'ignore)
+;; Prefer newer .el files over stale .elc files.
+(setq load-prefer-newer t)
 
-;; Suppress the vanilla startup screen completely. Even if disabled with
-;; `inhibit-startup-screen', it would still initialize anyway.
-(advice-add #'display-startup-screen :override #'ignore)
+;; No menu bar, tool bar or scroll bars, set before the first frame is drawn.
+(setq default-frame-alist
+      '((menu-bar-lines       . 0)
+        (tool-bar-lines       . 0)
+        (vertical-scroll-bars . nil)
+        (internal-border-width . 16)))
 
-;; Shave seconds off startup time by starting the scratch buffer in
-;; `fundamental-mode'
-(setq initial-major-mode 'fundamental-mode
-      initial-scratch-message nil)
+(setq frame-inhibit-implied-resize t
+      frame-resize-pixelwise       t
+      inhibit-startup-screen       t
+      initial-scratch-message      nil)
 
-;; Disable startup screens and messages
-(setq inhibit-splash-screen t)
+;; Native compilation warnings are noisy and almost always harmless.
+(setq native-comp-async-report-warnings-errors 'silent)
+
+;; On pgtk, a shorter event timeout makes child frames (the pop-up
+;; completion window) feel snappier.
+(when (boundp 'pgtk-wait-for-event-timeout)
+  (setq pgtk-wait-for-event-timeout 0.001))
 #+end_src
 
-From [[https://emacsnotes.wordpress.com/2022/09/11/three-bonus-keys-c-i-c-m-and-c-for-your-gui-emacs-all-with-zero-headache/][this blog post]] on the blog Emacs Notes, I've also lifted this piece of code that goes into =early-init.el=. Normally, the three keys =C-i=, =C-m= and =C-[= are reserved in GUI Emacs to match expected behaviour in terminal Emacs, and terminal applications generally. They're bound to =TAB=, =RET= and =ESC=, respectively.
-
-But we can unlock them by giving the keys explicit names in =early-init.el= and using the new, named keys in our config if we surround the keybinding with chevrons. So, below I've called =C-i= by the "name" =C-i=. But since it's a name and not a literal key, I need to write =<C-i>= when I want to use the key to define a binding.
-
-#+begin_src emacs-lisp :tangle early-init.el
-(add-hook
- 'after-make-frame-functions
- (defun setup-blah-keys (frame)
-   (with-selected-frame frame
-     (when (display-graphic-p) ; don't remove this condition, if you want
-                               ; terminal Emacs to be usable
-       (define-key input-decode-map (kbd "C-i") [C-i])
-       (define-key input-decode-map (kbd "C-[") [C-lsb]) ; left square bracket
-       (define-key input-decode-map (kbd "C-m") [C-m])))))
-#+end_src
-
-** Garbage Collection
-
-Famously, the Emacs garbage collector can impede startup times quite dramatically. Therefore, a common tweak is to disable the garbage collector during initialisation, and then resetting it afterwards. Luckily, there exists a package exactly for this purpose called the [[https://github.com/emacsmirror/gcmh][Garbage Collector Magic Hack]]-
-
-# #+BEGIN_SRC emacs-lisp
-# (use-package gcmh
-#   :ensure t
-#   :diminish gcmh-mode
-#   :config
-#   (gcmh-mode 1))
-# #+END_SRC
-
-** Optimisations
-
-We can set the =file-name-handler-alist=, which is supposed to help startup times a little.
+** Lexical binding
 
 #+begin_src emacs-lisp
-(setq file-name-handler-alist-original file-name-handler-alist)
-(setq file-name-handler-alist nil)
+;;; init.el --- Tangled from init.org -*- lexical-binding: t -*-
 #+end_src
 
-I also get quite a lot of compilation warnings, especially from native compilation, but they are usually safe to ignore.
+** Packages
 
-#+begin_src emacs-lisp
-(setq native-comp-async-report-warnings-errors 'silent) ;; native-comp warning
-(setq byte-compile-warnings '(not free-vars unresolved noruntime lexical make-local))
-#+end_src
-
-# Disable warnings about obsolete functions when compiling.
-
-# #+begin_src emacs-lisp
-# (eval-when-compile
-#   (dolist (sym '(cl-flet lisp-complete-symbol))
-#     (setplist sym (use-package-plist-delete
-#                    (symbol-plist sym) 'byte-obsolete-info))))
-# #+end_src
-
-This is an optimisation borrowed from Doom Emacs' =core.el=.
-
-#+begin_src emacs-lisp
-(setq which-func-update-delay 1.0)
-#+end_src
-
-Prevent Emacs from freezing when updating ELPA.
-
-#+begin_src emacs-lisp
-(setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
-#+end_src
-
-Make sure we're using the correct native compilation cache.
-
-#+begin_src emacs-lisp
-(setq native-comp-eln-load-path '("~/.emacs.d/eln-cache/"))
-#+end_src
-
-** Package Manager & Package Sources
-
-To manage downloaded packages, Emacs comes with =package.el= installed. In
-addition, I want to use =use-package=, so let's make sure we have those loaded.
+=package.el= and =use-package= are built in. GNU ELPA and NonGNU ELPA are
+preferred, with MELPA for everything else.
 
 #+begin_src emacs-lisp
 (require 'package)
+(setq package-archives
+      '(("gnu"    . "https://elpa.gnu.org/packages/")
+        ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+        ("melpa"  . "https://melpa.org/packages/"))
+      package-archive-priorities
+      '(("gnu" . 30) ("nongnu" . 20) ("melpa" . 10)))
+(package-initialize)
+
 (require 'use-package)
-(require 'use-package-ensure)
 (setq use-package-always-ensure t)
 #+end_src
 
-Next, I'll set up my package sources. These are very common and well-maintained mirrors.
+** Tangle on save
 
-#+BEGIN_SRC emacs-lisp
-(setq package-archives
-      '(("GNU ELPA"     . "https://elpa.gnu.org/packages/")
-        ("MELPA"        . "https://melpa.org/packages/")
-        ("ORG"          . "https://orgmode.org/elpa/")
-        ("MELPA Stable" . "https://stable.melpa.org/packages/")
-        ("nongnu"       . "https://elpa.nongnu.org/nongnu/"))
-      package-archive-priorities
-      '(("GNU ELPA"     . 20)
-        ("MELPA"        . 15)
-        ("ORG"          . 10)
-        ("MELPA Stable" . 5)
-        ("nongnu"       . 0)))
-(package-initialize)
-#+END_SRC
+Saving this file re-tangles =init.el= and =early-init.el=.
+
+#+begin_src emacs-lisp
+(defun tim/tangle-init ()
+  "Tangle init.org when it is saved."
+  (when (equal (buffer-file-name)
+               (expand-file-name "init.org" user-emacs-directory))
+    ;; Avoid running hooks while tangling.
+    (let ((prog-mode-hook nil))
+      (org-babel-tangle))))
+
+(add-hook 'after-save-hook #'tim/tangle-init)
+#+end_src
 
 * Housekeeping
-** Built-in Options
+** Keep ~/.emacs.d tidy
 
-First, let's set the Emacs user and default directories explicitly:
-
- #+BEGIN_SRC emacs-lisp
- (setq user-emacs-directory "~/.emacs.d/")
- (setq default-directory "~/")
- #+END_SRC
-
- Set UFT-8 as preferred coding system.
-
- #+BEGIN_SRC emacs-lisp
- (set-language-environment    "UTF-8")
- (setq locale-coding-system   'utf-8)
- (prefer-coding-system        'utf-8)
- (set-default-coding-systems  'utf-8)
- (set-terminal-coding-system  'utf-8)
- (set-keyboard-coding-system  'utf-8)
- (set-selection-coding-system 'utf-8)
- #+END_SRC
-
- Don't warn me when opening files unless over 50 MB.
-
- #+begin_src emacs-lisp
- (setq large-file-warning-threshold (* 50 1024 1024))
- #+end_src
-
- From [[https://github.com/jamescherti/minimal-emacs.d/blob/8d975e882026f1433086e6dcf86c1b9acaac61a1/init.el#L159-L173][minimal-emacs.d]], don't create tons of lockfiles or backup files.
-
- #+begin_src emacs-lisp
- (setq create-lockfiles nil)
- (setq make-backup-files nil)
-
- (setq backup-directory-alist
-       `(("." . ,(expand-file-name "backup" user-emacs-directory))))
- (setq tramp-backup-directory-alist backup-directory-alist)
-
- (setq backup-by-copying-when-linked t)
- (setq backup-by-copying             t) ; Backup by copying rather renaming
- (setq delete-old-versions           t) ; Delete excess backup versions silently
- (setq version-control               t) ; Use version numbers for backup files
- (setq kept-new-versions             5)
- (setq kept-old-versions             5)
- #+end_src
-
-** GPG Keys
-
-I want to use the standard GPG keyring for Emacs as well.
-
-#+BEGIN_SRC emacs-lisp
-(setq package-gnupghome-dir "~/.gnupg")
-#+END_SRC
-
-** Local Files
-
-I have a folder with extensions that have been downloaded manually. I'll add these to the =load-path= so Emacs knows where to look for them. My folder is called "local-lisp".
-
-#+BEGIN_SRC emacs-lisp
-  (defvar local-lisp (concat user-emacs-directory "user-lisp/"))
-  (make-directory local-lisp t)
-  (add-to-list 'load-path  local-lisp)
-  (let ((default-directory local-lisp))
-    (normal-top-level-add-subdirs-to-load-path))
-#+END_SRC
-
-I'll initialise some lists to an empty list. I'll add to the lists both in =private.el= and further down in this file, so it's important that the variable already exists.
+[[https://github.com/emacscollective/no-littering][no-littering]] moves the files packages create (history, caches, backups)
+into =var/= and =etc/=. It has to load before other packages.
 
 #+begin_src emacs-lisp
-(setq org-agenda-files '())
-(setq register-alist '())
-(setq projectile-project-search-path '())
-#+end_src
-
-And add custom settings from =custom.el= and private settings from =private.el= if they exist.
-
-#+begin_src emacs-lisp
-(add-hook
- 'after-init-hook
- (lambda ()
-   (let ((private-file (concat user-emacs-directory "private.el"))
-		 (custom-file (concat user-emacs-directory "custom.el")))
-     (when (file-exists-p private-file)
-       (load-file private-file))
-     (when (file-exists-p custom-file)
-       (load-file custom-file))
-     (server-start))))
-#+end_src
-
-** Terminal Setup
-
-Track current directory in shell.
-
-#+begin_src emacs-lisp
-(dirtrack-mode t)
-#+end_src
-
-*** DWIM Shell Commands
-
- [[https://github.com/xenodium/dwim-shell-command][DWIM Shell Commands]] ("Do What I Mean" shell commands) are a collection of command-line utilities integrated with Emacs. We'll load the optional package with pre-configured commands as well.
-
- #+begin_src emacs-lisp
- (use-package dwim-shell-command
-   :defer t
-   :init (require 'dwim-shell-commands))
- #+end_src
-
-* Custom Keybindings
-** Custom Keymap
-
-I keep a custom keybinding map that I add to per package, and then activate at
-the end of the configuration. This keeps my custom bindings from being
-overwritten by extensions' own bindings.
-
-The first step is to create the custom keybinding map. We'll add bindings to it
-throughout the config, and then activate it at the end of the config file, at
-[[#activating-custom-keybindings][Activating Custom Keybindings]].
-
-#+begin_src emacs-lisp
-(defvar custom-bindings-map (make-keymap)
-  "A keymap for custom keybindings.")
-#+end_src
-
-# ** Mac OS Modifier Keys
-
-# On a Mac, I would want to add some specific settings. As a note to myself, I
-# have the following settings in Mac OS:
-
-# #+begin_src
-# caps-lock -> control (ctrl)
-# control   -> control (ctrl)
-# option    -> option  (alt)
-# command   -> command (meta)
-# #+end_src
-
-# #+begin_src emacs-lisp
-# (setq mac-command-modifier       'meta
-#       mac-right-command-modifier 'meta
-#       mac-option-modifier        nil
-#       mac-right-option-modifier  nil)
-# #+end_src
-
-** Unbind Some Default Keys
-
-Some of the default keybindings are annoying, so let's unbind them.
-
-I never mean to press =C-x C-z=, which hides the current Emacs frame.
-
-# I also don't like using =C-<wheel up/down>= to zoom, which I often do accidentally.
-
-And I never want to suspend the Emacs frame with =C-z=.
-
-#+begin_src emacs-lisp
-  (global-unset-key (kbd "C-x C-z"))
-  ;; (global-unset-key (kbd "C-<wheel-up>"))
-  ;; (global-unset-key (kbd "C-<wheel-down>"))
-  (global-unset-key (kbd "C-z"))
-#+end_src
-
-* Visuals
-** Decluttering
-
-Let's declutter a little. This should have gone into =early-init.el=, but I get
-strange compilation warnings (optimiser says there's too much on the stack).
-
-Comment this region for now - might unclutter later.
-
-# #+begin_src emacs-lisp
-# (dolist (mode
-#          '(tool-bar-mode       ;; Remove toolbar
-#            scroll-bar-mode     ;; Remove scollbars
-#            menu-bar-mode))     ;; Remove menu bar
-#   (funcall mode 0))
-# #+end_src
-
-This wouldn't go into =early-init= anyways.
-
-#+begin_src emacs-lisp
-(setq inhibit-startup-message           t       ;; No startup message
-      inhibit-startup-echo-area-message t       ;; No startup message in echo area
-      inhibit-startup-screen            t       ;; No default startup screen
-      ;; initial-buffer-choice             t       ;; *scratch* is default startup buffer
-      initial-major-mode                'fundamental-mode
-      ring-bell-function                'ignore ;; No bell
-      display-time-default-load-average nil     ;; Don't show me load time
-      scroll-margin                     0       ;; Space between top/bottom
-      use-dialog-box                    nil)    ;; Disable dialog
-#+end_src
-
-** Frames & Windows
-*** Open in Fullscreen
-
-When I open Emacs, I want it to open maximised and fullscreen by default.
-
-#+BEGIN_SRC emacs-lisp
-;; (add-to-list 'default-frame-alist     '(fullscreen . maximized))
-;; (add-hook 'window-setup-hook          'toggle-frame-fullscreen t)  ;; F11
-#+END_SRC
-
-*** Frame Transparency
-
-This doesn't work ideally, but it does the job. I use it very rarely.
-
-#+begin_src emacs-lisp
- (defun toggle-transparency ()
-   (interactive)
-   (let ((alpha (frame-parameter nil 'alpha)))
-     (set-frame-parameter
-      nil 'alpha
-      (if (eql (cond ((numberp alpha) alpha)
-                     ((numberp (cdr alpha)) (cdr alpha))
-                     ;; Also handle undocumented (<active> <inactive>) form.
-                     ((numberp (cadr alpha)) (cadr alpha)))
-               100)
-          '(90 . 55) '(100 . 100)))))
- (global-set-key (kbd "C-c h t") 'toggle-transparency)
-#+end_src
-
-*** Frame Border
-
-I want a small border around the whole frame, because I think it looks nicer.
-
-#+BEGIN_SRC emacs-lisp
-(add-to-list 'default-frame-alist '(internal-border-width . 16))
-#+END_SRC
-
-Some settings to fringes.
-
-#+begin_src emacs-lisp
-(set-fringe-mode 10)                          ;; Set fringe width to 10
-
-(setq-default fringes-outside-margins nil)
-(setq-default indicate-buffer-boundaries nil) ;; Otherwise shows a corner icon on the edge
-(setq-default indicate-empty-lines nil)       ;; Otherwise there are weird fringes on blank lines
-
-(set-face-attribute 'header-line t :inherit 'default)
-#+end_src
-
-*** Plain Title Bar on GNOME
-
-# On GNOME, I can't get a transparent/native title bar. But I can remove the text from the middle, so it's completely plain.
-
-# #+begin_src emacs-lisp
-# (when (eq system-type 'gnu/linux)
-#   ; don't show buffer name in title bar
-#   (setq frame-title-format nil)
-#   ; no title bar
-#   (add-to-list 'default-frame-alist '(undecorated . t))
-#   ; add small border to enable drag/resize
-#   (add-to-list 'default-frame-alist '(drag-internal-border . 1)))
-# #+end_src
-
-** Programming-Specific Visuals
-*** Cursor
-
-I prefer a non-blinking bar cursor (over a block cursor).
-
-#+begin_src emacs-lisp
-(blink-cursor-mode        0)
-(setq-default cursor-type 'bar)
-#+end_src
-
-Also, don't render cursors or regions in non-focused windows.
-
- #+begin_src emacs-lisp
- (setq-default cursor-in-non-selected-windows nil)
- (setq highlight-nonselected-windows          nil)
- #+end_src
-
-Having a thin cursor can make it hard to see where you are after switching buffers or jumping around. [[https://github.com/Malabarba/beacon][Beacon]] highlights your cursor temporarily, which immediately answers the question "Woah, where am I now?"
-
-#+begin_src emacs-lisp
-(use-package beacon
-  :defer t
-  :init  (beacon-mode 1)
-  :bind (:map custom-bindings-map ("C-:" . beacon-blink))
+(use-package no-littering
+  :demand t
   :config
-  (setq beacon-blink-when-window-scrolls nil))
+  (no-littering-theme-backups))
 #+end_src
 
-*** Styling Delimiters
-
-When coding, I want my delimiters (parentheses, brackets, etc.) to be colourised
-in pairs. [[https://github.com/Fanael/rainbow-delimiters/tree/7919681b0d883502155d5b26e791fec15da6aeca][rainbow-delimiters]] does exactly that.
+Customize writes to its own file, and personal settings that shouldn't be in
+git (API keys, calendar IDs) go in =private.el=. Both are git-ignored.
 
 #+begin_src emacs-lisp
-(use-package rainbow-delimiters
-  :hook (prog-mode-hook . rainbow-delimiters-mode))
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(dolist (file (list custom-file
+                    (expand-file-name "private.el" user-emacs-directory)))
+  (when (file-exists-p file)
+    (load file nil t)))
 #+end_src
 
-Also, please highlight matching parentheses/delimiters.
+** Built-in options
 
 #+begin_src emacs-lisp
-(show-paren-mode t) ;; Highlight matching parentheses
+(setq create-lockfiles             nil
+      ring-bell-function           'ignore
+      use-dialog-box               nil
+      use-short-answers            t
+      sentence-end-double-space    nil
+      echo-keystrokes              0.1
+      recentf-max-saved-items      1000
+      auto-revert-verbose          nil
+      global-auto-revert-non-file-buffers t
+      save-interprogram-paste-before-kill t
+      large-file-warning-threshold (* 50 1024 1024))
+
+(setq-default indent-tabs-mode nil
+              tab-width        4
+              fill-column      80)
+
+(set-language-environment "UTF-8")
+(setq default-input-method nil)
+
+(delete-selection-mode   1) ;; Typing replaces the selection
+(global-auto-revert-mode 1) ;; Reload files changed on disk (e.g. by sync)
+(recentf-mode            1) ;; Remember recently opened files
+(savehist-mode           1) ;; Remember minibuffer history
+(save-place-mode         1) ;; Reopen files where I left off
+(global-so-long-mode     1) ;; Stay fast on files with very long lines
 #+end_src
 
-*** Line Numbers
+** Server
 
-I usually only need line numbers in programming mode.
-
-#+BEGIN_SRC emacs-lisp
-(add-hook 'prog-mode-hook 'display-line-numbers-mode)
-#+END_SRC
-
-Also, set the default line number width to 3. This prevents the fringe "jumping" when switching from 2-digit line numbers to 3. I could set it to 4, but I don't want that much space taken up by default, since not all files will be 1000+ lines, while many files are 100+ lines.
+With the systemd user service (=systemctl --user enable --now emacs=), Emacs
+already runs as a daemon. Otherwise, start a server so =emacsclient= works.
 
 #+begin_src emacs-lisp
+(require 'server)
+(unless (or (daemonp) (server-running-p))
+  (server-start))
+#+end_src
+
+* Look
+** Frames and scrolling
+
+#+begin_src emacs-lisp
+(blink-cursor-mode 0)
+(setq-default cursor-type 'bar
+              cursor-in-non-selected-windows nil)
+
+(column-number-mode 1)
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
 (setq-default display-line-numbers-width 3)
-#+end_src
 
-*** Uniquify Buffers
-
-When opening the files =foo/bar/name= and =baz/bar/name=, use forward slashes to
-distinguish them. Default behaviour is angle brackets, which would yield =name<foo/bar>= and =name<baz/bar>=..
-
-#+begin_src emacs-lisp
-(require 'uniquify)
-(setq uniquify-buffer-name-style 'forward)
-#+end_src
-
-*** Highlight Long Lines
-
-Highlight lines over 120 characters long.
-
-#+begin_src emacs-lisp
-(setq my-whitespace-style '(face tabs lines-tail)
-      whitespace-style my-whitespace-style
-      whitespace-line-column 120
-      fill-column 120
-      whitespace-display-mappings
-      '((space-mark 32 [183] [46])
-        (newline-mark 10 [36 10])
-        (tab-mark 9 [9655 9] [92 9])))
-
-;; in e.g. clojure-mode-hook
-;; (whitespace-mode 1)
-;; or globally
-;; (global-whitespace-mode 1)
-(add-hook 'prog-mode 'whitespace-mode)
+;; Smooth, pixel-precise scrolling (works well on pgtk/Wayland).
+(pixel-scroll-precision-mode 1)
+(setq scroll-conservatively         101
+      mouse-wheel-progressive-speed nil
+      mouse-wheel-scroll-amount     '(1 ((shift) . 3) ((meta) . 6)))
 #+end_src
 
 ** Fonts
-*** Default, Fixed, and Variable Fonts
 
-Please note that I scale and set Org-specific faces in the [[#visuals-1][Org > Visuals]] section.
-
-For the fixed-pitch font, I'm using the excellent [[https://github.com/weiweihuanghuang/fragment-mono][Fragment Mono]], which
-has great ligature support.
-
-I have Open Sans configured as my variable-pitch font.
+Inter for prose (=variable-pitch=) and JetBrains Mono for code
+(=default= and =fixed-pitch=). Org buffers will mix them in the Org step.
 
 #+begin_src emacs-lisp
 (defvar tim/font-height 115)
 
-(when (member "Fragment Mono" (font-family-list))
-  (set-face-attribute 'default nil :font "Fragment Mono" :height tim/font-height)
-  (set-face-attribute 'fixed-pitch nil :family "Fragment Mono"))
+(defun tim/set-fonts ()
+  "Set fonts, skipping any that aren't installed."
+  (when (member "JetBrains Mono" (font-family-list))
+    (set-face-attribute 'default nil :family "JetBrains Mono" :height tim/font-height)
+    (set-face-attribute 'fixed-pitch nil :family "JetBrains Mono" :height 1.0))
+  (when (member "Inter" (font-family-list))
+    (set-face-attribute 'variable-pitch nil :family "Inter" :height 1.05)))
 
-(when (member "Open Sans" (font-family-list))
-  (set-face-attribute 'variable-pitch nil :family "Open Sans"))
+;; Fonts can only be set once a graphical frame exists, which matters when
+;; running as a daemon.
+(if (daemonp)
+    (add-hook 'server-after-make-frame-hook #'tim/set-fonts)
+  (tim/set-fonts))
 #+end_src
 
-*** Mixed Pitch Fonts
-
-[[https://gitlab.com/jabranham/mixed-pitch][mixed-pitch]] allows you to mix fixed and variable pitched faces in Org and LaTeX mode.
-
-#+begin_src emacs-lisp
-(use-package mixed-pitch
-  :defer t
-  :hook ((org-mode   . mixed-pitch-mode)
-         (LaTeX-mode . mixed-pitch-mode)))
-#+end_src
-
-*** Ligatures
-
-The package =ligature.el= provides support for displaying the ligatures of
-fonts that already have ligatures. Mine does, and seems to work just fine out
-of the box with the ligatures defined on the package's page,
-
-#+begin_src emacs-lisp
-(defvar ligature-def '("|||>" "<|||" "<==>" "<!--" "####" "~~>" "***" "||=" "||>"
-                       ":::" "::=" "=:=" "===" "==>" "=!=" "=>>" "=<<" "=/=" "!=="
-                       "!!." ">=>" ">>=" ">>>" ">>-" ">->" "->>" "-->" "---" "-<<"
-                       "<~~" "<~>" "<*>" "<||" "<|>" "<$>" "<==" "<=>" "<=<" "<->"
-                       "<--" "<-<" "<<=" "<<-" "<<<" "<+>" "</>" "###" "#_(" "..<"
-                       "..." "+++" "/==" "///" "_|_" "www" "&&" "^=" "~~" "~@" "~="
-                       "~>" "~-" "**" "*>" "*/" "||" "|}" "|]" "|=" "|>" "|-" "{|"
-                       "[|" "]#" "::" ":=" ":>" ":<" "$>" "==" "=>" "!=" "!!" ">:"
-                       ">=" ">>" ">-" "-~" "-|" "->" "--" "-<" "<~" "<*" "<|" "<:"
-                       "<$" "<=" "<>" "<-" "<<" "<+" "</" "#{" "#[" "#:" "#=" "#!"
-                       "##" "#(" "#?" "#_" "%%" ".=" ".-" ".." ".?" "+>" "++" "?:"
-                       "?=" "?." "??" ";;" "/*" "/=" "/>" "//" "__" "~~" "(*" "*)"
-                       "\\\\" "://"))
-
-(use-package ligature
-  :config
-  (ligature-set-ligatures 'prog-mode ligature-def)
-  (global-ligature-mode t))
-#+end_src
-
-*** Zoom
-
-The default zoom step is a little much on my Linux (Gnome 46) laptop, so let's decrease it a little from its default value of 1.2.
-
-#+begin_src emacs-lisp
-(setq text-scale-mode-step 1.1)
-#+end_src
-
-Beyond that, I often want to scale *all* the text in the UI when I change text size. Purcell's [[https://github.com/purcell/default-text-scale][default-text-scale]] does that, so I'll rebind the standard =C-x C-+=, =C-x C--= and =C-x C-0= to the =default-text-scale= functions.
-
-#+begin_src emacs-lisp
-(use-package default-text-scale
-  :defer t
-  :bind (:map custom-bindings-map
-              ("C-x C-+" . default-text-scale-increase)
-              ("C-x C--" . default-text-scale-decrease)
-              ("C-x C-0" . default-text-scale-reset)))
-#+end_src
-
-** Icons & Emojis
-
-Add =nerd-icons=.
+** Icons
 
 #+begin_src emacs-lisp
 (use-package nerd-icons)
 #+end_src
 
-I don't think I want this, but let's leave this in place for now.
-# I also want to be able to display emojis with the Apple emoji font. I usually
-# don't use it, though, so I won't activate the global mode.
+** Theme
 
-# #+BEGIN_SRC emacs-lisp
-# (use-package emojify
-#   :config
-#   (when (member "Apple Color Emoji" (font-family-list))
-#     (set-fontset-font
-#       t 'symbol (font-spec :family "Apple Color Emoji") nil 'prepend)))
-# #+END_SRC
+=doom-nord= from [[https://github.com/doomemacs/themes][doom-themes]], with its Org tweaks enabled.
+=doom-nord-aurora= is a warmer variant to try with =M-x consult-theme=.
 
-** Themes
-
-I really like the =doom-themes= package, in particular their port of the [[https://www.nordtheme.com/][Nord theme]].
-
-#+BEGIN_SRC emacs-lisp
+#+begin_src emacs-lisp
 (use-package doom-themes
+  :demand t
   :config
-  (setq doom-themes-enable-bold t     ; if nil, bold is universally disabled
-        doom-themes-enable-italic t)) ; if nil, italics is universally disabled
-#+END_SRC
+  (setq doom-themes-enable-bold   t
+        doom-themes-enable-italic t)
+  (load-theme 'doom-nord t)
+  (doom-themes-org-config))
 
-I also have a custom light theme I'm working on called South. Let's pull it down from GitHub.
+;; Fully unload the previous theme when switching, so faces don't mix.
+(defun tim/disable-themes (&rest _)
+  (mapc #'disable-theme custom-enabled-themes))
+(advice-add 'load-theme :before #'tim/disable-themes)
+#+end_src
+
+* Editing
 
 #+begin_src emacs-lisp
-(use-package south-theme
-  :vc (:url "https://github.com/SophieBosio/south"
-       :rev :newest
-       :branch "main"))
+(electric-pair-mode 1)   ;; Insert matching brackets and quotes
+(show-paren-mode    1)   ;; Highlight matching brackets
+(add-hook 'text-mode-hook #'visual-line-mode)
+
+;; C-/ undoes, C-? redoes.
+(global-set-key (kbd "C-?") #'undo-redo)
 #+end_src
 
-And I don't want Emacs to ask me before changing to one of the themes I've used before.
+** Spell checking
 
-#+begin_src emacs-lisp
-(setq custom-safe-themes t)
-#+end_src
-
-*** Default Dark & Light Themes
-
-My favourite dark theme is =doom-nord=. I haven't been able to find any light themes I really love, so I made South to act as Nord's bright counterpart. I'll set these two as my default dark and light themes respectively, and load the dark theme by default.
-
-I'll also define a default accent colour, which is used in packages like =eval-sexp-fu=, or wherever I need to define a popping colour outside the theme itself.
-
-#+begin_src emacs-lisp
-(defvar tim/default-dark-theme  'doom-nord)
-(defvar tim/default-light-theme 'south)
-
-(defvar tim/default-dark-accent-colour  "SkyBlue4")
-(defvar tim/default-light-accent-colour "#D9EDFC")
-
-(load-theme tim/default-dark-theme t)
-#+end_src
-
-*** Changing Theme With System Theme
-
-[[https://github.com/LionyxML/auto-dark-emacs][auto-dark-emacs]] is a package for switching themes with the system theme. It works both on Linux and on MacOS.
-
-In the hook, I'll set the colour of the =eval-sexp-fu= flash to the =default-{dark/light}-accent-colour=.
-
-For some reason, my light themes leave some fragments that disappear when I load the theme twice, so I'll do that too.
-
-#+begin_src emacs-lisp
-(use-package autothemer
-  :defer t)
-
-(use-package auto-dark
-  :ensure t
-  :hook ((auto-dark-dark-mode
-          .
-          (lambda ()
-            (interactive)
-            (progn
-              (custom-set-faces
-               `(eval-sexp-fu-flash
-                 ((t (:background
-                      ,tim/default-dark-accent-colour)))))
-              `(load-theme ,tim/default-dark-theme t))))
-         (auto-dark-light-mode
-          .
-          (lambda ()
-            (interactive)
-            (progn
-              (custom-set-faces
-               `(eval-sexp-fu-flash
-                 ((t (:background
-                      ,tim/default-light-accent-colour)))))
-              `(load-theme ,tim/default-light-theme t)))))
-  :custom
-  (auto-dark-themes                   `((,tim/default-dark-theme) (,tim/default-light-theme)))
-  (auto-dark-polling-interval-seconds 5)
-  (auto-dark-allow-osascript          t)
-  :init (auto-dark-mode t))
-#+end_src
-
-We can even change the system theme from within Emacs using a [[https://github.com/xenodium/dwim-shell-command/][dwim-shell-command]] for Mac OS. The Gnome extension [[https://nightthemeswitcher.romainvigier.fr/][Night Theme Switcher]] takes care of things on my Linux machine.
-
-#+begin_src emacs-lisp
-(when (eq system-type 'darwin)
-  (define-key custom-bindings-map (kbd "M-T") 'dwim-shell-commands-macos-toggle-dark-mode))
-#+end_src
-
-*** Conflict-Free Theme Changing
-
-When changing themes interactively, as with =M-x load-theme=, the current custom theme is not disabled and this causes some weird issues. For example, the borders around posframes disappear. [[https://github.com/larstvei/dot-emacs?tab=readme-ov-file#advice][This snippet]] from Lars' config advises =load-theme= to always disable the currently enabled themes before switching.
-
-#+begin_src emacs-lisp
-(defun disable-custom-themes (theme &optional no-confirm no-enable)
-  (mapc 'disable-theme custom-enabled-themes))
-
-(advice-add 'load-theme :before #'disable-custom-themes)
-#+end_src
-
-** Mode Line
-*** Column Number
-
-Show current column number in mode line.
-
-#+begin_src emacs-lisp
-(column-number-mode t) ;; Show current column number in mode line
-#+end_src
-
-*** Custom Mode Line
-
-Customising the default mode line is thankfully pretty easy. Note that I use the
-[[https://github.com/rainstormstudio/nerd-icons.el][nerd-icons]] package for the VC branch symbol in the code below. I've also
-borrowed some code from [[https://amitp.blogspot.com/2011/08/emacs-custom-mode-line.html][this blog post]] by Amit Patel on writing a custom mode
-line.
-
-This mode line is heavily inspired by Nicolas Rougier's [[https://github.com/rougier/nano-modeline][Nano Modeline]] and he
-even helped me figure out [[https://www.reddit.com/r/emacs/comments/18ktlkg/comment/kdx3aam/?context=3][how to add vertical padding]] to it.
-
-It has this shape:
-=[ lambda <filename> <git branch name>                <LSP code actions> LLLL:CCCC ]=
-
-Here's a screenshot of a small window where the mode line shows well. The number and a little star icon in the bottom right to tell me how many LSP code actions are available at point.
-
-[[./images/mode-line-screenshot.png]]
-
-#+begin_src emacs-lisp
-(defvar lsp-modeline--code-actions-string nil)
-
-(setq-default mode-line-format
-  '("%e"
-	(:propertize " " display (raise +0.4)) ;; Top padding
-	(:propertize " " display (raise -0.4)) ;; Bottom padding
-
-	(:propertize "λ " face font-lock-comment-face)
-	mode-line-frame-identification
-	mode-line-buffer-identification
-
-	;; Version control info
-	(:eval (when-let (vc vc-mode)
-			 ;; Use a pretty branch symbol in front of the branch name
-			 (list (propertize "  ⎇ " 'face 'font-lock-comment-face)
-                   ;; Truncate branch name to 50 characters
-				   (propertize (truncate-string-to-width
-                                (substring vc 5) 50)
-							   'face 'font-lock-comment-face))))
-
-	;; Add space to align to the right
-	(:eval (propertize
-			 " " 'display
-			 `((space :align-to
-					  (-  (+ right right-fringe right-margin)
-						 ,(+ 3
-                             (string-width (or lsp-modeline--code-actions-string ""))
-                             (string-width "%4l:3%c")))))))
-
-    ;; LSP code actions
-    (:eval (or lsp-modeline--code-actions-string ""))
-	
-	;; Line and column numbers
-	(:propertize "%4l:%c" face mode-line-buffer-id)))
-#+end_src
-
-*** Hide Mode Line
-
-[[https://github.com/hlissner/emacs-hide-mode-line][hide-mode-line-mode]] is extracted from Doom Emacs, and does what it says on the tin. It can also be added to hooks to hide the mode line in certain modes. I have it bound to =C-c h m= - mneumonically "User command: Hide Modeline".
-
-#+begin_src emacs-lisp
-(use-package hide-mode-line
-  :defer t
-  :bind (:map custom-bindings-map ("C-c h m" . hide-mode-line-mode)))
-#+end_src
-
-** Text Display Modes
-*** Olivetti
-
-[[https://github.com/rnkn/olivetti][Olivetti]] is a minor mode for centering text. For convenience, I'll bind it to =C-c o= to activate/deactivate it on the fly.
-
-#+BEGIN_SRC emacs-lisp
-(use-package olivetti
-  :defer t
-  :config
-  (setq olivetti-style t))
-#+END_SRC
-
-*** Adaptive Wrap
-
-In addition, I use [[https://elpa.gnu.org/packages/adaptive-wrap.html][adaptive-wrap]] to visually wrap lines.
-
-#+begin_src emacs-lisp
-(use-package adaptive-wrap
-  :defer t
-  :hook (visual-line-mode . adaptive-wrap-prefix-mode))
-#+end_src
-
-*** Writeroom Mode
-
-[[https://github.com/joostkremers/writeroom-mode][Writeroom Mode]] gives you a distraction-free writing environment.
-
-#+begin_src emacs-lisp
-(use-package writeroom-mode
-  :defer t)
-#+end_src
-
-*** Focus
-
- [[https://github.com/larstvei/Focus][Focus]] dims surrounding text in a semantic manner (sentences,
- paragraphs, sections, code blocks, etc.) making it easier to, well,
- focus. I find this especially helpful when editing LaTeX.
-
- #+begin_src emacs-lisp
- (use-package focus
-   :defer t)
- #+end_src
-
-* General Editing
-** Built-In Options
-
-#+BEGIN_SRC emacs-lisp
-(delete-selection-mode   t) ;; Replace selected text when yanking
-(global-so-long-mode     t) ;; Mitigate performance for long lines
-(global-visual-line-mode t) ;; Break lines instead of truncating them
-(global-auto-revert-mode t) ;; Revert buffers automatically when they change
-(recentf-mode            t) ;; Remember recently opened files
-(savehist-mode           t) ;; Remember minibuffer prompt history
-(save-place-mode         t) ;; Remember last cursor location in file
-#+END_SRC
-
-#+BEGIN_SRC emacs-lisp
-(setq auto-revert-interval         1         ;; Refresh buffers fast
-      auto-revert-verbose          nil       ;; Don't notify me about reverts
-      echo-keystrokes              0.1       ;; Show keystrokes fast
-      frame-inhibit-implied-resize 1         ;; Don't resize frame implicitly
-      sentence-end-double-space    nil       ;; No double spaces
-      recentf-max-saved-items      1000      ;; Show more recent files
-      use-short-answers            t         ;; 'y'/'n' instead of 'yes'/'no' etc.
-      save-interprogram-paste-before-kill t  ;; Save copies between programs
-      history-length               25        ;; Only save the last 25 minibuffer prompts
-      global-auto-revert-non-file-buffers t) ;; Revert Dired and other buffers
-#+END_SRC
-
-#+BEGIN_SRC emacs-lisp
-(setq-default tab-width 4)  ;; Smaller tabs
-#+END_SRC
-
-** Scrolling
-
-I want scrolling to be a *lot* slower than it is by default.
-
-#+begin_src emacs-lisp
-(setq scroll-conservatively            101
-      mouse-wheel-follow-mouse         't
-      mouse-wheel-progressive-speed    nil
-      ;; Scroll 1 line at a time, instead of default 5
-      ;; Hold shift to scroll faster and meta to scroll very fast
-      mouse-wheel-scroll-amount        '(1 ((shift) . 3) ((meta) . 6)))
-#+end_src
-
-And I want it to be smooth!
-
-#+begin_src emacs-lisp
-(pixel-scroll-mode)
-(pixel-scroll-precision-mode)
-
-(setq mac-redisplay-dont-reset-vscroll t
-      mac-mouse-wheel-smooth-scroll    nil)
-#+end_src
-
-** Tabs & Indentation
-
-One of the things that drove me the most insane when I first downloaded Emacs,
-was the way it deals with indentation.
-
-I want to use spaces instead of tabs. But if I'm working on a project that does
-use tabs, I don't want to mess with other people's code, so I've used this
-[[https://www.emacswiki.org/emacs/NoTabs][snippet]] from the Emacs Wiki to infer indentation style.
-
-#+begin_src emacs-lisp
-(defun infer-indentation-style ()
-  "Default to no tabs, but use tabs if already in project"
-  (let ((space-count (how-many "^  " (point-min) (point-max)))
-        (tab-count   (how-many "^\t" (point-min) (point-max))))
-    (if (> space-count tab-count) (setq-default indent-tabs-mode nil))
-    (if (> tab-count space-count) (setq-default indent-tabs-mode t))))
-
-(setq-default indent-tabs-mode nil)
-(infer-indentation-style)
-#+end_src
-
-# Set backtab to =indent-rigidly-left=. Then I can easily unindent regions that use
-# spaces instead of tabs.
-
-# #+begin_src emacs-lisp
-# (define-key custom-bindings-map (kbd "<backtab>") 'indent-rigidly-left)
-# #+end_src
-
-And finally, make backspace remove the whole tab instead of just deleting one space.
-
-#+begin_src emacs-lisp
-(setq backward-delete-char-untabify-method 'hungry)
-#+end_src
-
-** Deleting Instead of Killing
-
-Another thing that bothered me, was how the =backward-kill-word= command
-(C-delete/backspace) would delete not only trailing backspaces, but everything
-behind it until it had deleted a word. Additionally, this was automatically
-added to the kill ring. With this the help of some regexps, it behaves more like normal Ctrl-Backspace.
-
-The code is taken from [[https://emacs.stackexchange.com/a/30404][this]] and [[https://stackoverflow.com/a/12990359][this]] Stack Exchange/Overflow post.
-
-#+BEGIN_SRC emacs-lisp
-(defun tim/delete-dont-kill (arg)
-  "Delete characters backward until encountering the beginning of a word.
-   With argument ARG, do this that many times. Don't add to kill ring."
-  (interactive "p")
-  (delete-region (point) (progn (backward-word arg) (point))))
-
-(defun tim/backward-delete ()
-  "Delete a word, a character, or whitespace."
-  (interactive)
-  (cond
-   ;; If you see a word, delete all of it
-   ((looking-back (rx (char word)) 1)
-    (tim/delete-dont-kill 1))
-   ;; If you see a single whitespace and a word, delete both together
-   ((looking-back (rx (seq (char word) (= 1 blank))) 1)
-	(tim/delete-dont-kill 1))
-   ;; If you see several whitespaces, delete them until the next word
-   ((looking-back (rx (char blank)) 1)
-    (delete-horizontal-space t))
-   ;; If you see a single non-word character, delete that
-   (t
-    (backward-delete-char-untabify 1))))
-#+END_SRC
-
-Let's bind this in my custom keybindings map.
-
-#+begin_src emacs-lisp
-(define-key custom-bindings-map [C-backspace] 'tim/backward-delete)
-#+end_src
-
-** Browse Kill Ring
-
-Speaking of killing text, it's nice to be able to browse the kill ring.
-
-#+begin_src emacs-lisp
-(use-package browse-kill-ring
-  :defer t)
-#+end_src
-
-** Auto-Saving
-
-To avoid clutter, let's put all the auto-saved files into one and the same directory.
-
-#+BEGIN_SRC emacs-lisp
-(defvar emacs-autosave-directory
-  (concat user-emacs-directory "autosaves/")
-  "This variable dictates where to put auto saves. It is set to a
-  directory called autosaves located wherever your .emacs.d/ is
-  located.")
-
-;; Sets all files to be backed up and auto saved in a single directory.
-(setq backup-directory-alist
-      `((".*" . ,emacs-autosave-directory))
-      auto-save-file-name-transforms
-      `((".*" ,emacs-autosave-directory t)))
-#+END_SRC
-
-I prefer having my files save automatically. Any changes I don't want, I just
-don't commit to git. I use =auto-save-buffers-enhanced= to automatically save all
-buffers, not just the ones I have open.
-
-But since saving this file - the =init.org=-file - triggers recompilation of
-=init.el=, it's really annoying if this file is autosaved when I write to it.
-Therefore, I'll disable automatic saving for this file in particular.
-
-Normally, I have auto-saving on for programming, but it's super annoying when writing JS/TS because it keeps reformatting my code as I type. So let's turn it off and save manually instead.
-
-#+BEGIN_SRC emacs-lisp
-(use-package auto-save-buffers-enhanced
-  :ensure t
-  :config
-  (auto-save-buffers-enhanced t)
-  (setq auto-save-buffers-enhanced-exclude-regexps
-        '("init.org"
-          "\\(\\.js\\|\\.ts\\|\\.jsx\\|\\.tsx\\|\\.html\\)$")))
-#+END_SRC
-
-** Move Where I Mean
-
-[[https://github.com/alezost/mwim.el][mwim]] (Move Where I Mean) takes semantics and indentation into account. This lets us rebind =C-a= and =C-e= to move to the beginning and end of a line while respecting indentation. I.e., don't move to the actual beginning of the line, but to indentation.
-
-#+begin_src emacs-lisp
-(use-package mwim
-  :ensure t
-  :bind (:map custom-bindings-map
-              ("C-a" . mwim-beginning-of-code-or-line)
-              ("C-e" . mwim-end-of-code-or-line)))
-#+end_src
-
-** Text Editing Functions
-*** Expand Region
-
-[[https://github.com/magnars/expand-region.el][expand-region]] expand the region (selected text) with semantic units (e.g.,
-symbol, word, sentence, paragraph). It's super handy!
-
-=M-q= is bound to =fill-paragraph=. I don't use that binding, but you might want to bind this to a different key combo if you do.
-
-#+begin_src emacs-lisp
-(use-package expand-region
-  :defer t
-  :bind (:map custom-bindings-map
-              ("C-}" . er/expand-region)
-              ("C-{" . er/contract-region)))
-#+end_src
-
-*** Filling/Unfilling
-
-In Emacs, paragraphs can be padded by a bunch of newlines, meaning a what looks like a normal paragraph in Emacs (one line) is actually several lines with =\n= all over. This function removes those and makes the selected region one line again.
-
-#+begin_src emacs-lisp
-;;; Stefan Monnier <foo at acm.org>. It is the opposite of fill-paragraph
-(defun unfill-paragraph (&optional region)
-  "Takes a multi-line paragraph and makes it into a single line of text."
-  (interactive (progn (barf-if-buffer-read-only) '(t)))
-  (let ((fill-column (point-max))
-		;; This would override `fill-column' if it's an integer.
-		(emacs-lisp-docstring-fill-column t))
-	(fill-paragraph nil region)))
-;; Handy key definition
-(define-key custom-bindings-map (kbd "C-c n q") 'unfill-paragraph)
-#+end_src
-
-*** Multiple Cursors & Symbol Overlay
-
-[[https://github.com/magnars/multiple-cursors.el][multiple-cursors]] makes life so much easier! I often use it to create several cursors directly above one another. I'll trust myself to wield this power responsibly and set the variable =mc/always-run-for-all= to =t=, which disables the default behaviour prompting the user for confirmation when trying to do certain things with the multiple cursors.
-
-#+begin_src emacs-lisp
-(use-package multiple-cursors
-  :defer t
-  :functions
-  mc/remove-fake-cursors
-  mc/save-excursion
-  mc/create-fake-cursor-at-point
-  mc/maybe-multiple-cursors-mode
-  :bind (:map custom-bindings-map
-              ("M-n" . mc/mark-next-like-this)
-              ("M-p" . mc/mark-previous-like-this))
-  :config
-  (setq mc/always-run-for-all t))
-#+end_src
-
-[[https://github.com/wolray/symbol-overlay][symbol-overlay]] highlights all occurrences of the symbol at point and allows to jump between them.
-
-#+begin_src emacs-lisp
-(use-package symbol-overlay
-  :defer t
-  :functions
-  symbol-overlay-put
-  symbol-overlay-mode
-  :hook (prog-mode . symbol-overlay-mode)
-  :bind (:map custom-bindings-map
-              ("C-:" . symbol-overlay-put)
-              ("M-N" . symbol-overlay-jump-next)
-              ("M-P" . symbol-overlay-jump-prev)))
-#+end_src
-
-[[https://xenodium.com/its-all-up-for-grabs-and-it-compounds/][In his blog post]], Alvaro Ramirez (AKA Xenodium) demonstrates one of the best things in Emacs: Seeing things that are almost the way you want them and tweaking them with Elisp so they become that. He takes multiple-cursors and symbol-overlay and combines them. and Ramirez wrote a function that lets symbol-overlay communicate to multiple-cursors that this is where you should give me cursors. Edit all the things at once!  I think it's great, so let's use it and bind it to =C-;=.
-
-#+begin_src emacs-lisp
-(defun ar/mc-mark-all-symbol-overlays ()
-  "Mark all symbol overlays using multiple cursors."
-  (interactive)
-  (mc/remove-fake-cursors)
-  (when-let* ((overlays (symbol-overlay-get-list 0))
-              (point (point))
-              (point-overlay (seq-find
-                              (lambda (overlay)
-                                (and (<= (overlay-start overlay) point)
-                                     (<= point (overlay-end overlay))))
-                              overlays))
-              (offset (- point (overlay-start point-overlay))))
-    (setq deactivate-mark t)
-    (mapc (lambda (overlay)
-            (unless (eq overlay point-overlay)
-              (mc/save-excursion
-               (goto-char (+ (overlay-start overlay) offset))
-               (mc/create-fake-cursor-at-point))))
-          overlays)
-    (mc/maybe-multiple-cursors-mode)))
-
-(define-key custom-bindings-map (kbd "C-M-:") 'ar/mc-mark-all-symbol-overlays)
-#+end_src
-
-*** Undo/Redo
-
-The default "undo until you can redo" behaviour of Emacs still trips me up.
-[[https://github.com/emacsmirror/undo-fu][undo-fu]] lets me specify keys to "only undo" or "only redo".
-
-#+begin_src emacs-lisp
-(use-package undo-fu
-  :defer t
-  :bind (:map custom-bindings-map
-              ("C-_" . undo-fu-only-undo)
-              ("M-_" . undo-fu-only-redo)))
-#+end_src
-
-*** Move Lines
-
-[[https://github.com/wyuenho/move-dup][move-dup]] provides bindings for moving and duplicating whole lines. It's super convenient.
-
-#+begin_src emacs-lisp
-(use-package move-dup
-  :bind (:map custom-bindings-map
-              (("C-S-<up>"    . move-dup-move-lines-up)
-               ("C-S-<down>"  . move-dup-move-lines-down)
-               ("M-W"         . move-dup-duplicate-down))))
-#+end_src
-
-*** Join Lines
-
-The normal =join-line= joins the current line with the line above it. I'm used to joining lines like in PyCharm where =C-J= joins the next line to the end of the current line.
-
-=C-j= is normally bound to =electric-newline-and-maybe-indent= but I use =electric-indent-mode= so I have that behaviour when creating newlines by default, so I feel okay rebinding it.
-
-#+begin_src emacs-lisp
-(define-key custom-bindings-map (kbd "C-j") 'join-line)
-#+end_src
-
-In [[http://whattheemacsd.com/key-bindings.el-03.html][What the .emacs.d!?]], Magnar shows that passing =-1= as the argument to =join-line= changes which line you join with which. This joins the current line with the one /below/ it instead of the one above.
-
-Binding to =C-J= overwrites =org-return-and-maybe-indent= in org mode, but I'm not sure that I use these anywhere.
-
-#+begin_src emacs-lisp
-(define-key custom-bindings-map
-            (kbd "C-J")
-            (lambda ()
-              (interactive)
-              (join-line -1)))
-#+end_src
-
-*** Kill Whole Line
-
-#+begin_src emacs-lisp
-(define-key custom-bindings-map (kbd "C-S-k") 'kill-whole-line)
-#+end_src
-
-** CRUX
-
-[[https://github.com/bbatsov/crux][CRUX]] is a Collection of Ridiculously Useful eXtensions for Emacs. It has a whole bunch of commands and I'd recommend looking into all the things it supports.
-
-I haven't looked into this yet, so I'll just comment it out.
-
-# #+begin_src emacs-lisp
-# (use-package crux
-#   :defer t
-#   :bind (:map custom-bindings-map
-#          ("C-S-<return>" . crux-smart-open-line-above)
-#          ("M-S-<down>"   . crux-duplicate-current-line-or-region)))
-# #+end_src
-
-* Buffers & Navigation
-** Killing Buffers
-
-Sometimes, I'm putting some work away and I don't want those files to show up in
-the buffer list. Killing a buffer with =C-x k= or marking several buffers in the
-buffer list to kill them is fine, but can be a bit cumbersome.
-
-I found this function in a [[https://superuser.com/questions/895920/how-can-i-close-all-buffers-in-emacs][Stack Exchange answer]]. It allows me to close the
-current buffer easily by pressing =C-c k=. If I prefix it, by writing =C-u C-c k=, then
-all "interesting" buffers are killed, leaving internal Emacs buffers intact.
-This cleans up all the buffers I've opened or used myself.
-
-#+begin_src emacs-lisp
-(defun tim/kill-buffer (&optional arg)
-"When called with a prefix argument -- i.e., C-u -- kill all interesting
-buffers -- i.e., all buffers without a leading space in the buffer-name.
-When called without a prefix argument, kill just the current buffer
--- i.e., interesting or uninteresting."
-(interactive "P")
-  (cond
-    ((and (consp arg) (equal arg '(4)))
-      (mapc
-        (lambda (x)
-          (let ((name (buffer-name x)))
-            (unless (eq ?\s (aref name 0))
-              (kill-buffer x))))
-        (buffer-list)))
-    (t
-      (kill-buffer (current-buffer)))))
-
-(define-key custom-bindings-map (kbd "C-c k") 'tim/kill-buffer)
-#+end_src
-
-** Splitting Windows
-
-I want maximum two windows by default. I have a function, taken from [[https://emacs.stackexchange.com/a/40517][this Stack
-Overflow post]], that rewrites the =split-window-sensibly= function to reverse its
-preference and essentially prefer splitting side-by-side.
-
-#+begin_src emacs-lisp
-(defun split-window-sensibly-prefer-horizontal (&optional window)
-"Based on `split-window-sensibly', but prefers to split WINDOW side-by-side."
-  (let ((window (or window (selected-window))))
-    (or (and (window-splittable-p window t)
-         ;; Split window horizontally
-         (with-selected-window window
-           (split-window-right)))
-    (and (window-splittable-p window)
-         ;; Split window vertically
-         (with-selected-window window
-           (split-window-below)))
-    (and
-         ;; If WINDOW is the only usable window on its frame (it is
-         ;; the only one or, not being the only one, all the other
-         ;; ones are dedicated) and is not the minibuffer window, try
-         ;; to split it horizontally disregarding the value of
-         ;; `split-height-threshold'.
-         (let ((frame (window-frame window)))
-           (or
-            (eq window (frame-root-window frame))
-            (catch 'done
-              (walk-window-tree (lambda (w)
-                                  (unless (or (eq w window)
-                                              (window-dedicated-p w))
-                                    (throw 'done nil)))
-                                frame)
-              t)))
-     (not (window-minibuffer-p window))
-     (let ((split-width-threshold 0))
-       (when (window-splittable-p window t)
-         (with-selected-window window
-               (split-window-right))))))))
-
-(defun split-window-really-sensibly (&optional window)
-  (let ((window (or window (selected-window))))
-    (if (> (window-total-width window) (* 2 (window-total-height window)))
-        (with-selected-window window (split-window-sensibly-prefer-horizontal window))
-      (with-selected-window window (split-window-sensibly window)))))
-
-(setq split-window-preferred-function 'split-window-really-sensibly)
-#+end_src
-
-If I have already split the frame into
-two windows and then call a function that opens a new window (for example a
-Magit or a compilation buffer), then I want Emacs to reuse the inactive window
-instead of creating a new one. Setting both =split-height-threshold= and
-=split-width-threshold= to =nil= seems to ensure this.
-
-#+begin_src emacs-lisp
-(setq-default split-height-threshold nil
-              split-width-threshold  nil
-              fill-column            80) ;; Maximum line width
-              ;; window-min-width       80) ;; No smaller windows than this
-#+end_src
-
-** Opening, Closing, & Switching Windows
-
-Opening, switching and deleting windows becomes super easy with [[https://github.com/dimitri/switch-window][switch-window]].
-
-#+begin_src emacs-lisp :tangle no
-(use-package switch-window
-  :bind (:map custom-bindings-map
-              ("C-x o" . 'switch-window)
-              ("C-x 1" . 'switch-window-then-maximize)
-              ("C-x 2" . 'switch-window-then-split-below)
-              ("C-x 3" . 'switch-window-then-split-right)
-              ("C-x 0" . 'switch-window-then-delete)))
-#+end_src
-
-And [[https://www.emacswiki.org/emacs/TransposeFrame][TransposeFrame]] has some nice functions for shifting windows around. I only really use the
-one to swap the left- and right-hand sides of the frame, but there are
-others you might find useful.
-
-#+begin_src emacs-lisp
-(use-package transpose-frame
-  :bind (:map custom-bindings-map
-              ("C-c f" . 'flop-frame)))
-#+end_src
-
-** Projectile
- 
-# [[https://projectile.mx/][Projectile]] provides a convenient project interaction interface. I keep most of
-# my projects in a specific folder, so I'll set Projectile to check that path specifically.
-
-# #+begin_src emacs-lisp
-# (use-package projectile
-#   :defer t
-#   :bind (:map custom-bindings-map
-#               ("C-c p" . projectile-command-map)
-#               ("C-p"   . projectile-command-map))
-#   :config
-#   (add-to-list 'projectile-project-search-path "~/Dropbox/projects/")
-#   (add-to-list 'projectile-project-search-path "~/Dropbox/playground/")
-#   (setq projectile-create-missing-test-files t)
-#   :init
-#   (projectile-mode))
-# #+end_src
-
-** Javelin
-
-[[https://github.com/DamianB-BitFlipper/javelin.el][Javelin]] is inspired by ThePrimeagen's [[https://github.com/ThePrimeagen/harpoon][Harpoon]] for NeoVim.
-
-It gives you the ability to bookmark files and buffers, scoped to projects and even Git branches.
-
-By default, =M-<number>= will assign a buffer to that binding if not already bookmarked, and jump to the bookmark if already bound.
-
-#+begin_src emacs-lisp
-(use-package javelin
-  :ensure t
-  :config
-  (global-javelin-minor-mode 1)
-  :bind (:map javelin-minor-mode-map
-              ("M-+" . javelin-toggle-quick-menu)))
-#+end_src
-
-** IBuffer
-
-=ibuffer= is built-in to Emacs. It shows a list of open buffers and lets you perform lots of useful actions, like sorting and killing buffers.
-
-I was inspired by [[https://tech.tonyballantyne.com/2020/09/26/ibuffer-changed-my-life/][this blog post]] by Tony Ballantyne to tidy up the default =ibuffer= view.
-
-I'd like to tidy it up a bit by organising the buffers by major mode.
-
-#+begin_src emacs-lisp
-(setq ibuffer-saved-filter-groups
-      '(("default"
-         ("Programming"   (predicate . (derived-mode-p 'prog-mode)))
-         ("Clojure/CIDER" (or (name  . "clojure")
-                              (name  . "cider")
-                              (name  . "nrepl")))
-         ("Org"           (mode . org-mode))
-         ("Dired"         (mode . dired-mode))
-         ("Magit"         (name . "magit")))))
-
-(add-hook 'ibuffer-mode-hook
-          (lambda ()
-            (ibuffer-switch-to-saved-filter-groups "default")))
-#+end_src
-
- I also exclude certain system buffers.
-
-#+begin_src emacs-lisp
-(setq ibuffer-never-show-predicates
-      '(;; System buffers
-        "^\\*Messages\\*$"
-        "^\\*scratch\\*$"
-        "^\\*Completions\\*$"
-        "^\\*Help\\*$"
-        "^\\*Apropos\\*$"
-        "^\\*info\\*$"
-        "^\\*Async-native-compile-log\\*$"
-
-        ;; LSP Buffers
-        "^\\*lsp-log\\*$"
-        "^\\*clojure-lsp\\*$"
-        "^\\*clojure-lsp::stderr\\*$"
-        "^\\*ts-ls\\*$"
-        "^\\*ts-ls::stderr\\*$"))
-#+end_src
-
-And finally, I'll remove some columns I don't use.
-
-#+begin_src emacs-lisp
-(setq ibuffer-formats
-      '((mark " " (name 60 -1 :left))))
-#+end_src
-
-** Dired
-
-Emacs's default file manager is nice, but contains a bit more info than I usually need. =dired-hide-details-mode= does what it says on the tin, and I can easily activate/deactivate it on the fly with the default keybinding, =(=.
-
-I'll also bind a few convenience keys. =C-= followed by an arrow moves into a directory/open a file or move up a directory. And lowercase =c= creates/touches a new file and prompts for a name.
-
-The last line is a setting for MacOS telling it to use =gls= when using dired.
-
-#+begin_src emacs-lisp
-(use-package dired
-  :ensure nil
-  :hook (dired-mode . dired-hide-details-mode)
-  :bind (:map dired-mode-map
-              ("C-<right>" . dired-find-alternate-file)
-              ("C-<left>"  . dired-up-directory)
-              ("C-<down>"  . dired-find-alternate-file)
-              ("C-<up>"    . dired-up-directory)
-              ("c"         . dired-create-empty-file))
-  :config
-  (when (and (eq system-type 'darwin) (executable-find "gls"))
-    (setq dired-use-ls-dired nil)))
-#+end_src
-
-From [[https://stackoverflow.com/a/55235833][this StackOverflow post]].
-
-#+begin_src emacs-lisp
-(put 'dired-find-alternate-file 'disabled nil) ; disables warning
-(define-key dired-mode-map (kbd "RET") 'dired-find-alternate-file) ; was dired-advertised-find-file
-(define-key dired-mode-map (kbd "^") (lambda () (interactive) (find-alternate-file "..")))  ; was dired-up-directory
-#+end_src
-
-* Completion
-
-Emacs distinguishes between two different kinds of completion: complete-at-point  (text/code autocomplete) and completing-read (completion of Emacs commands, file names, etc.).
-
-For completing-read, I use [[https://github.com/minad/vertico][Vertico]] and for completion-at-point at use [[https://company-mode.github.io/][Company]]. I also use a few complimentary packages that enhance the experience.
-
-** Vertico
-
-[[https://github.com/minad/vertico][Vertico]] is heart of this completion UI!
-
-I'll use the function from [[http://whattheemacsd.com/setup-ido.el-02.html][this What the .emacs.d!? post]] which lets me type =~= at the Vertico prompt to go directly to the home directory. For use with Vertico, I add a call to =delete-minibuffer-contents= so that old path is cleared before starting the new file path (starting at =~/=).
-
-#+begin_src emacs-lisp
-(defun tim/take-me-home ()
-  (interactive)
-  (if (looking-back "/" nil)
-      (progn (call-interactively 'delete-minibuffer-contents) (insert "~/"))
-    (call-interactively 'self-insert-command)))
-
-(use-package vertico
-  :defer t
-  :bind (:map vertico-map ("~" . tim/take-me-home))
-  :config
-  (vertico-mode)
-  (vertico-multiform-mode)
-  (setq read-extended-command-predicate       'command-completion-default-include-p
-        vertico-count                         32  ; Show more candidates
-        read-file-name-completion-ignore-case t   ; Ignore case of file names
-        read-buffer-completion-ignore-case    t   ; Ignore case in buffer completion
-        completion-ignore-case                t)) ; Ignore case in completion
-#+end_src
-
-** Vertico Posframe
-
-[[https://github.com/tumashu/vertico-posframe][vertico-posframe]] makes Vertico appear in a small child frame, instead of as a
-traditional minibuffer. I like to have mine in the middle of the frame, with small fringes on either side.
-
-I temporarily disable =vertico-posframe-mode= when searching with =consult=.
-When selecting a search match, a preview is provided. That's kind of hard to see
-with the posframe in the middle of the screen, so while searching I just use the
-normal minibuffer.
-
-#+begin_src emacs-lisp
-(use-package vertico-posframe
-  :init
-  (setq vertico-posframe-parameters   '((left-fringe  . 12)    ;; Fringes
-                                        (right-fringe . 12)
-                                        (undecorated  . nil))) ;; Rounded frame
-  :config
-  (vertico-posframe-mode 1)
-  (setq vertico-posframe-width        96                       ;; Narrow frame
-        vertico-posframe-height       vertico-count            ;; Default height
-        ;; Don't create posframe for these commands
-        vertico-multiform-commands    '((consult-line    (:not posframe))
-                                        (consult-ripgrep (:not posframe)))))
-#+end_src
-
-The rounded frame corners (putting =(undecorated . nil)= in the =vertico-posframe-parameters=) look really nice on Mac OS.
-
-[[./images/vertico-posframe-screenshot.png]]
-
-On Linux, however, this trick doesn't work unless your OS can create rounded windows.
-
-** Corfu
-
-[[https://github.com/minad/corfu][Corfu]] is a completion framework that provides text completion (like in-buffer auto-completion) via pop-up childframes.
-
-It integrates with =Orderless=, the package below this, to provide fuzzy completions.
-
-#+begin_src emacs-lisp
-(use-package corfu
-  :defer t
-  :custom
-  (corfu-auto          t)
-  (corfu-auto-delay    0.1)
-  (corfu-auto-prefix   1)
-  (corfu-cycle         t)
-  (corfu-quit-no-match 'separator)
-  :bind (:map corfu-map
-              (" " . corfu-insert-separator)) ;; Option + Space on Norwegian Mac
-  :init
-  (global-corfu-mode))
-
-(setq tab-always-indent 'complete)
-#+end_src
-
-** Orderless
-
-[[https://github.com/oantolin/orderless][Orderless]] is a package for a completion /style/, that matches multiple
-regexes, in any order. It gives you fuzzy completions, which are super nice for typing things out faster.
-
-#+begin_src emacs-lisp
-(use-package orderless
-  :ensure t
-  :config
-  (setq completion-styles '(orderless basic partial-completion)
-        completion-category-overrides '((file (styles basic partial-completion)))))
-#+end_src
-
-* Search
-** Search Utilities
-
-Projectile also comes with a ton of built-in functionality to search in your projects. Other packages I use also depend on search utilities.
-
-I use both [[https://github.com/BurntSushi/ripgrep][ripgrep]] (remove this? and [[https://github.com/ggreer/the_silver_searcher][ag]] (The Silver Searcher)). [[https://github.com/mhayashi1120/Emacs-wgrep][wgrep]] also comes in handy sometimes. I'll install all the corresponding Emacs packages.
-
-#+begin_src emacs-lisp
-  (use-package ripgrep
-    :defer t)
-
-  (use-package rg
-    :defer t)
-
-  ;; (use-package ag
-  ;;   :defer t)
-
-  (use-package wgrep
-    :defer t)
-#+end_src
-
-I want to use [[https://github.com/BurntSushi/ripgrep][ripgrep]] as =grep=.
-
-#+BEGIN_SRC emacs-lisp
-(setq grep-command "rg -nS --no-heading "
-      grep-use-null-device nil)
-#+END_SRC
-
-** Consult
-
-[[https://github.com/minad/consult][Consult]] provides a /ton/ of search, navigation, and completion functionality. I
-would definitely recommend looking at the documentation to learn more about all
-that it can do.
-
-I often press =C-x C-b= when I only mean to press =C-x b=. If I want to open the list of all buffers, I'll call it with =M-x list-buffers=, so let's rebind this one to the same as =C-x b= so save me some grief.
-
-#+begin_src emacs-lisp
-(use-package consult
-  :bind (:map custom-bindings-map
-              ("C-s"     . consult-line)
-              ("C-M-s"   . consult-ripgrep)
-              ("C-x b"   . consult-buffer)
-              ("C-x C-b" . consult-buffer)
-              ("M-g g"   . consult-goto-line)
-              ("M-g t"   . consult-imenu)
-              ("M-g a"   . consult-imenu-multi)))
-#+end_src
-
-** Imenu List
-
-[[https://www.emacswiki.org/emacs/ImenuMode][Imenu]] is a built-in Emacs utility that gives you a minibuffer of the symbols in the current buffer and let's you jump to it. [[https://github.com/bmag/imenu-list][imenu-list]] is a nice package that gives you a new buffer with a navigable list of the functions, vars, etc. in your buffer, allowing you to quickly get an overview or jump to definition.
-
-#+begin_src emacs-lisp
-(use-package imenu-list
-  :defer t
-  :bind (:map custom-bindings-map
-              ("M-g i" . imenu-list-smart-toggle)))
-#+end_src
-
-** Marginalia
-
-[[https://github.com/minad/marginalia][Marginalia]] gives me annotations in the minibuffer.
-
-#+begin_src emacs-lisp
-(use-package marginalia
-  :init 
-  (marginalia-mode 1))
-#+end_src
-
-* Misc. Packages
-** Version Control (Magit & Friends)
-
-[[https://github.com/magit/magit][Magit]] is a Git client specifically for Emacs, and it's super powerful. It's the centre of all my version control packages.
-
-*** Git Gutter with =diff-hl=
-
-Let's first make sure we're highlighting uncommitted changes with [[https://github.com/dgutov/diff-hl][diff-hl]]. It highlights added, deleted, and modified code segments by adding a coloured bar to the left-hand gutter of the buffer.
-
-#+begin_src emacs-lisp
-(use-package diff-hl
-  :config
-  (global-diff-hl-mode))
-#+end_src
-
-*** Magit
-
-Then configure Magit. I'll add hooks to have =diff-hl= update the gutter whenever Magit refreshes.
-
-#+begin_src emacs-lisp
-(use-package magit
-  :defer t
-  :bind (:map magit-mode-map
-              ("C-M-f" . magit-section-forward)
-              ("C-M-b" . magit-section-backward))
-  :bind (:map custom-bindings-map
-              ("M-g b" . magit-blame-addition))
-  :hook
-  ((magit-pre-refresh  . diff-hl-magit-pre-refresh)
-   (magit-post-refresh . diff-hl-magit-post-refresh))
-  :config
-  (setq magit-mode-quit-window 'magit-restore-window-configuration
-		magit-auto-revert-mode t)
-  ; Remove tags from status buffer headings to speed up refresh slightly
-  (remove-hook 'magit-status-sections-hook 'magit-insert-tags-header)
-  ; Remove the "Head", "Merge", and "Push" status headers for even more speed!
-  (remove-hook 'magit-status-sections-hook 'magit-insert-status-headers))
-#+end_src
-
-*** Magit Forge
-
-And [[https://github.com/magit/forge][Magit Forge]] to be able to work with Git forges (e.g., GitHub, and GitLab) directly from Magit.
-
-#+begin_src emacs-lisp
-(use-package forge
-  :after magit)
-#+end_src
-
-*** Blamer
-
-[[https://github.com/Artawower/blamer.el][Blamer]] is a Git blame plugin, inspired by VS Code's GitLens Plugin, which gives you blame info to the right of the selected line(s) as an overlay. You can also pop the info out into a pos-frame, which works pretty well for reading PR discussions. I find this slightly more ergonomic than Magit's =magit-blame-addition=.
-
-#+begin_src emacs-lisp
-(use-package blamer
-  :after magit
-  :bind (("C-c g i" . blamer-show-commit-info)
-         ("C-c g b" . blamer-show-posframe-commit-info))
-  :defer 20
-  :custom
-  (blamer-idle-time                 0.3)
-  (blamer-min-offset                4)
-  (blamer-max-commit-message-length 100)
-  (blamer-datetime-formatter        "[%s]")
-  (blamer-commit-formatter          " ● %s")
-  :custom-face
-  (blamer-face ((t :foreground "#7aa2cf"
-                    :background nil
-                    :height 1
-                    :italic nil))))
-#+end_src
-
-*** Git Link
-
-[[https://github.com/sshaw/git-link/][git-link]] creates URL links to the current position in your buffer in the corresponding forge repo. Super handy for sending to others.
-
-#+begin_src emacs-lisp
-(use-package git-link
-  :defer t
-  :init
-  (setq git-link-use-commit t
-        git-link-open-in-browser t))
-#+end_src
-
-*** Git Timemachine
-
-[[https://codeberg.org/pidu/git-timemachine][Git Time Machine]] lets you step through different versions of a Git-controlled file directly in the current buffer, without even needing to hop over to the Magit status buffer.
-
-#+begin_src emacs-lisp
-(use-package git-timemachine
-  :defer t)
-#+end_src
-
-** Trying Packages
-
-Lars Tveito's [[https://github.com/larstvei/Try][Try]] package lets you try out packages and only save them
-temporarily, saving you the hassle of cleaning up afterwards if you decide you
-don't want to keep using the package. You can even =try= packages from =.el= files
-from URLs directly.
-
-#+begin_src emacs-lisp
-(use-package try)
-#+end_src
-
-** Snippets
-
-[[https://github.com/joaotavora/yasnippet][YASnippet]] is a template system for Emacs that allows you to predefine snippets
-you use often and insert them easily. I want snippets for basic Org-files,
-Roam-notes, and other sequences often used.
-
-#+begin_src emacs-lisp
-(use-package yasnippet
-  :diminish yas-minor-mode
-  :defer 5
-  :config
-  (setq yas-snippet-dirs '("~/.emacs.d/snippets/"))
-  (yas-global-mode 1)) ;; or M-x yas-reload-all if you've started YASnippet already.
-
-;; Silences the warning when running a snippet with backticks (runs a command in the snippet)
-(require 'warnings)
-(add-to-list 'warning-suppress-types '(yasnippet backquote-change)) 
-#+end_src
-
-** Better Help Buffers
-
-[[https://github.com/Wilfred/helpful][Helpful]] is an improvement on Emacs' built-in *help* buffer. It's more user-friendly and easier to read.
-
-#+BEGIN_SRC emacs-lisp
-(use-package helpful
-  :bind (:map custom-bindings-map
-			  ("C-h f" . #'helpful-function)
-			  ("C-h v" . #'helpful-variable)
-			  ("C-h k" . #'helpful-key)
-			  ("C-h x" . #'helpful-command)
-			  ("C-h d" . #'helpful-at-point)
-			  ("C-h c" . #'helpful-callable)))
-#+END_SRC
-
-[[https://github.com/justbur/emacs-which-key][which-key]] shows you available keybindings in the minibuffer. When you've started
-to enter a command, it will show you where you can go from there.
-
-#+begin_src emacs-lisp
-(use-package which-key
-  :config
-  (which-key-mode))
-#+end_src
-
-** Jinx Spellchecker
-
-[[https://github.com/minad/jinx][Jinx]] is a =libenchant=-powered spellchecker with a super nice UI. I'm
-trying it out instead of Flyspell, which I used before.
+[[https://github.com/minad/jinx][Jinx]] checks only the visible part of the buffer, so it's fast. =M-$=
+corrects the word at point. It needs =enchant2-devel= to compile.
 
 #+begin_src emacs-lisp
 (use-package jinx
   :hook (emacs-startup . global-jinx-mode)
-  :bind (("<f7>"  . jinx-correct)
-         ("C-'"   . jinx-correct)
-         ("C-M-$" . jinx-languages))
-  :config
-  (setq jinx-languages "en_GB"))
+  :bind (("M-$"   . jinx-correct)
+         ("C-M-$" . jinx-languages)))
 #+end_src
 
-** LaTeX
+* Help
 
-I use [[https://www.gnu.org/software/auctex/][AUCTeX]] to work with LaTeX files from within Emacs and it's a massive help.
-It has a lot of different features, and I'd recommend checking out the
-documentation to see all the stuff you can do with it.
-
-I also really like =reftex-mode=, which gives you a table of contents with
-clickable links for your file with the keybinding =C-c ==.
+=which-key= (built in since Emacs 30) shows the keys available after a
+prefix. [[https://github.com/Wilfred/helpful][helpful]] gives richer help buffers.
 
 #+begin_src emacs-lisp
-(use-package auctex
-  :hook
-  (LaTeX-mode . turn-on-prettify-symbols-mode)
-  (LaTeX-mode . reftex-mode)
-  (LaTeX-mode . outline-minor-mode)
-  (LaTeX-mode . olivetti-mode))
-#+end_src
-
-When the =reftex= window opens, I want it on the left side of the screen and I
-want it to take up less than half the screen.
-
-#+begin_src emacs-lisp
-(setq reftex-toc-split-windows-horizontally t
-	  reftex-toc-split-windows-fraction     0.2)
-#+end_src
-
-** PDF Tools
-
-[[https://github.com/vedang/pdf-tools][PDF Tools]] is an improved version of the built-in DocView for viewing PDFs. It has extensive features, but does not play well with =consult=, so I'll rebind =C-s= to =isearch-forward=.
-
-#+begin_src emacs-lisp
-(use-package pdf-tools
-  :defer t
-  :init (pdf-loader-install)
-  :hook ((pdf-view-mode . (lambda () (auto-revert-mode -1)))
-         (pdf-view-mode . (lambda () (company-mode -1))))
-  :bind (:map pdf-view-mode-map
-              ("C-s"   . isearch-forward)
-              ("C-M-s" . pdf-occur)))
-#+end_src
-
-Warn me when a PDF has been opened with the default DocView mode instead of PDF Tools' PDF View mode.
-
-#+begin_src emacs-lisp
-(use-package doc-view
-  :hook (doc-view-mode . (lambda ()
-                           (display-warning
-                            emacs
-                            "Oops, using DocView instead of PDF Tools!"
-                            :warning))))
-#+end_src
-
-[[https://github.com/nicolaisingh/saveplace-pdf-view][saveplace-pdf-view]] is a great package that remembers where in your PDFs you last left off, down to the scroll position and zoom amount.
-
-#+begin_src emacs-lisp
-(use-package pdf-view-restore
-  :after pdf-tools
-  :config
-  (add-hook 'pdf-view-mode-hook 'pdf-view-restore-mode))
-#+end_src
-
-** EPUBs
-
-[[https://depp.brause.cc/nov.el/][nov.el]] is a package for reading EPUBs (an e-book format) directly in Emacs.
-
-#+begin_src emacs-lisp
-(use-package nov
-  :defer t
-  :config
-  (add-to-list 'auto-mode-alist '("\\.epub\\'" . nov-mode)))
-#+end_src
-
-** Editor Config
-
-I want to use the [[https://github.com/editorconfig/editorconfig-emacs][EditorConfig]] plugin, which helps maintain consistent coding
-styles across editors when collaborating.
-
-#+begin_src emacs-lisp
-(use-package editorconfig
-  :defer t)
-#+end_src
-
-** Browser Preference
-
-Just use whatever ther deafult it for now.
-# Open links with Firefox by default.
-
-# #+begin_src emacs-lisp
-# (when (eq system-type 'darwin)
-#   (setq browse-url-browser-function 'browse-url-default-macosx-browser))
-
-# (when (eq system-type 'gnu/linux)
-#   (setq browse-url-browser-function 'browse-url-generic
-# 		browse-url-generic-program "firefox"))
-# #+end_src
-
-** Elfeed
-
-[[https://github.com/skeeto/elfeed][Elfeed]] is a feed reader for Emacs!
-
-#+begin_src emacs-lisp
-(use-package elfeed
-  :bind (:map custom-bindings-map ("C-x w" . elfeed))
-  :config
-  (setq elfeed-feeds
-      '("http://nullprogram.com/feed/"
-        "https://planet.emacslife.com/atom.xml"
-        "https://deniskyashif.com/index.xml"
-        "https://sophiebos.io/index.xml")))
-#+end_src
-
-** Config Profiling
-
-[[https://github.com/jschaf/esup][ESUP]] is a package for profiling your config. You can use it to shave precious seconds off your
-startup time, which is useful to me because I keep closing it when I'm done with
-a task and then immediately needing it again.
-
-#+begin_src emacs-lisp
-(use-package esup
-  :defer t
-  :config
-  (setq esup-depth 0))
-#+end_src
-
-* Org
-
-[[https://orgmode.org/][Org Mode]] is a smart text system that is used for organising notes, literate programming, time management, and a wide variety of other use cases. I've been interested in switching from my previous note-taking app, Obsidian, to using Org and Roam (described in the next section).
-
-Let's first make sure we're using Org. Note that I am leaving the last
-parenthesis open, to include some options from the "Visuals" section inside the
-=use-package= declaration for Org mode.
-
-#+BEGIN_SRC emacs-lisp
-(use-package org
-  :defer t
-#+END_SRC
-
-** Visuals
-*** Text Centring
-
-I always want to center the text and enable linebreaks in Org. I've added
-a hook to activate =olivetti-mode=, and =visual-fill-mode=
-is always on.
-
-#+begin_src emacs-lisp
-:hook (org-mode . olivetti-mode)
-#+end_src
-
-*** Fonts
-
-*Note:* We are in the =:config= section of the =use-package= declaration for Org mode.
-
-Set the sizes and fonts for the various headings.
-
-#+begin_src emacs-lisp
-  :config
-  ;; Resize Org headings
-  (custom-set-faces
-  '(org-document-title ((t (:height 1.6))))
-  '(outline-1          ((t (:height 1.25))))
-  '(outline-2          ((t (:height 1.2))))
-  '(outline-3          ((t (:height 1.2))))
-  '(outline-4          ((t (:height 1.2))))
-  '(outline-5          ((t (:height 1.2))))
-  '(outline-6          ((t (:height 1.2))))
-  '(outline-7          ((t (:height 1.2))))
-  '(outline-8          ((t (:height 1.2))))
-  '(outline-9          ((t (:height 1.2)))))
-#+END_src
-
-*** Indentation
-
-*Note:* We are in the =:config= section of the =use-package= declaration for Org mode.
-
-I prefer the text under a heading to be flush to the left side of the screen, instead of being indented to "correspond" to the level of its parent heading. So let's turn off =org-indent-mode= globally.
-
-#+begin_src emacs-lisp
-(org-indent-mode -1)
-#+end_src
-
-*** LaTeX Previews
-
-*Note:* We are in the =:config= section of the =use-package= declaration for Org mode.
-
-Preview LaTeX fragments by default.
-
-#+begin_src emacs-lisp
-(setq org-startup-with-latex-preview t)
-#+end_src
-
-Increase the size of LaTeX previews in Org.
-
-#+begin_src emacs-lisp
-(plist-put org-format-latex-options :scale 1.35)
-#+end_src
-
-I've been struggling a little to get LaTeX previews to work on my work Mac. I symlinked my LaTeX =texbin= directory to =/usr/local/bin=, and it still didn't work. Eventually I found [[https://emacs.stackexchange.com/a/80170][this]] Stack Exchange post that correctly diagnosed the issue.
-
-#+begin_summary Explanation
-The error said =[...] Please Adjust 'dvipng' part of 'org-preview-latex-process-alist'.=
-
-The issue is caused by wrong expansion of the relative file path =%f= in the variable =org-preview-latex-process-alist=. Changing it to =%F= resolves the issue.
-#+end_summary
-
-#+begin_src emacs-lisp
-(let ((png (cdr (assoc 'dvipng org-preview-latex-process-alist))))
-    (plist-put png :latex-compiler '("latex -interaction nonstopmode -output-directory %o %F"))
-    (plist-put png :image-converter '("dvipng -D %D -T tight -o %O %F"))
-    (plist-put png :transparent-image-converter '("dvipng -D %D -T tight -bg Transparent -o %O %F")))
-#+end_src
-
-*** Folded Startup
-
-*Note:* We are still in the =:config= section of the =use-package= declaration for Org
-mode.
-
-In general, show me all the headings.
-
-#+begin_src emacs-lisp
-(setq org-startup-folded 'content)
-#+end_src
-
-*** Decluttering
-
-*Note:* We are still in the =:config= section of the =use-package= declaration for Org mode.
-
-We'll declutter by adapting the indentation and hiding leading stars in headings. We'll also use [[https://orgmode.org/manual/Special-Symbols.html]["pretty entities"]], which allow us to insert special characters LaTeX-style by using a leading backslash (e.g., =\alpha= to write the greek letter alpha) and display ellipses in a condensed way.
-
-#+begin_src emacs-lisp
-  (setq org-hide-leading-stars t
-        org-pretty-entities t
-        org-ellipsis "  ·")
-#+end_src
-
-For source code blocks specifically, I want Org to display the contents using
-the major mode of the relevant language. I also want TAB to behave inside the
-source code block like it normally would when writing code in that language.
-
-#+begin_src emacs-lisp
-  (setq org-src-fontify-natively t
-        org-src-tab-acts-natively t
-        org-edit-src-content-indentation 0)
-#+end_src
-
-Some Org options to deal with headers and TODO's nicely.
-
-#+begin_src emacs-lisp
-  (setq org-log-done                       t
-        org-auto-align-tags                t
-        org-tags-column                    -80
-        org-fold-catch-invisible-edits     'show-and-error
-        org-special-ctrl-a/e               t
-        org-insert-heading-respect-content t)
-#+end_src
-
-Let's finally close the =use-package= declaration with a parenthesis.
-
-#+begin_src emacs-lisp
-)
-#+end_src
-
-*** Hide Emphasis Markers
-
-Many people hide emphasis markers (e.g., =/.../= for italics, =*...*= for bold,
-etc.) to have a cleaner visual look, but I got frustrated trying to go back and
-edit text in these markers, as sometimes I would delete the markers itself or
-write outside the markers. [[https://github.com/awth13/org-appear][org-appear]] is the solution to all my troubles. It
-displays the markers when the cursor is within them and hides them otherwise,
-making edits easy while looking pretty.
-
-#+begin_src emacs-lisp
-(use-package org-appear
-  :commands (org-appear-mode)
-  :hook     (org-mode . org-appear-mode)
-  :config 
-  (setq org-hide-emphasis-markers t)  ;; Must be activated for org-appear to work
-  (setq org-appear-autoemphasis   t   ;; Show bold, italics, verbatim, etc.
-        org-appear-autolinks      t   ;; Show links
-        org-appear-autosubmarkers t)) ;; Show sub- and superscripts
-#+end_src
-
-*** Inline Images
-
-Show inline images by default
-
-#+begin_src emacs-lisp
-(setq org-startup-with-inline-images t)
-#+end_src
-
-*** Variable Pitch
-
-Make sure =variable-pitch-mode= is always active in Org buffers. I normally
-wouldn't need this, since I use the =mixed-pitch= package in the font section, but
-for some reason, it seems the header bullet in Org mode are affected by this.
-
-#+begin_src emacs-lisp
-(add-hook 'org-mode-hook 'variable-pitch-mode)
-#+end_src
-
-*** LaTeX Fragtog
-
-[[https://github.com/io12/org-fragtog][org-fragtog]] works like org-appear, but for LaTeX fragments: It toggles LaTeX
-previews on and off automatically, depending on the cursor position. If you move the
-cursor to a preview, it's toggled off so you can edit the LaTeX snippet. When
-you move the cursor away, the preview is turned on again.
-
-#+begin_src emacs-lisp
-(use-package org-fragtog
-  :after org
-  :hook (org-mode . org-fragtog-mode))
-#+end_src
-
-*** Bullets
-
-=org-superstar= styles some of my UI elements, such as bullets and special
-checkboxes for TODOs.
-
-#+begin_src emacs-lisp
-(use-package org-superstar
-  :after org
-  :config
-  (setq org-superstar-leading-bullet " ")
-  (setq org-superstar-headline-bullets-list '("◆" "◇" "•" "⚬" "●" "○"))
-  (setq org-superstar-special-todo-items t)        ;; Makes TODO header bullets into boxes
-  (setq org-superstar-todo-bullet-alist '(("TODO"     . 9744)
-                                          ("PROG"     . 9744)
-                                          ("NEXT"     . 9744)
-                                          ("WAIT"     . 9744)
-                                          ("DROP"     . 9744)
-                                          ("QUESTION" . 9744)
-                                          ("DONE"     . 9745)))
-  :hook (org-mode . org-superstar-mode))
-#+end_src
-
-*** SVG Elements
-
-[[https://github.com/rougier/svg-tag-mode][svg-tag-mode]] lets you replace keywords such as TODOs, tags, and progress bars with nice
-SVG graphics. I use it for dates, progress bars, and citations.
-
-#+begin_src emacs-lisp
-(use-package svg-tag-mode
-  :after org
-  :config
-  (defconst date-re "[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}")
-  (defconst time-re "[0-9]\\{2\\}:[0-9]\\{2\\}")
-  (defconst day-re "[A-Za-z]\\{3\\}")
-  (defconst day-time-re (format "\\(%s\\)? ?\\(%s\\)?" day-re time-re))
-
-  (defun svg-progress-percent (value)
-	(svg-image (svg-lib-concat
-				(svg-lib-progress-bar (/ (string-to-number value) 100.0)
-			      nil :margin 0 :stroke 2 :radius 3 :padding 2 :width 11)
-				(svg-lib-tag (concat value "%")
-				  nil :stroke 0 :margin 0)) :ascent 'center))
-
-  (defun svg-progress-count (value)
-	(let* ((seq (mapcar #'string-to-number (split-string value "/")))
-           (count (float (car seq)))
-           (total (float (cadr seq))))
-	  (svg-image (svg-lib-concat
-				  (svg-lib-progress-bar (/ count total) nil
-					:margin 0 :stroke 2 :radius 3 :padding 2 :width 11)
-				  (svg-lib-tag value nil
-					:stroke 0 :margin 0)) :ascent 'center)))
-  (setq svg-tag-tags
-      `(;; Org tags
-        ;; (":\\([A-Za-z0-9]+\\)" . ((lambda (tag) (svg-tag-make tag))))
-        ;; (":\\([A-Za-z0-9]+[ \-]\\)" . ((lambda (tag) tag)))
-        
-        ;; Task priority
-        ("\\[#[A-Z]\\]" . ( (lambda (tag)
-                              (svg-tag-make tag :face 'org-priority 
-                                            :beg 2 :end -1 :margin 0))))
-
-        ;; Progress
-        ("\\(\\[[0-9]\\{1,3\\}%\\]\\)" . ((lambda (tag)
-          (svg-progress-percent (substring tag 1 -2)))))
-        ("\\(\\[[0-9]+/[0-9]+\\]\\)" . ((lambda (tag)
-          (svg-progress-count (substring tag 1 -1)))))
-        
-        ;; TODO / DONE
-        ;; ("TODO" . ((lambda (tag) (svg-tag-make "TODO" :face 'org-todo
-		;; 									           :inverse t :margin 0))))
-        ;; ("DONE" . ((lambda (tag) (svg-tag-make "DONE" :face 'org-done :margin 0))))
-
-
-        ;; Citation of the form [cite:@Knuth:1984] 
-        ("\\(\\[cite:@[A-Za-z]+:\\)" . ((lambda (tag)
-                                          (svg-tag-make tag
-                                                        :inverse t
-                                                        :beg 7 :end -1
-                                                        :crop-right t))))
-        ("\\[cite:@[A-Za-z]+:\\([0-9]+\\]\\)" . ((lambda (tag)
-                                                (svg-tag-make tag
-                                                              :end -1
-                                                              :crop-left t))))
-
-        
-        ;; Active date (with or without day name, with or without time)
-        (,(format "\\(<%s>\\)" date-re) .
-         ((lambda (tag)
-            (svg-tag-make tag :beg 1 :end -1 :margin 0))))
-        (,(format "\\(<%s \\)%s>" date-re day-time-re) .
-         ((lambda (tag)
-            (svg-tag-make tag :beg 1 :inverse nil :crop-right t :margin 0))))
-        (,(format "<%s \\(%s>\\)" date-re day-time-re) .
-         ((lambda (tag)
-            (svg-tag-make tag :end -1 :inverse t :crop-left t :margin 0))))
-
-        ;; Inactive date  (with or without day name, with or without time)
-         (,(format "\\(\\[%s\\]\\)" date-re) .
-          ((lambda (tag)
-             (svg-tag-make tag :beg 1 :end -1 :margin 0 :face 'org-date))))
-         (,(format "\\(\\[%s \\)%s\\]" date-re day-time-re) .
-          ((lambda (tag)
-             (svg-tag-make tag :beg 1 :inverse nil :crop-right t :margin 0 :face 'org-date))))
-         (,(format "\\[%s \\(%s\\]\\)" date-re day-time-re) .
-          ((lambda (tag)
-             (svg-tag-make tag :end -1 :inverse t :crop-left t :margin 0 :face 'org-date)))))))
-
-(add-hook 'org-mode-hook 'svg-tag-mode)
-#+end_src
-
-*** Prettify Tags & Keywords
-
-I have a custom function to prettify tags and other elements, lifted from [[https://github.com/jakebox/jake-emacs/blob/main/jake-emacs/jib-funcs.el][Jake
-B's Emacs setup]].
-
-#+begin_src emacs-lisp
-(defun tim/prettify-symbols-setup ()
-  "Beautify keywords"
-  (interactive)
-  (setq prettify-symbols-alist
-		(mapcan (lambda (x)
-                  (when (and (consp x) (stringp (car x)))
-                    (list x (cons (upcase (car x)) (cdr x)))))
-				'(; Greek symbols
-				  ("lambda" . ?λ)
-				  ("delta"  . ?Δ)
-				  ("gamma"  . ?Γ)
-				  ("phi"    . ?φ)
-				  ("psi"    . ?ψ)
-                  ; Org headers
-				  ("#+title:"  . ? )
-				  ("#+author:" . ? )
-                  ("#+date:"   . ? )                
-                  ; Checkboxes
-				  ("[ ]" . ?)
-				  ("[X]" . ?)
-				  ("[-]" . ?)
-                  ; Misc
-                  ("->" . ?➜)
-                  ; Blocks
-				  ("#+begin_src"   . ?) ; 
-				  ("#+end_src"     . ?)
-				  ("#+begin_QUOTE" . ?‟)
-				  ("#+end_QUOTE"   . ?”)
-                  ; Drawers
-				  (":properties:" . ?)
-                  ; Agenda scheduling
-				  ("SCHEDULED:"   . ?🕘)
-				  ("DEADLINE:"    . ?⏰)
-                  ; Agenda tags  
-				  (":@projects:"  . ?☕)
-				  (":work:"       . ?🚀)
-				  (":@inbox:"     . ?✉)
-				  (":goal:"       . ?🎯)
-				  (":task:"       . ?📋)
-				  (":@thesis:"    . ?📝)
-				  (":thesis:"     . ?📝)
-				  (":emacs:"      . ?)
-				  (":learn:"      . ?🌱)
-				  (":code:"       . ?💻)
-				  (":fix:"        . ?🛠)
-				  (":bug:"        . ?🚩)
-				  (":read:"       . ?📚)
-                  ; Roam tags
-				  ("#+filetags:"  . ?📎)
-				  (":wip:"        . ?🏗)
-				  (":ct:"         . ?➡)    ; Category Theory
-                  (":verb:"       . ?🌐) ; HTTP Requests in Org mode
-                  )))
-  (prettify-symbols-mode))
-
-(add-hook 'org-mode-hook        #'tim/prettify-symbols-setup)
-(add-hook 'org-agenda-mode-hook #'tim/prettify-symbols-setup)
-#+end_src
-
-*** Right-Align Tags
-
-Code snippet from [[https://www.reddit.com/r/emacs/comments/185e4k1/comment/kb39xvy/?utm_source=share&utm_medium=web2x&context=3][this Reddit post]]. It actually right-aligns tags, using
-font-lock and the display property.
-
-#+begin_src emacs-lisp
-(add-to-list 'font-lock-extra-managed-props 'display)
-(font-lock-add-keywords 'org-mode
-                        `(("^.*?\\( \\)\\(:[[:alnum:]_@#%:]+:\\)$"
-                           (1 `(face nil
-                                     display (space :align-to (- right ,(org-string-width (match-string 2)) 3)))
-                              prepend))) t)
-#+end_src
-
-** General Interaction
-
-*** Disable Electric Indent Mode
-
-The built-in electric indent mode is great - just not for Org mode.
-
-#+begin_src emacs-lisp
-(add-hook 'org-mode-hook #'(lambda () (electric-indent-local-mode -1)))
-#+end_src
-
-*** Opening Links
-
-By default, when opening an Org-link, the current window is split into two. I'd like for the new window to replace the current one. To do this, we need to edit =org-link-frame-setup= and change the default cons =(file . find-file-other-window)= to =(file . find-file)=.
-
-#+begin_src emacs-lisp :tangle no
-(setq org-link-frame-setup
-      '((vm      . vm-visit-folder-other-frame)
-        (vm-imap . vm-visit-imap-folder-other-frame)
-        (gnus    . org-gnus-no-new-news)
-        (file    . find-file)
-        (wl      . wl-other-frame)))
-#+end_src
-
-I'd also like to open links with =RET=.
-
-#+begin_src emacs-lisp
-(setq org-return-follows-link t)
-#+end_src
-
-*** Editing
-
-Don't insert a blank newline before new entries (e.g., list bullets and section headings). I find it annoying when I want to insert a new task under the current one in my agenda if there's a blank newline between the previous entry and the next.
-
-#+begin_src emacs-lisp
-(setq org-blank-before-new-entry '((heading . nil)
-                                   (plain-list-item . nil)))
-#+end_src
-
-** Agenda
-
-First, some regular agenda settings.
-
-I want to open my agenda on the current day, not on any specific weekday.
-
-I also don't want to have a divider line separating my different agenda blocks. This is because I sometimes use packages like Olivetti to center the agenda, which makes the divider line wrap around and take up multiple lines.
-
-Similarly, I right-align my tags, so they also end up shifted around and often on a new line. =org-agenda-remove-tags= doesn't remove them, but for some reason it disables the right-alignment in the agenda, which is perfect.
-
-#+begin_src emacs-lisp
-(setq org-agenda-start-on-weekday nil
-      org-agenda-block-separator  nil
-      org-agenda-remove-tags      t)
-#+end_src
-
-*** Super Agenda
-
-[[https://github.com/alphapapa/org-super-agenda][org-super-agenda]] lets you group agenda items into sections, so it's easier to
-navigate.
-
-#+begin_src emacs-lisp
-(use-package org-super-agenda
-  :after org
-  :config
-  (setq org-super-agenda-header-prefix "\n❯ ")
-  ;; Hide the thin width char glyph
-  (add-hook 'org-agenda-mode-hook
-            #'(lambda () (setq-local nobreak-char-display nil)))
-  (org-super-agenda-mode))
-#+end_src
-
-*** Org QL
-
-[[https://github.com/alphapapa/org-ql][org-ql]] is a query language for Org mode. It's super powerful and doesn't really belong in the Agenda section of my config, but for now, I only use it to find things and to set up a pretty calendar view.
-
-One of the things I want to find regularly, is a list of all my TODOs marked with the custom state =QUESTION=. Usually, this is stuff that I want to bring up in my next meeting with someone, so it's handy to be able to pull up all the questions I have. =org-ql= is perfect for that.
-
-#+begin_src emacs-lisp :tangle no
-(use-package org-ql
-  :after org
-  :config
-  (add-to-list 'org-ql-views
-             '("Questions" :buffers-files org-agenda-files :query
-               (and
-                (not
-                 (done))
-                (todo "QUESTION"))
-               :sort
-               (todo priority date)
-               :super-groups org-super-agenda-groups :title "Agenda-like")))
-#+end_src
-*** Agenda Views
-
-With Super Agenda and Org QL, we can now define some display groups for the agenda, to show us exactly the info we want.
-
-We'll set up some groups with the Super Agenda syntax.
-
-#+begin_src emacs-lisp
-;; Delete default agenda commands
-(setq org-agenda-custom-commands nil)
-
-(defvar regular-view-groups
-  '((:name "Scheduled"
-     :scheduled t
-     :order 1)
-	(:name "Deadlines"
-     :deadline t
-     :order 2)))
-#+end_src
-
-Now I'll set up commands to open the day view with =C-c a d= and extended three-day view with =C-c a e=. Notice that I'm first setting some options for the built-in agenda, and then defining a block with Super Agenda groups and Org QL queries.
-
-#+begin_src emacs-lisp
-(add-to-list 'org-agenda-custom-commands
-	  '("d" "Day View"
-		 ((agenda "" ((org-agenda-overriding-header "Day View")
-                      (org-agenda-span 'day)
-                      (org-super-agenda-groups regular-view-groups)))
-		  (org-ql-block '(todo "PROG") ((org-ql-block-header "\n❯ In Progress")))
-		  (org-ql-block '(todo "NEXT") ((org-ql-block-header "\n❯ Next Up")))
-          (org-ql-block '(todo "WAIT") ((org-ql-block-header "\n❯ Backlog")))
-		  (org-ql-block '(priority "A") ((org-ql-block-header "\n❯ Important"))))))
-
-
-(add-to-list 'org-agenda-custom-commands
-		'("e" "Three-Day View"
-               ((agenda "" ((org-agenda-span 3)
-                            (org-agenda-start-on-weekday nil)
-                            (org-deadline-warning-days 0))))))
-#+end_src
-
-*** Displaying Scheduled & Deadline Items
-
-Don't show me deadlines or scheduled items if they are done.
-
-#+begin_src emacs-lisp
-(setq org-agenda-skip-deadline-if-done  t
-	  org-agenda-skip-scheduled-if-done t)
-#+end_src
-
-Modify dealine leader text.
-
-#+begin_src emacs-lisp
-(setq org-agenda-deadline-leaders '("Deadline:  " "In %2d d.: " "%2d d. ago: "))
-#+end_src
-
-** Tasks
-*** Task Priorities
-
-Let's increase the number of possible priorities for Org tasks. I'll set
-mine to =E= so that we have =A= through =E=, in total five levels.
-
-#+begin_src emacs-lisp
-(setq org-lowest-priority  ?F) ;; Gives us priorities A through F
-(setq org-default-priority ?E) ;; If an item has no priority, it is considered [#E].
-
-(setq org-priority-faces
-      '((65 . "#BF616A")
-        (66 . "#EBCB8B")
-        (67 . "#B48EAD")
-        (68 . "#81A1C1")
-        (69 . "#5E81AC")
-        (70 . "#4C566A")))
-#+end_src
-
-*** Custom TODO States
-
-I'll expand the list of default task states.
-
-#+begin_src emacs-lisp
-(setq org-todo-keywords
-      '((sequence
-         ;; Needs further action
-		 "TODO(t)" "PROG(p)" "NEXT(n)" "WAIT(w)" "QUESTION(q) DROP(x)"
-		 "|"
-         ;; Needs no action currently
-		 "DONE(d)")))
-#+end_src
-
-*** Mark As Done
-
-Finally, to mark any TODO task, of any state, as DONE quickly, I have a helper
-function that I'll bind to =C-c d=.
-
-#+begin_src emacs-lisp
-(defun org-mark-as-done ()
-  (interactive)
-  (save-excursion
-    (org-back-to-heading t) ;; Make sure command works even if point is
-                            ;; below target heading
-    (cond ((looking-at "\*+ TODO")
-           (org-todo "DONE"))
-		  ((looking-at "\*+ NEXT")
-           (org-todo "DONE"))
-          ((looking-at "\*+ WAIT")
-           (org-todo "DONE"))
-		  ((looking-at "\*+ PROG")
-           (org-todo "DONE"))
-		  ((looking-at "\*+ DROP")
-           (org-todo "DONE"))
-		  ((looking-at "\*+ DROP")
-           (org-todo "QUESTION"))
-		  ((looking-at "\*+ DONE")
-           (org-todo "DONE"))
-          (t (message "Undefined TODO state.")))))
-#+end_src
-
-*** Hide DONE Tasks
-
-[[https://github.com/vapniks/hide-lines.git][hide-lines]] is a package that allows us to hide lines in a buffer based on a regexp. I use it to optionally hide elements from my org task files. Sometimes, I'm not ready to archive the task yet, but I want to be able to temporarily hide the tasks marked as "DONE".
-
-#+begin_src emacs-lisp
-(use-package hide-lines
-  :vc (:url "https://github.com/vapniks/hide-lines.git"
-       :branch "master"
-       :rev :newest))
-
-(defun hide-done-tasks ()
-  (interactive)
-  (hide-lines-matching "* DONE"))
-
-(defun show-done-tasks ()
-  (interactive)
-  (hide-lines-show-all))
-#+end_src
-
-*** "Get Things Done" Setup
-
-I'm trying out the Get Things Done method by David Allen, using Nicolas
-Rougier's [[https://github.com/rougier/emacs-gtd][GTD configuration]] and Nicolas Petton's [[https://emacs.cafe/emacs/orgmode/gtd/2017/06/30/orgmode-gtd.html][blog post]] on the subject.
-
-The first step is to set the relevant directories.
-
-#+BEGIN_SRC emacs-lisp
-(setq org-directory "~/org/")
-(add-to-list 'org-agenda-files "inbox.org")
-#+END_SRC
-
-Set the archive location to a unified archive.
-
-#+begin_src emacs-lisp
-(setq org-archive-location (concat org-directory "archive.org::"))
-#+end_src
-
-Then to set up the relevant capture templates, with accompanying keybindings.
-
-#+BEGIN_SRC emacs-lisp
-(setq org-capture-templates
-       `(("i" "Inbox" entry  (file "inbox.org")
-        ,(concat "* TODO %?\n"
-                 "/Entered on/ %U"))))
-(defun org-capture-inbox ()
-     (interactive)
-     (call-interactively 'org-store-link)
-     (org-capture nil "i"))
-#+END_SRC
-
-*** Keybindings
-
-For basic agenda and TODO-related keybindings, I'll use =C-c= followed by a
-single, lower-case letter.
-
-#+BEGIN_SRC emacs-lisp
-(define-key custom-bindings-map (kbd "C-c l") 'org-store-link)
-(define-key custom-bindings-map (kbd "C-c a") 'org-agenda)
-(define-key custom-bindings-map (kbd "C-c c") 'org-capture)
-
-(with-eval-after-load 'org
-  (define-key org-mode-map (kbd "C-c t") 'org-todo)
-  (define-key org-mode-map (kbd "C-c d") 'org-mark-as-done))
-#+END_SRC
-
-For whatever reason, I've had an issue with clocking in, where the default
-keybinding used =TAB= instead of =C-i= to clock in, so I'll set that manually.
-
-#+begin_src emacs-lisp :tangle no
-(define-key org-mode-map (kbd "C-c C-x C-i") 'org-clock-in)
-#+end_src
-
-*** Registers
-
-[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Registers.html][Registers]] are easier to access than bookmarks and much more flexible. I'll set
-up registers for my GTD files.
-
-#+begin_src emacs-lisp
-(set-register ?i (cons 'file (concat org-directory "inbox.org")))
-(set-register ?r (cons 'file (concat org-directory "roam/20240128135100-roam.org")))
-(set-register ?p (cons 'file (concat org-directory "projects.org")))
-(set-register ?c (cons 'file "~/Dropbox/playground/clj-playground/src/clj_playground/playground.clj"))
-(set-register ?b (cons 'file "~/Dropbox/projects/blog/org-content/all-posts.org"))
-#+end_src
-
-Since I have =C-s= bound to =consult-line= which lets me search everywhere in a
-file, I don't really need =C-r= to be bound to the default =isearch-backward=.
-Instead, I can use it as the leader key combination to jump to a register.
-
-#+begin_src emacs-lisp
-(define-key custom-bindings-map (kbd "C-r") 'jump-to-register)
-#+end_src
-
-** Babel
-
-For working with code blocks in Org mode, I want to make sure code blocks are
-not evaluated by default on export. I also want to add some languages.
-
-#+begin_src emacs-lisp
-(setq org-export-use-babel       nil
-      org-confirm-babel-evaluate nil)
-;; (org-babel-do-load-languages
-;;  'org-babel-load-languages
-;;  '((emacs-lisp . t)
-;;    (python     . t)
-;;    (haskell    . t)
-;;    (clojure    . t)))
-#+end_src
-
-For Python, use whatever interpreter is set by =python-shell-interpreter=.
-
-#+begin_src emacs-lisp
-(use-package ob-python
+(use-package which-key
   :ensure nil
-  :after (ob python)
+  :config (which-key-mode 1))
+
+(use-package helpful
+  :bind (([remap describe-function] . helpful-callable)
+         ([remap describe-variable] . helpful-variable)
+         ([remap describe-key]      . helpful-key)
+         ([remap describe-command]  . helpful-command)
+         ("C-h F"                   . helpful-function)))
+#+end_src
+
+* Completion
+
+The minibuffer stack, all by the same small family of packages that build
+on Emacs' own completion:
+
+- [[https://github.com/minad/vertico][Vertico]]: vertical candidate list.
+- [[https://github.com/tumashu/vertico-posframe][vertico-posframe]]: shows it as a pop-up in the centre of the frame.
+- [[https://github.com/oantolin/orderless][Orderless]]: type space-separated parts in any order.
+- [[https://github.com/minad/marginalia][Marginalia]]: annotations (docstrings, file sizes) next to candidates.
+- [[https://github.com/minad/consult][Consult]]: search and navigation commands with live preview.
+- [[https://github.com/oantolin/embark][Embark]]: act on the candidate at point (=C-.=).
+- [[https://github.com/minad/corfu][Corfu]]: in-buffer completion pop-up.
+
+** Vertico
+
+#+begin_src emacs-lisp
+(use-package vertico
+  :init (vertico-mode 1)
   :config
-  (setq org-babel-python-command python-shell-interpreter))
-#+end_src
-
-# ** Roam   
-
-# [[https://roamresearch.com/][Roam]] is a smart note-taking system in the style of a personal knowledge
-# management system. [[https://www.orgroam.com/][org-roam]] is a port of this system that uses all plain-text Org-files.
-
-# I set up a Roam directory and added a simple configuration for navigating Roam nodes.
-
-# #+begin_src emacs-lisp
-# (use-package org-roam
-#   :after org
-#   :hook (org-roam-mode . org-roam-db-autosync-mode)
-#   :init
-#   (setq org-roam-v2-ack t)
-#   :custom
-#   (org-roam-directory "~/Dropbox/org/roam")
-#   (org-roam-completion-everywhere t)
-#   :bind
-#   ("C-c n t" . org-roam-buffer-toggle)
-#   ("C-c n f" . org-roam-node-find)
-#   ("C-c n i" . org-roam-node-insert)
-#   ("C-c q"   . org-roam-tag-add)
-#   :config
-#   ;; Sync my Org Roam database automatically
-#   (org-roam-db-autosync-mode)
-#   ;; Open Org files in same window
-#   (add-to-list 'org-link-frame-setup '(file . find-file)))
-# #+end_src
-
-# *** Consult Org Roam
-
-# #+begin_src emacs-lisp
-# (use-package consult-org-roam
-#    :ensure t
-#    :after org-roam
-#    :init
-#    (require 'consult-org-roam)
-#    ;; Activate the minor mode
-#    (consult-org-roam-mode 1)
-#    :custom
-#    ;; Use `ripgrep' for searching with `consult-org-roam-search'
-#    (consult-org-roam-grep-func #'consult-ripgrep)
-#    ;; Configure a custom narrow key for `consult-buffer'
-#    (consult-org-roam-buffer-narrow-key ?r)
-#    ;; Display org-roam buffers right after non-org-roam buffers
-#    ;; in consult-buffer (and not down at the bottom)
-#    (consult-org-roam-buffer-after-buffers t)
-#    :config
-#    ;; Eventually suppress previewing for certain functions
-#    (consult-customize
-#     consult-org-roam-forward-links
-#     :preview-key "M-.")
-#    :bind
-#    ;; Define some convenient Org Roam keybindings
-#    ("C-c n e" . consult-org-roam-file-find)
-#    ("C-c n b" . consult-org-roam-backlinks)
-#    ("C-c n l" . consult-org-roam-forward-links)
-#    ("C-c n r" . consult-org-roam-search))
-# #+end_src
-
-# *** Show Tags in Search
-
-# When searching for nodes, you can search either by name or by tag. Both are
-# shown in the menu.
-
-# #+begin_src emacs-lisp
-# (setq org-roam-node-display-template
-#       (concat "${title:*} "
-#         (propertize "${tags:10}" 'face 'org-tag)))
-# #+end_src
-
-# *** Graph UI
-
-# [[https://github.com/org-roam/org-roam-ui][Org Roam UI]] gives you a pretty and functional graph of your notes, Obsidian-style.
-
-# #+begin_src emacs-lisp
-# (use-package org-roam-ui
-#     :after org-roam
-#     :config
-#     (setq org-roam-ui-sync-theme t
-#           org-roam-ui-follow t
-#           org-roam-ui-update-on-save t
-#           org-roam-ui-open-on-start t))
-# #+end_src
-
-** Hugo
-
-[[https://gohugo.io/][Hugo]] is a static site generator. By default, it uses a Markdown flavour called
-Blackfriday. The package [[https://github.com/kaushalmodi/ox-hugo/][ox-hugo]] can export Org files to this format, and
-also generate appropriate front-matter. I use it to write my blog in Org and
-easily put it online.
-
-#+BEGIN_SRC emacs-lisp
-(use-package ox-hugo
-  :after org)
-#+END_SRC
-
-I've had a great time blogging with =ox-hugo=, but it's a little bothersome to
-have to rewrite the front-matter required in the blog post for it to export
-property every time, so below is a little snippet lifted from [[https://ox-hugo.scripter.co/doc/org-capture-setup/][ox-hugo's blog]].
-
-The file =all-posts,org= needs to be present in 'org-directory' and the file's
-heading must be "Blog Posts". It can even be a symlink pointing to the actual location of all-posts.org! If you've named yours differently, change these values.
-
-#+begin_src emacs-lisp
-(with-eval-after-load 'org-capture
-  (defun org-hugo-new-subtree-post-capture-template ()
-    "Returns `org-capture' template string for new Hugo post.
-See `org-capture-templates' for more information."
-    (let* ((title (read-from-minibuffer "Post Title: "))
-           (fname (org-hugo-slug title)))
-      (mapconcat #'identity
-                 `(
-                   ,(concat "* TODO " title)
-                   ":PROPERTIES:"
-                   ,(concat ":EXPORT_FILE_NAME: " fname)
-                   ":END:"
-                   "%?\n")          ;Place the cursor here finally
-                 "\n")))
-
-  (add-to-list 'org-capture-templates
-               '("h"                ;`org-capture' binding + h
-                 "Hugo post"
-                 entry
-                 (file+olp "all-posts.org" "Blog Posts")
-                 (function org-hugo-new-subtree-post-capture-template))))
-#+end_src
-
-** Org Present
-
-[[https://github.com/rlister/org-present][org-present]] is a mode for creating straightforward and nice presentations from Org-files. Most of this config is from [[https://systemcrafters.net/emacs-tips/presentations-with-org-present/][System Crafters' blog post]] on the subject.
-
-#+begin_src emacs-lisp
-(defun tim/org-present-prepare-slide ()
-  ;; Show only top-level headlines
-  (org-overview)
-  ;; Unfold the current entry
-  (org-fold-show-entry)
-  ;; Show only direct subheadings of the slide but don't expand them
-  (org-fold-show-children))
-
-(defun tim/org-present-start ()
-  ;; Tweak font sizes
-  (setq-local
-   face-remapping-alist '((default (:height 1.5) variable-pitch)
-                          (header-line (:height 3.0) variable-pitch)
-                          (org-document-title (:height 1.75) org-document-title)
-                          (org-code (:height 1.55) org-code)
-                          (org-verbatim (:height 1.55) org-verbatim)
-                          (org-block (:height 1.25) org-block)
-                          (org-block-begin-line (:height 0.7) org-block)))
-  ;; Set a blank header line string to create blank space at the top
-  (setq header-line-format " "))
-
-(defun tim/org-present-end ()
-  ;; Reset font customizations
-  (setq-local face-remapping-alist '((default variable-pitch default)))
-  ;; Clear the header line string so that it isn't displayed
-  (setq header-line-format nil))
-
-
-(use-package org-present
-  :defer t
-  :hook
-  ((org-present-after-navigate-functions . tim/org-present-prepare-slide)
-  (org-present-mode                      . tim/org-present-start)
-  (org-present-mode-quit                 . tim/org-present-end)))
-#+end_src
-
-** Org Conveniencies
-*** Pasting Images with =org-download=
-
-[[https://github.com/abo-abo/org-download][org-download]] lets me easily put copied screenshots into my org-documents.
-
-#+begin_src emacs-lisp
-(use-package org-download
-  :after org
-  :bind
-  (:map org-mode-map
-        (("s-t" . org-download-screenshot)
-         ("s-y" . org-download-clipboard))))
-#+end_src
-
-*** TOC in Org Files
-
-[[https://github.com/snosov1/toc-org][toc-org]] creates nice, Markdown compatible tables of content for your Org files.
-Perfect for GitHub READMEs.
-
-#+begin_src emacs-lisp
-(use-package toc-org
-  :after org
-  :config
-  (add-hook 'org-mode-hook 'toc-org-mode)
-
-  ;; enable in markdown, too
-  (add-hook 'markdown-mode-hook 'toc-org-mode))
-#+end_src
-
-* Programming
-** Preferences & Extras
-
-*** Language-Specific Commenting
-
-# I use =C-ø= to comment/uncomment lines with [[https://github.com/redguardtoo/evil-nerd-commenter][Evil Nerd Commenter]]. It automatically
-# detects most programming languages and applies appropriate comment style.
-
-# #+begin_src emacs-lisp
-# (use-package evil-nerd-commenter
-#   :defer t
-#   :bind (:map custom-bindings-map ("C-ø" . evilnc-comment-or-uncomment-lines)))
-# #+end_src
-
-*** Subword Mode
-
-[[https://wikemacs.org/wiki/Subword-mode][subword-mode]] lets you work on each subword in camel case words as individual
-words. It makes it much easier to delete and mark parts of function and variable
-names.
-
-#+begin_src emacs-lisp
-(add-hook 'prog-mode-hook 'subword-mode)
-#+end_src
-
-*** Electric Pair Mode
-
-[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Matching.html][electric-pair-mode]] is a built-in Emacs mode that will try to insert matching delimiters automatically. It's pretty handy.
-
-#+begin_src emacs-lisp
-(electric-pair-mode 1)
-#+end_src
-
-*** Highlight TODOs
-
-It's nice to highlight TODOs in the code. [[https://github.com/tarsius/hl-todo][hl-todo]] does just that and lets you specify the faces to use for different TODO keywords. Let's activate it in =prog-mode=.
-
-#+begin_src emacs-lisp
-(use-package hl-todo
-    :hook (prog-mode . hl-todo-mode)
-    :config
-    (setq hl-todo-highlight-punctuation ":"
-          hl-todo-keyword-faces
-          `(("TODO"       font-lock-keyword-face  bold)
-            ("FIXME"      error                   bold)
-            ("HACK"       font-lock-constant-face bold)
-            ("REVIEW"     font-lock-keyword-face  bold)
-            ("NOTE"       success                 bold)
-            ("DEPRECATED" font-lock-doc-face      bold))))
-#+end_src
-
-*** Markdown
-
-Need-to-have for programmers.
-
-#+begin_src emacs-lisp
-(use-package markdown-mode
-  :defer t)
-#+end_src
-
-** Flycheck
-
-[[https://github.com/flycheck/flycheck][Flycheck]] is an on-the-fly syntax checker.
-
-I'll turn off the error messages in the echo area, because they overlap with useful info from LSP mode. I can still see the error, either by hovering over it with the mouse or by pressing =C-c ! e= to explain the error at point. I'll bind it to =C-c ! != as well.
-
-#+begin_src emacs-lisp
-(global-unset-key (kbd "M--"))
-
-(use-package flycheck
-  :defer t
-  :init (global-flycheck-mode)
-  :bind (:map flycheck-mode-map
-              ("M-- -"    . flycheck-explain-error-at-point)
-              ("M-- M--"  . flycheck-explain-error-at-point)
-              ("M-- ?"    . flycheck-describe-checker)
-              ("M-- C"    . flycheck-clear)
-              ("M-- C-c"  . flycheck-compile)
-              ("M-- C-w"  . flycheck-copy-errors-as-kill)
-              ("M-- H"    . display-local-help)
-              ("M-- V"    . flycheck-version)
-              ("M-- c"    . flycheck-buffer)
-              ("M-- e"    . flycheck-explain-error-at-point)
-              ("M-- h"    . flycheck-display-error-at-point)
-              ("M-- i"    . flycheck-manual)
-              ("M-- l"    . flycheck-list-errors)
-              ("M-- n"    . flycheck-next-error)
-              ("M-- p"    . flycheck-previous-error)
-              ("M-- s"    . flycheck-select-checker)
-              ("M-- v"    . flycheck-verify-setup)
-              ("M-- x"    . flycheck-disable-checker))
-  :config (setq flycheck-display-errors-function #'ignore))
-#+end_src
-
-** Eldoc
-
-[[https://www.gnu.org/software/emacs/manual/html_node/emacs/Programming-Language-Doc.html][Eldoc]] is Emacs' built-in language documentation feature. It will show function documentation as applicable while you're programming.
-
-#+begin_src emacs-lisp
-(use-package eldoc
-  :defer t
-  :config
-  (global-eldoc-mode))
-#+end_src
-
-** xref
-
-=xref= is Emacs' built-in cross-reference system. It allows you to follow references and builds a reference stack. For each reference you jump to, a new item is added to the stack, and you can go back to where you were before by popping it off the stack. It's super neat.
-
-[[https://github.com/brett-lempereur/consult-xref-stack][consult-xref-stack]] is a package that enhances =xref= with a searchable list of the references you've navigated through. Even neater!
-
-#+begin_src emacs-lisp
-(use-package consult-xref-stack
-  :vc
-  (:url "https://github.com/brett-lempereur/consult-xref-stack" :branch "main")
-  :bind (:map custom-bindings-map
-              ("C-," . consult-xref-stack-backward)
-              ("C-." . consult-xref-stack-forward)))
-#+end_src
-
-** HTTP Requests
-
-# [[https://github.com/pashky/restclient.el][restclient.el]] lets you run HTTP requests from a static, plain-text query file. As of April 17 2024, it is unfortunately archived.
-
-# #+begin_src emacs-lisp
-# (use-package restclient
-#   :defer t)
-# #+end_src
-
-[[https://github.com/federicotdn/verb][verb]] is a package built on the same concept: Write queries in Org mode, send HTTP requests, and view the results pretty-printed in a new buffer.
-
-#+begin_src emacs-lisp
-(use-package verb
-  :after org
-  :config
-  (define-key org-mode-map (kbd "C-c C-r") verb-command-map))
-#+end_src
-
-** Tree-Sitter
-
-I don't really use tree-sitter a lot, so this is just a configuration I saw floating around online with some stuff removed.
-
-#+begin_src emacs-lisp
-(use-package treesit
+  (setq vertico-cycle t
+        vertico-count 15))
+
+;; Go up a directory with one key when finding files.
+(use-package vertico-directory
   :ensure nil
-  :mode (("\\.mjs\\'" . typescript-ts-mode)
-         ("\\.mts\\'" . typescript-ts-mode)
-         ("\\.cjs\\'" . typescript-ts-mode)
-         ("\\.json\\'" .  json-ts-mode)
-         ("\\.Dockerfile\\'" . dockerfile-ts-mode)
-         ("\\.prisma\\'" . prisma-ts-mode))
-  :preface
-  (defun os/setup-install-grammars ()
-    "Install Tree-sitter grammars if they are absent."
-    (interactive)
-    (dolist (grammar
-             '((css . ("https://github.com/tree-sitter/tree-sitter-css" "v0.20.0"))
-               (bash "https://github.com/tree-sitter/tree-sitter-bash")
-               (html . ("https://github.com/tree-sitter/tree-sitter-html" "v0.20.1"))
-               (javascript . ("https://github.com/tree-sitter/tree-sitter-javascript" "v0.21.2" "src"))
-               (json . ("https://github.com/tree-sitter/tree-sitter-json" "v0.20.2"))
-               (python . ("https://github.com/tree-sitter/tree-sitter-python" "v0.20.4"))
-               (go "https://github.com/tree-sitter/tree-sitter-go" "v0.20.0")
-               (markdown "https://github.com/ikatyang/tree-sitter-markdown")
-               (make "https://github.com/alemuller/tree-sitter-make")
-               (elisp "https://github.com/Wilfred/tree-sitter-elisp")
-               (cmake "https://github.com/uyha/tree-sitter-cmake")
-               (c "https://github.com/tree-sitter/tree-sitter-c")
-               (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
-               (toml "https://github.com/tree-sitter/tree-sitter-toml")
-               (tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "tsx/src"))
-               (typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "v0.20.3" "typescript/src"))
-               (yaml . ("https://github.com/ikatyang/tree-sitter-yaml" "v0.5.0"))
-               (prisma "https://github.com/victorhqc/tree-sitter-prisma")))
-      (add-to-list 'treesit-language-source-alist grammar)
-      ;; Only install `grammar' if we don't already have it
-      ;; installed. However, if you want to *update* a grammar then
-      ;; this obviously prevents that from happening.
-      (unless (treesit-language-available-p (car grammar))
-        (treesit-install-language-grammar (car grammar)))))
+  :after vertico
+  :bind (:map vertico-map
+              ("DEL"   . vertico-directory-delete-char)
+              ("M-DEL" . vertico-directory-delete-word)))
 
-  ;; Optional, but recommended. Tree-sitter enabled major modes are
-  ;; distinct from their ordinary counterparts.
-  ;;
-  ;; You can remap major modes with `major-mode-remap-alist'. Note
-  ;; that this does *not* extend to hooks! Make sure you migrate them
-  ;; also
-  (dolist (mapping
-           '((typescript-mode . typescript-ts-mode)
-             (js-mode . typescript-ts-mode)
-             (js2-mode . typescript-ts-mode)
-             (css-mode . css-ts-mode)
-             (json-mode . json-ts-mode)
-             (js-json-mode . json-ts-mode)))
-    (add-to-list 'major-mode-remap-alist mapping))
+(use-package vertico-posframe
+  :after vertico
   :config
-  (os/setup-install-grammars))
+  (setq vertico-posframe-parameters '((left-fringe . 8) (right-fringe . 8)))
+  (vertico-posframe-mode 1))
 #+end_src
 
-** Structural Editing - Smartparens
-
-[[https://github.com/Fuco1/smartparens][Smartparens]] is a structural editing package that supports many languages out of the box. I've previously used [[https://www.emacswiki.org/emacs/ParEdit][Paredit]] and [[https://github.com/abo-abo/lispy][lispy]], but neither worked particularly well for TypeScript/JavaScript, which I use at work. Once you get used to structural editing, you just can't (or at least don't want to!) live without it, so I'm trying out Smartparens instead.
-
-It's a lot more powerful than =eletric-pair-mode=, because it allows you to manipulate, select, and navigate forms semantically (by symbols or delimiters).
-
-However, I did have just a few functions from lispy that I don't want to live without, namely:
-- =lispy-different= - Switch between the opening and closing delimiters
-- =lispy-clone= - Clone the current sexp on and paste it on the line below (sp has this as well, but I like the behaviour of lispy's version better)
-- =lispy-comment= - Again, the sp version exists, but I think lispy's better
-- =lispy-move-up= - Move sexp up down, while keeping delimiters balanced
-- =lispy-move-down= - Move sexp down a line, while keeping delimiters balanced
-
-It's a bit insane to pull in lispy just for these functions, but I've really grown attached to these functions and it's my config, so welcome to the wild west!
+** Orderless
 
 #+begin_src emacs-lisp
-(use-package lispy
-  :defer t
+(use-package orderless
   :config
-  (setcdr lispy-mode-map nil)
-  :commands
-  lispy-different
-  lispy-clone
-  lispy-comment
-  lispy-move-up
-  lispy-mode-down)
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles partial-completion)))))
+#+end_src
 
-(use-package smartparens
-  :hook ((prog-mode        . smartparens-mode)
-         (text-mode        . smartparens-mode)
-         (markdown-mode    . smartparens-mode)
-         (smartparens-mode . (lambda () (electric-pair-local-mode -1))))
+** Marginalia
+
+#+begin_src emacs-lisp
+(use-package marginalia
+  :init (marginalia-mode 1))
+#+end_src
+
+** Consult
+
+#+begin_src emacs-lisp
+(use-package consult
+  :bind (("C-s"     . consult-line)          ;; Search in buffer
+         ("C-x b"   . consult-buffer)        ;; Buffers, recent files, bookmarks
+         ("M-y"     . consult-yank-pop)      ;; Kill ring
+         ("M-g g"   . consult-goto-line)
+         ("M-g i"   . consult-imenu)         ;; Jump to heading/function
+         ("M-g o"   . consult-outline)
+         ("M-s r"   . consult-ripgrep)       ;; Full-text search in project
+         ("M-s f"   . consult-fd)            ;; Find file by name
+         ("C-x r b" . consult-bookmark))
   :config
-  (require 'smartparens-config)
-  ;; Don't highlight delimiters when created
-  (setq sp-highlight-pair-overlay     nil
-        sp-highlight-wrap-overlay     nil
-        sp-highlight-wrap-tag-overlay nil)
-  :bind (:map smartparens-mode-map
-
-              ;; Navigating
-              ;; ("C-f"         . sp-forward-sexp)
-              ;; ("C-b"         . sp-backward-sexp)
-              ("M-A"         . sp-beginning-of-sexp)
-              ("M-E"         . sp-end-of-sexp)
-              ("C-M-f"       . sp-up-sexp)
-              ("C-M-b"       . sp-backward-up-sexp)
-
-              ;; Slurping & barfing
-              ;; ("C-<right>"   . sp-forward-slurp-sexp)
-              ;; ("C-<left>"    . sp-forward-barf-sexp)
-              ("C-M-<right>" . sp-backward-barf-sexp)
-              ("C-M-<left>"  . sp-backward-slurp-sexp)
-
-              ;; Manipulating
-              ("C-k"         . sp-kill-sexp)
-              ("M-s"         . sp-splice-sexp)
-              ("M-r"         . sp-raise-sexp)
-              ;; ("M-<up>"      . sp-splice-sexp-killing-backward)
-              ;; ("M-<down>"    . sp-splice-sexp-killing-forward)
-              ("C-M-t"       . sp-transpose-sexp)
-              ("M-?"         . sp-convolute-sexp)
-              ("M-S"         . sp-split-sexp)
-              ("M-J"         . sp-join-sexp)
-
-              ;; Functions from lispy
-              ("M-d"         . lispy-different)
-              ("M-c"         . lispy-clone)
-              (";"           . lispy-comment)
-              ("C-M-<up>"    . lispy-move-up)
-              ("C-M-<down>"  . lispy-move-down)))
+  (setq consult-narrow-key "<"
+        xref-show-xrefs-function       #'consult-xref
+        xref-show-definitions-function #'consult-xref))
 #+end_src
 
-** LSP
-
-[[https://github.com/emacs-lsp/lsp-mode][lsp-mode]] is an Emacs client for the Language Server Protocol (LSP). I have LSP mode setup for Clojure and TypeScript.
-
-I disable a few of the default features. If you want to know more about these and how to enable/disable other =lsp-mode= features, there's a handy guide on [[https://emacs-lsp.github.io/lsp-mode/tutorials/how-to-turn-off/][lsp-mode's website]].
+** Embark
 
 #+begin_src emacs-lisp
-(use-package lsp-mode
-  :defer t
-  :init (setq lsp-use-plists t)
-  :hook ((clojure-mode          . lsp)
-         (clojurec-mode         . lsp)
-         (lsp-mode              . lsp-enable-which-key-integration)
-         (typescript-mode       . lsp)
-         (tsx-ts-mode           . lsp)
-         (typescript-ts-mode    . lsp)
-         (web-mode              . lsp))
-  :bind (:map lsp-mode-map
-              ("M-<return>" . lsp-execute-code-action)
-              ("C-M-."      . lsp-find-references)
-              ("C-c r"      . lsp-rename))
+(use-package embark
+  :bind (("C-."   . embark-act)
+         ("C-h B" . embark-bindings))
   :config
-  (setq lsp-diagnostics-provider :flycheck
-        lsp-completion-provider  :none)       ;; I use corfu
-  ;; Disable visual features
-  (setq lsp-headerline-breadcrumb-enable nil  ;; No breadcrumbs
-        lsp-lens-enable                  nil  ;; No lenses
+  (setq prefix-help-command #'embark-prefix-help-command))
 
-        ;; Enable code actions in the mode line
-        lsp-modeline-code-actions-enable t
-        lsp-modeline-code-action-fallback-icon "✦"
-
-        ;; Limit raising of the echo area to show docs
-        lsp-signature-doc-lines 3)
-  (setq lsp-file-watch-threshold  1500)
-  (setq lsp-format-buffer-on-save nil)
-
-  (with-eval-after-load 'lsp-modeline
-    (set-face-attribute 'lsp-modeline-code-actions-preferred-face nil
-                        :inherit 'font-lock-comment-face)
-    (set-face-attribute 'lsp-modeline-code-actions-face nil
-                        :inherit 'font-lock-comment-face)))
+(use-package embark-consult
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
 #+end_src
 
-[[https://github.com/emacs-lsp/lsp-ui][lsp-ui]] is an extension of the UI capabilities of =lsp-mode=.
+** Corfu
 
 #+begin_src emacs-lisp
-(use-package lsp-ui
-  :after lsp-mode
+(use-package corfu
+  :init (global-corfu-mode 1)
   :config
-  (setq lsp-ui-sideline-enable nil
-        lsp-ui-doc-enable      nil))
+  (setq corfu-auto       t
+        corfu-auto-delay 0.2
+        corfu-cycle      t))
 #+end_src
 
-Similarly, there's [[https://github.com/emacs-lsp/lsp-treemacs][lsp-treemacs]] which I use to display a pretty list of references and a function's incoming call hierarchy. As a tree, of course!
+* Git
 
 #+begin_src emacs-lisp
-(use-package lsp-treemacs
-  :after lsp-mode
-  :bind (:map lsp-mode-map
-              ("C-c ." . lsp-treemacs-references)
-              ("C-c :" . lsp-treemacs-call-hierarchy)))
+(use-package magit
+  :bind ("C-x g" . magit-status))
+
+(use-package diff-hl
+  :hook ((after-init         . global-diff-hl-mode)
+         (magit-post-refresh . diff-hl-magit-post-refresh)))
 #+end_src
-
-There's also a nice mode for language-aware folding called [[https://github.com/gregsexton/origami.el][Origami]]. Then there's the LSP-backed [[https://github.com/emacs-lsp/lsp-origami/][lsp-origami]].
-
-#+begin_src emacs-lisp
-(use-package origami
-  :defer t
-  :hook (prog-mode . origami-mode)
-  :bind (:map origami-mode-map
-              ("M-z" . origami-toggle-node)))
-
-(use-package lsp-origami
-  :after lsp
-  :hook (lsp-mode . lsp-origami-try-enable))
-#+end_src
-
-[[https://github.com/blahgeek/emacs-lsp-booster][emacs-lsp-booster]] is a wrapper around your LSP server programs. In the README, the authors explain that it helps speed up LSP mode (and Eglot!) by converting JSON directly into elisp bytecode and by separating reading and writing into different threads.
-
-#+begin_src emacs-lisp
-(defun lsp-booster--advice-json-parse (old-fn &rest args)
-  "Try to parse bytecode instead of json."
-  (or
-   (when (equal (following-char) ?#)
-     (let ((bytecode (read (current-buffer))))
-       (when (byte-code-function-p bytecode)
-         (funcall bytecode))))
-   (apply old-fn args)))
-(advice-add (if (progn (require 'json)
-                       (fboundp 'json-parse-buffer))
-                'json-parse-buffer
-              'json-read)
-            :around
-            #'lsp-booster--advice-json-parse)
-
-(defun lsp-booster--advice-final-command (old-fn cmd &optional test?)
-  "Prepend emacs-lsp-booster command to lsp CMD."
-  (let ((orig-result (funcall old-fn cmd test?)))
-    (if (and (not test?)                             ;; for check lsp-server-present?
-             (not (file-remote-p default-directory)) ;; see lsp-resolve-final-command, it would add extra shell wrapper
-             lsp-use-plists
-             (not (functionp 'json-rpc-connection))  ;; native json-rpc
-             (executable-find "emacs-lsp-booster"))
-        (progn
-          (when-let ((command-from-exec-path (executable-find (car orig-result))))  ;; resolve command from exec-path (in case not found in $PATH)
-            (setcar orig-result command-from-exec-path))
-          (message "Using emacs-lsp-booster for %s!" orig-result)
-          (cons "emacs-lsp-booster" orig-result))
-      orig-result)))
-(advice-add 'lsp-resolve-final-command :around #'lsp-booster--advice-final-command)
-#+end_src
-
-** Programming Languages
-*** Emacs Lisp
-
-First, we need the holy trinity of Elisp libraries: [[https://github.com/magnars/dash.el][dash]] (lists), [[https://github.com/magnars/s.el][s]] (strings), and [[https://github.com/rejeep/f.el][f]] (files).
-
-#+begin_src emacs-lisp
-(use-package dash
-  :defer t)
-
-(use-package s
-  :defer t)
-
-(use-package f
-  :defer t)
-#+end_src
-
-Next, let's take a page out of CIDER's book and enhance evaluation of Emacs Lisp by adding [[https://github.com/xiongtx/eros][Eros]] (Evaluation Result OverlayS). Also, I'm so used to the CIDER bindings, so let's bind some CIDER-like bindings for elisp as well.
-
-#+begin_src emacs-lisp
-(use-package eros
-  :defer t
-  :functions
-  eros-mode
-  eros-eval-defun
-  :bind (:map emacs-lisp-mode-map
-              ("C-c C-c" . eros-eval-defun)
-              ("C-c C-k" . eval-buffer))
-  :config
-  (eros-mode 1))
-#+end_src
-
-And finally, I need to edit parens safely. Let's hook in =lispy=!
-
-#+begin_src emacs-lisp
-(use-package emacs
-  :hook (emacs-lisp-mode . lispy-mode))
-#+end_src
-
-*** Python
-
- Let's first set the language interpreter.
-
- #+begin_src emacs-lisp
- (use-package python
-   :interpreter ("python3" . python-mode)
-   :defer t
-   :config
-   (setq python-shell-interpreter "python3.11")
-   (add-hook 'python-mode
-			 (lambda () (setq forward-sexp-function nil))))
- #+end_src
-
- Note that you also need =pyright= for this! Installation will depend on your
- system. It's available from [[https://pypi.org/project/pyright/][PyPI]]. On Ubuntu, I had the most luck installing via
- snap:
-
- #+begin_src shell :tangle no
- sudo snap install pyright --classic
- #+end_src
-
- Then, I want to hide the modeline for inferior Python processes to save screen
- space. There's a [[https://github.com/hlissner/emacs-hide-mode-line][dedicated package]] for this.
-
- #+begin_src emacs-lisp
- (use-package hide-mode-line
-   :defer t
-   :hook (inferior-python-mode . hide-mode-line-mode))
- #+end_src<
-
-* Activating Custom Keybindings
-*** Extra Keybindings
-
-Most of my custom keybindings are bound directly in the section with the relevant package, but here are a few extra ones.
-
-# Switch to the other window  =C-x o= \to  =M-o=.
-
-# #+begin_src emacs-lisp
-# (define-key custom-bindings-map (kbd "M-o") 'other-window)
-# #+end_src
-
-I also have both =C-x b= and =C-x C-b= bound to =consult-buffer=.
-Sometimes, though, it's nice to have a dedicated =*Ibuffer*= window. Let's bind it to =C-c b=.
-
-#+begin_src emacs-lisp
-(define-key custom-bindings-map (kbd "C-c b") 'ibuffer)
-#+end_src
-
-# In my lispy+paredit keybindings, I have =C-f= and =C-b= bound to =forward-= and =backward-sexp=, respectively. That's because I use the arrow keys when I want to move one char at a time, and the bindings =C-f/-b= are so much more ergonomic to use than =C-M-f/-b=. So let's do that everywhere!
-
-# #+begin_src emacs-lisp
-# (define-key custom-bindings-map (kbd "C-f") 'forward-sexp)
-# (define-key custom-bindings-map (kbd "C-b") 'backward-sexp)
-# #+end_src
-
-I haven't bound super to anything on my work's Mac, so the default =s-u= for reverting buffers doesn't work very well for me. I'll add another binding so I can keep using only control and meta.
-
- #+begin_src emacs-lisp
-(define-key custom-bindings-map (kbd "C-c u") 'revert-buffer)
- #+end_src
-
-*** Activating the Keymap
-
-Throughout the configuration, I've added bindings to my custom-bindings-map.
-The last thing we need to to before we can call it a day, is to define a minor
-mode for it and activate that mode. The below code does just that.
-
-#+begin_src emacs-lisp
-(define-minor-mode custom-bindings-mode
-  "A mode that activates custom keybindings."
-  :init-value t
-  :keymap custom-bindings-map)
-#+end_src
-
-* TODOs
-- [ ]  Figure out nice way to search PDFs via pdf-tools (nicer than ISearch, preferrably something consult-related)
-- [ ]  Check out [[https://github.com/oantolin/embark][embark]]
-- [ ]  Check out [[https://github.com/otavioschwanck/harpoon.el][harpoon]]
-- [ ]  Check out [[https://github.com/alphapapa/bufler.el][bufler]]
-- [ ]  Configure Magit [[https://github.com/magit/forge][Forge]]
-- [ ]  Check out [[https://github.com/kickingvegas/casual-suite][casual-suite]] (especially for IBuffer and Dired)
-- [ ]  Check out [[https://github.com/emacscollective/no-littering][no-littering]]
-- [ ]  Check out [[https://github.com/ISouthRain/emsg-blame][emsg-blame]]
-- [ ]  Check out [[https://github.com/gilbertw1/better-jumper][better-jumper]]
-- [ ]  Check out [[https://github.com/projectional-haskell/structured-haskell-mode][Structured Haskell Mode]]
-- [ ]  Check out [[https://github.com/casouri/eldoc-box#prettify-typescript-error-message][eldoc-box]] (especially for TS/JS errors)
-  
