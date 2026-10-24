@@ -1,7 +1,12 @@
 /*
 !/init.el
+!/early-init.el
 !/init.org
 !/README.org
 !/images/
 !/snippets/
 !/.gitattributes
+!/CLAUDE.md
+!/docs/
+!/AGENTS.md
+!/PLAN.md
