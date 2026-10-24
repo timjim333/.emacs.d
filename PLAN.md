@@ -58,18 +58,20 @@ first when item 4 starts.
 as a user daemon, with Fedora's 30.2 left installed as a fallback.
 
 **Acceptance tests:** the checks in
-[docs/emacs-build.md](docs/emacs-build.md#checks-after-installing) all pass,
-and KDE's launcher shows Emacs with its icon.
+[docs/emacs-build.md](docs/emacs-build.md#checks-after-installing) all pass.
 
-**Handoff:** Built and `make install`ed on 2026-10-25, configured with
-`--with-selinux` (configure summary: SELinux, tree-sitter, and native
-compilation all `yes`). The first `alternatives --install` linked the
-binaries and `.desktop` files but not the service or icon, because their
-parent folders were missing; the fix is to create them and re-run step 6.
-Next: re-run step 6, then run the checks and steps 7 onwards. Still to do
-later: cross-check the signing key against the release announcement, and
-consider reporting the SELinux configure bug upstream (both in
-`docs/emacs-build.md`).
+**Handoff:** Installed on 2026-10-25. Passed: version, PATH, tree-sitter,
+native compilation, pgtk, SELinux contexts, and the daemon (31.1 from
+`/opt`, unit loaded from `/usr/local/lib/systemd/user`). Pending: the KDE
+menu check (launch Emacs from the menu and confirm it's 31.1); tick this
+item once Tim confirms it. Two install fixes went into the recipe: create
+the `/usr/local` folders before `alternatives`, and install the systemd
+unit as a plain file instead of an alternatives follower (see Gotchas in
+`docs/emacs-build.md`). The daemon currently loads the **old** config from
+`main`, which errors on 31.1 (stale Emacs 30 bytecode in `elpa/`); item 4
+switches to the new config. Later, optional: cross-check the signing key
+against the release announcement, and report the SELinux configure bug
+upstream.
 
 ### 3. Grill the design
 
@@ -95,6 +97,14 @@ an answer or an owner; the items below have agreed goals and tests.
   Revived can attach and show images first.
 - Workflow: step 1 was done on one long branch with draft PR #1. Should the
   remaining items each get their own branch and worktree off `main`?
+- Emacs versions: re-explain why `systemctl --user enable` bypassed the
+  alternatives (Gotchas in `docs/emacs-build.md`), then decide how to
+  switch between builds until Fedora ships 31: keep `alternatives`, or
+  something simpler such as a `current` symlink in `/opt/emacs`.
+- Moving to the new config: `~/.emacs.d` links to this repo's `main`
+  checkout. Decide how the new config and a fresh `elpa/` replace the old
+  ones (merge order, and whether to keep the old packages folder as a
+  fallback).
 
 ### 4. Org basics
 

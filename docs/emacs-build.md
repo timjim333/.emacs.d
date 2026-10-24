@@ -1,6 +1,6 @@
 # Building Emacs 31.1 on glacier
 
-Last updated 2026-10-25, after the first build. Decision and alternatives:
+Last updated 2026-10-25, after the first build and install. Decision and alternatives:
 `docs/adr/0001-build-emacs-31-from-source-into-opt.md`.
 
 Emacs 31.1 was released on 2026-08-24 and bundles Org 9.8; Fedora 44 ships
@@ -56,14 +56,20 @@ make -j"$(nproc)" && make install
 sudo mkdir -p /usr/local/lib/systemd/user /usr/local/share/icons/hicolor/scalable/apps
 sudo alternatives --install /usr/local/bin/emacs emacs-opt "$PREFIX/bin/emacs" 3110 \
   --follower /usr/local/bin/emacsclient emacsclient-opt "$PREFIX/bin/emacsclient" \
-  --follower /usr/local/lib/systemd/user/emacs.service emacs-service-opt "$PREFIX/lib/systemd/user/emacs.service" \
   --follower /usr/local/share/applications/emacs.desktop emacs-desktop-opt "$PREFIX/share/applications/emacs.desktop" \
   --follower /usr/local/share/applications/emacsclient.desktop emacsclient-desktop-opt "$PREFIX/share/applications/emacsclient.desktop" \
   --follower /usr/local/share/icons/hicolor/scalable/apps/emacs.svg emacs-icon-opt "$PREFIX/share/icons/hicolor/scalable/apps/emacs.svg"
 # Priority 3110 = 31.1.0; a later build gets a higher number.
 # Switch versions: sudo alternatives --config emacs-opt
 
-# 7. Check, then run as a background daemon
+# 7. The daemon's unit is a plain file (not an alternatives link; see
+#    "Gotchas") that runs whichever Emacs /usr/local/bin/emacs points at.
+#    Done once; later versions reuse it.
+sed 's|^ExecStart=.*|ExecStart=/usr/local/bin/emacs --fg-daemon|' \
+  "$PREFIX/lib/systemd/user/emacs.service" | sudo tee /usr/local/lib/systemd/user/emacs.service >/dev/null
+
+# 8. Check, then run as a background daemon (quit any Emacs that is running
+#    the server first, or the daemon exits)
 hash -r; emacs --version
 systemctl --user daemon-reload && systemctl --user enable --now emacs
 ```
@@ -83,8 +89,12 @@ Why these flags:
   `(native-comp-available-p)`, `(featurep 'pgtk)`.
 - `(file-selinux-context "~/.bashrc")` returns a list of four strings, not
   `(nil nil nil nil)`.
-- `systemctl --user is-active emacs` prints `active`, and `emacsclient -c`
-  opens a frame at once.
+- `systemctl --user status emacs` shows `Loaded: loaded
+  (/usr/local/lib/systemd/user/emacs.service; enabled ...)` and `active
+  (running)`; `emacsclient -e emacs-version` prints `"31.1"`.
+- Launching Emacs from KDE's menu runs 31.1. Both Fedora's and this
+  build's `emacs.desktop` say `Exec=emacs`, so `/usr/local/bin` coming
+  first in PATH is what decides; the icon looks the same either way.
 
 ## Gotchas found on the first build
 
@@ -105,6 +115,23 @@ Why these flags:
   for the service and icon, because `/usr/local/lib/systemd/user` and
   `/usr/local/share/icons/hicolor/scalable/apps` didn't exist. Step 6 now
   creates them; re-running `--install` repairs a half-made registration.
+- **`systemctl --user enable` bypassed the alternatives for the service.**
+  The first install made `emacs.service` an alternatives follower. Because
+  that unit was a symlink pointing outside systemd's search path, `enable`
+  linked its final target (`/opt/emacs/emacs-31.1/...`) into
+  `~/.config/systemd/user/`, pinning the daemon to 31.1 whatever the
+  alternatives say. Fixed with `systemctl --user disable emacs`,
+  `alternatives --remove`, and a re-install without the service follower,
+  then step 7. Tim wants this re-explained, and the version-switching
+  approach reviewed, in a later session (PLAN.md item 3).
+- **The daemon exited with "Another instance of Emacs is running the
+  server"**: a terminal Emacs 30 with the old config owned the server
+  socket. Quit it first.
+- **The old config errors on 31.1** with `Symbol's value as variable is
+  void: yas-minor-mode--set-explicitly`. Its `elpa/` packages were
+  byte-compiled by Emacs 30, and 31's `define-minor-mode` expects a variable
+  that only 31-compiled minor modes define. Not worth fixing: the new
+  config replaces it, and should start from a fresh package folder.
 
 ## Configure summary: the expected "no"s
 
