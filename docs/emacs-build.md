@@ -122,8 +122,9 @@ Why these flags:
   `~/.config/systemd/user/`, pinning the daemon to 31.1 whatever the
   alternatives say. Fixed with `systemctl --user disable emacs`,
   `alternatives --remove`, and a re-install without the service follower,
-  then step 7. Tim wants this re-explained, and the version-switching
-  approach reviewed, in a later session (PLAN.md item 3).
+  then step 7. Reviewed in PLAN.md item 3: `alternatives` stays, because
+  the plain unit resolves the link each time the daemon starts, not once
+  at `enable`. A short reminder is in `/opt/emacs/README.md`.
 - **The daemon exited with "Another instance of Emacs is running the
   server"**: a terminal Emacs 30 with the old config owned the server
   socket. Quit it first.

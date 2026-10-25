@@ -18,7 +18,7 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 - [Sync options considered](#sync-options-considered)
 - [Media plan](#media-plan)
 - [Python environments (direnv)](#python-environments-direnv)
-- [Coding stack (PLAN item 7)](#coding-stack-plan-item-7)
+- [Coding stack (PLAN item 8)](#coding-stack-plan-item-8)
 
 ## Context
 
@@ -45,17 +45,17 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 | Area | Decision |
 | --- | --- |
 | Emacs | Accepted: [ADR 0001](adr/0001-build-emacs-31-from-source-into-opt.md). Build 31.1 from source into `/opt`, registered with `alternatives`; switch to Fedora's package once it ships 31. |
-| Config | Fresh literate `init.org`, one top-level section per build step. |
+| Config | Accepted: [ADR 0002](adr/0002-xdg-layout-state-outside-the-repo.md) (`~/.config/emacs`, State outside the repo) and [ADR 0003](adr/0003-literate-config-with-untracked-tangle.md) (literate `config.org`, tangled file untracked). One top-level section per build step. |
 | Notes engine | **org-node** (with org-mem) as the main tool. org-roam is installed only to drive **org-roam-ui** for the graph, through `org-mem-roamy-db` (still to be tested; fallback is running org-roam's own indexer just for the graph). Notes use `:ID:` properties and `id:` links, a format shared by org-node, org-roam and plain Org. |
 | Layout | **Hybrid**: a few topic files whose headings are nodes, plus a journal. Split a heading into its own file only when it grows (`org-node-extract-subtree`). |
-| Journal | Proposed: **one file per year with a date tree** (`journal/2026.org`, built by `org-capture` `file+olp+datetree`). Tim is still weighing this against one file per day; see open questions. |
+| Journal | Settled (no ADR): **one file per year with a date tree** (`journal/2026.org`, `file+olp+datetree`). The phone may edit it; a day's heading gets an `:ID:` only when first linked to. |
 | Tasks | Org TODOs in `projects.org` and inside notes. Dated TODOs (SCHEDULED or DEADLINE) are pushed to a dedicated Google calendar called "Org". |
 | Calendar | **org-gcal**, two-way, one Org file per Google calendar. Only one machine syncs (desktop for now, maybe a VPS later) to avoid duplicate IDs. On the phone, use the Google Calendar app. |
-| Sync | **Syncthing** for live sync (desktop, phone, later an Oracle free-tier VPS as an always-on peer). Hourly **auto-commit to a private GitHub repo** from the desktop for history. Nightly **rclone copy to Google Drive** as offsite backup. |
+| Sync | Settled part: notes in `~/org/`; **one Inbox per device**, refiled on the desktop; `global-auto-revert-mode` so a stale buffer never overwrites phone edits. Still open: **Syncthing** for live sync (desktop, phone, later an Oracle free-tier VPS as an always-on peer). Hourly **auto-commit to a private GitHub repo** from the desktop for history. Nightly **rclone copy to Google Drive** as offsite backup. |
 | Media | All media in `~/org/attachments/<note>/`, linked with **relative `file:` links** (not `attachment:`, which other devices can't resolve). HEIC photos from the phone: see "HEIC photos" below (open). |
 | Python envs | **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
 | Coding | eglot, tree-sitter `*-ts-mode`s, flymake + ruff, apheleia, dape, project.el. Drop lsp-mode, lsp-ui, flycheck, origami, smartparens, lispy and projectile. |
-| Completion | Vertico + **vertico-posframe** (centred pop-up; Tim likes it), Orderless, Marginalia, Consult, Embark, Corfu. |
+| Completion | Settled (no ADR): Vertico + **vertico-posframe**, Orderless, Marginalia, Consult, Embark, Corfu (still better than the built-ins), which-key, helpful, and **casual** menus (Agenda and Dired first). |
 | Look | **doom-nord** (Tim likes Nord's blues; `doom-nord-aurora` is an alternative), `org-modern`, Inter for prose, JetBrains Mono for code. |
 | Equations | `org-use-sub-superscripts '{}` (and the same for export), so only `x_{i}` and `e^{2}` turn into sub/superscripts and `~code_here~` or snake_case stay plain. LaTeX fragment previews with `org-fragtog`. |
 | References | Web: `org-insert-link`. Papers: one `.bib` (Zotero + Better BibTeX if Tim uses Zotero), built-in `org-cite`, **citar** + **citar-org-node** (https://github.com/krisbalintona/citar-org-node), **org-noter** + pdf-tools. |
@@ -202,7 +202,7 @@ eval "$(conda shell.bash hook)"
 conda activate myenv
 ```
 
-## Coding stack (PLAN item 7)
+## Coding stack (PLAN item 8)
 
 | Need | Package | Tools |
 | --- | --- | --- |

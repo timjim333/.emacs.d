@@ -32,8 +32,8 @@ in `/usr/local` through an `emacs-opt` alternative, which leaves Fedora's
   until deleted.
 - The systemd user unit can't be an alternatives link (`enable` resolves
   the link and pins one version), so it's a plain file in `/usr/local`
-  that runs `/usr/local/bin/emacs`. How to switch versions is up for review
-  in PLAN.md item 3.
+  that runs `/usr/local/bin/emacs`. Reviewed in PLAN.md item 3: switching
+  stays with `sudo alternatives --config emacs-opt`.
 - `-march=native` ties the binary to Zen 5-class CPUs; don't copy it to
   another machine.
 - Fedora's tree-sitter packaging can drift from what Emacs expects, as it
