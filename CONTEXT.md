@@ -42,3 +42,13 @@ _Avoid_: scratch, quick notes
 **Journal**:
 Dated entries, one file per year with a heading per day.
 _Avoid_: diary, daily notes
+
+**Device**:
+A machine that holds a synced copy of the Notes folder: glacier, the
+phone, and later the always-on VM. The work machine is never one.
+_Avoid_: client, node (a node is a note)
+
+**Conflict copy**:
+The `.sync-conflict` file Syncthing leaves when two Devices changed the
+same file between syncs.
+_Avoid_: merge conflict, duplicate

@@ -18,7 +18,7 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 - [Sync options considered](#sync-options-considered)
 - [Media plan](#media-plan)
 - [Python environments (direnv)](#python-environments-direnv)
-- [Coding stack (PLAN item 8)](#coding-stack-plan-item-8)
+- [Coding stack (PLAN item 9)](#coding-stack-plan-item-9)
 
 ## Context
 
@@ -46,12 +46,12 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 | --- | --- |
 | Emacs | Accepted: [ADR 0001](adr/0001-build-emacs-31-from-source-into-opt.md). Build 31.1 from source into `/opt`, registered with `alternatives`; switch to Fedora's package once it ships 31. |
 | Config | Accepted: [ADR 0002](adr/0002-xdg-layout-state-outside-the-repo.md) (`~/.config/emacs`, State outside the repo) and [ADR 0003](adr/0003-literate-config-with-untracked-tangle.md) (literate `config.org`, tangled file untracked). One top-level section per build step. |
-| Notes engine | **org-node** (with org-mem) as the main tool. org-roam is installed only to drive **org-roam-ui** for the graph, through `org-mem-roamy-db` (still to be tested; fallback is running org-roam's own indexer just for the graph). Notes use `:ID:` properties and `id:` links, a format shared by org-node, org-roam and plain Org. |
-| Layout | **Hybrid**: a few topic files whose headings are nodes, plus a journal. Split a heading into its own file only when it grows (`org-node-extract-subtree`). |
+| Notes engine | Settled (no ADR; see "org-node notes"): **org-node** with org-mem. Notes use `:ID:` properties and `id:` links. org-roam-ui (the graph) is optional, in Extras. |
+| Layout | Settled (no ADR): **hybrid**, like OneNote notebooks: topic files whose headings are nodes, plus the Journal. Split a heading into its own file only when it grows (`org-node-extract-subtree`). |
 | Journal | Settled (no ADR): **one file per year with a date tree** (`journal/2026.org`, `file+olp+datetree`). The phone may edit it; a day's heading gets an `:ID:` only when first linked to. |
-| Tasks | Org TODOs in `projects.org` and inside notes. Dated TODOs (SCHEDULED or DEADLINE) are pushed to a dedicated Google calendar called "Org". |
-| Calendar | **org-gcal**, two-way, one Org file per Google calendar. Only one machine syncs (desktop for now, maybe a VPS later) to avoid duplicate IDs. On the phone, use the Google Calendar app. |
-| Sync | Settled part: notes in `~/org/`; **one Inbox per device**, refiled on the desktop; `global-auto-revert-mode` so a stale buffer never overwrites phone edits. Still open: **Syncthing** for live sync (desktop, phone, later an Oracle free-tier VPS as an always-on peer). Hourly **auto-commit to a private GitHub repo** from the desktop for history. Nightly **rclone copy to Google Drive** as offsite backup. |
+| Tasks | Settled (no ADR): Org TODOs in `projects.org` and inside notes. Orgzly shows and reminds about them on the phone; no push to a Google calendar (revisit if missed). |
+| Calendar | Settled (no ADR): **org-gcal** for one Google account, events two-way, one file per calendar. One sync host: glacier now, the baby-log VM later. OAuth client set to "In production". |
+| Sync | Accepted: [ADR 0004](adr/0004-sync-and-backup.md). Syncthing (glacier, phone, later the VM as a trusted peer), one Inbox per device, git history pushed to GitHub, nightly plaintext `rclone sync` to Drive with dated archives. `global-auto-revert-mode` on. The work machine never syncs notes. |
 | Media | All media in `~/org/attachments/<note>/`, linked with **relative `file:` links** (not `attachment:`, which other devices can't resolve). HEIC photos from the phone: see "HEIC photos" below (open). |
 | Python envs | **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
 | Coding | eglot, tree-sitter `*-ts-mode`s, flymake + ruff, apheleia, dape, project.el. Drop lsp-mode, lsp-ui, flycheck, origami, smartparens, lispy and projectile. |
@@ -78,6 +78,15 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 ```
 
 ## org-node notes
+
+**Why org-node (settled 2026-10-26, no ADR):** notes are plain Org with
+`:ID:` properties and `id:` links, a format org-roam and plain Org read
+too, so switching engines means reinstalling packages, not converting
+notes. That's also why no ADR: it's cheap to reverse. Chosen over org-roam
+for speed and no SQLite database, and over Denote because Denote works on
+files only and the layout is hybrid. The main risk is org-node's single
+author; if it stalls, move to org-roam unchanged.
+
 
 - Speed: the author measured indexing 3,000 nodes in about 2 s with org-node,
   against about 3 min with org-roam. It is very actively developed, mostly by
@@ -126,10 +135,10 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 
 | Option | Verdict |
 | --- | --- |
-| Syncthing | **Chosen** for live sync. Peer-to-peer, near-instant, no storage limits, good Android app (Syncthing-Fork); the VPS can join as an always-on peer. Downsides: `.sync-conflict` files if two devices edit the same file before syncing; devices must be online together (the VPS fixes this). |
-| Google Drive + rclone | Backup only. `rclone bisync` isn't live and handles conflicts poorly. |
+| Syncthing | **Chosen** for live sync ([ADR 0004](adr/0004-sync-and-backup.md)). Syncs over the internet through relays, not only on a LAN. Peer-to-peer, near-instant, no storage limits, good Android app (Syncthing-Fork); the VPS can join as an always-on peer. Downsides: `.sync-conflict` files if two devices edit the same file before syncing; devices must be online together (the VPS fixes this). |
+| Google Drive + rclone | Backup only: nightly `rclone sync` with `--backup-dir` dated archives. `rclone bisync` isn't live and handles conflicts poorly. |
 | Dropbox | Not chosen: the free tier allows only 3 devices, and Orgzly's Dropbox sync covers notes but not attachments. |
-| git + GitHub | History only, via an hourly systemd-timer auto-commit from the desktop. Not used for live sync. |
+| git + GitHub | History only, via an hourly auto-commit and push (attachments included). Not used for live sync: not live, and needs SSH keys on the phone. |
 
 ## Media plan
 
@@ -202,7 +211,7 @@ eval "$(conda shell.bash hook)"
 conda activate myenv
 ```
 
-## Coding stack (PLAN item 8)
+## Coding stack (PLAN item 9)
 
 | Need | Package | Tools |
 | --- | --- | --- |

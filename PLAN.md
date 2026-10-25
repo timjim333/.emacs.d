@@ -26,7 +26,7 @@ coding, on Emacs 31.1 (pgtk) on glacier (Fedora 44, KDE Plasma, Wayland).
 Build Emacs first, then challenge the Chat design before writing more
 config, then cut the daemon over to the new config. After that, each
 `config.org` build step is one item, in this order: Org basics, notes,
-tasks and calendar, coding, references, extras. From item 5 on, each item
+sync and backup, tasks and calendar, coding, references, extras. From item 5 on, each item
 gets its own worktree and branch off `main`. Android
 is a separate project once the desktop setup is stable.
 
@@ -38,10 +38,11 @@ is a separate project once the desktop setup is stable.
 - [ ] 4. Cutover
 - [ ] 5. Org basics
 - [ ] 6. Notes: org-node, journal, capture
-- [ ] 7. Tasks, agenda, and org-gcal
-- [ ] 8. Coding
-- [ ] 9. References
-- [ ] 10. Extras
+- [ ] 7. Sync and backup
+- [ ] 8. Tasks, agenda, and org-gcal
+- [ ] 9. Coding
+- [ ] 10. References
+- [ ] 11. Extras
 
 ### 1. Config skeleton
 
@@ -88,7 +89,7 @@ an ADR, marked settled, or marked open; the questions below each have an
 answer or an owner; each later item gets goals and tests as its topic is
 grilled, so they can change with the direction.
 
-**Handoff:** In progress (round 1 committed 2026-10-25). Settled so far:
+**Handoff:** In progress (rounds 1–2 committed 2026-10-26). Settled so far:
 - Version switching: keep `alternatives` with the plain systemd unit (see
   `docs/emacs-build.md`); `/opt/emacs/README.md` written as a reminder.
 - [ADR 0002](docs/adr/0002-xdg-layout-state-outside-the-repo.md): XDG
@@ -101,15 +102,13 @@ grilled, so they can change with the direction.
 - Notes in `~/org/`; one Inbox per device; yearly Journal, phone may edit.
 - Keep the old `elpa/` until item 6 is in daily use, then delete it.
 - XDG for other configs: proposed in agent-env's `global/rule-ideas.md`.
+- Notes: org-node (no ADR; reasoning in design notes), hybrid layout,
+  org-roam-ui deferred, four capture templates (item 6).
+- [ADR 0004](docs/adr/0004-sync-and-backup.md): sync and backup, new
+  item 7; the work machine never syncs notes.
+- Calendar: one account, events two-way, no TODO push (item 8).
 
 Still to grill, in order:
-- Notes layout, org-node, and capture templates (inbox, journal entry,
-  note, code snippet, web link via org-protocol, meeting linked to a
-  calendar event).
-- Sync: Syncthing, VPS, auto-commit, rclone; will the work machine sync
-  these personal notes?
-- Google Calendar: which account and calendars; is Tim OK creating the
-  Google Cloud OAuth client?
 - References: Zotero, or a hand-kept `.bib` file for citar?
 - HEIC photos: test whether Orgzly Revived attaches and shows images
   first, on Waydroid (`waydroid-drive` skill) or the phone.
@@ -153,25 +152,50 @@ and `casual` (Agenda and Dired menus).
 
 ### 6. Notes: org-node, journal, capture
 
-**Goals:** org-node and org-mem, the journal, capture templates designed
-with Tim, and org-roam-ui through `org-mem-roamy-db`.
+**Goals:** org-node and org-mem (why: design notes, "org-node notes"),
+the yearly Journal, the hybrid layout in `~/org/`, and four capture
+templates: `t` TODO, `j` journal entry, `w` web link (org-protocol), and
+`s` code snippet, all to `inbox.org` except `j`. New notes come from
+`org-node-find`; `C-c C-w` in a capture refiles it straight to a heading.
 
 **Acceptance tests:** to agree when the item starts.
 
-**Handoff:** Not started. `org-mem-roamy-db` driving org-roam-ui is
-untested; the fallback is org-roam's own indexer just for the graph.
+**Handoff:** Not started. org-roam-ui moved to item 11 (optional).
+When this item is in daily use, delete the Old config's `elpa/` from the
+main checkout.
 
-### 7. Tasks, agenda, and org-gcal
+### 7. Sync and backup
 
-**Goals:** agenda, org-gcal with the "Org" calendar for dated TODOs, and a
-sync-host guard so only one machine fetches.
+**Goals:** per [ADR 0004](docs/adr/0004-sync-and-backup.md): Syncthing on
+glacier and the phone, `.stignore` for `.git`, staggered versioning on
+glacier, `tim/resolve-sync-conflicts` (ediff), the hourly auto-commit and
+push to a private GitHub repo, and the nightly `rclone sync` to Drive with
+`--backup-dir` (90 days) and `--max-delete 50`. A later round moves the
+jobs to the baby-log OCI VM as a trusted peer.
+
+**Acceptance tests:** to agree when the item starts.
+
+**Handoff:** Not started. The VM round waits on baby-log's VM item. Open,
+for an agent-env session: whether VM-level config shared by two projects
+moves to its own repo. Tune `--max-delete` once there's data on normal
+weekly deletions.
+
+### 8. Tasks, agenda, and org-gcal
+
+**Goals:** agenda, and org-gcal for one Google account (primary
+calendar first; Tim to name any others), one file per calendar in
+`~/org/calendar/`, events two-way. No push of dated TODOs to a calendar:
+Orgzly reminds about TODOs. A sync-host guard so only one machine fetches
+(glacier now, the VM later). The meeting capture template.
 
 **Acceptance tests:** to agree when the item starts.
 
 **Handoff:** Not started. Choose between kidd/org-gcal.el and the
-martianh fork by which installs cleanly.
+martianh fork by which installs cleanly. Set the OAuth client to "In
+production", or refresh tokens expire after 7 days; ID and secret go in
+`private.el`.
 
-### 8. Coding
+### 9. Coding
 
 **Goals:** eglot, tree-sitter modes, flymake with ruff, apheleia, dape,
 and envrc.
@@ -180,7 +204,7 @@ and envrc.
 
 **Handoff:** Not started.
 
-### 9. References
+### 10. References
 
 **Goals:** citar, citar-org-node, and org-noter with pdf-tools.
 
@@ -188,11 +212,12 @@ and envrc.
 
 **Handoff:** Not started.
 
-### 10. Extras
+### 11. Extras
 
 **Goals:** a KDE global shortcut for an emacsclient capture frame,
-org-protocol from the browser, gptel, the voice-clip command, the
-auto-commit timer, and Syncthing setup.
+org-protocol from the browser, gptel, the voice-clip command, and,
+optionally, org-roam-ui through `org-mem-roamy-db` (try at about 100
+linked notes; untested, fallback is org-roam's own indexer).
 
 **Acceptance tests:** to agree when the item starts.
 
