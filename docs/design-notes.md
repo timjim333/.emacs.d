@@ -56,7 +56,7 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 | Python envs | Settled (no ADR): **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
 | Coding | Settled (no ADR): eglot with **basedpyright** in "standard" mode, tree-sitter `*-ts-mode`s, flymake + ruff, apheleia, dape, project.el, plus the editing packages in "Package review". |
 | Completion | Settled (no ADR): Vertico + **vertico-posframe**, Orderless, Marginalia, Consult, Embark, Corfu (still better than the built-ins), which-key, helpful, and **casual** menus (Agenda and Dired first). |
-| Look | Settled (no ADR): **doom-nord**, `org-modern`, Inter for prose, JetBrains Mono for code, ligatures. No auto light/dark switching. |
+| Look | Settled (no ADR): **doom-nord**, `org-modern`, Inter for prose, JetBrains Mono for code, ligatures. auto-dark follows KDE's light or dark mode; light theme to pick. |
 | Equations | Settled (no ADR): `org-use-sub-superscripts '{}` (and the same for export), so only `x_{i}` and `e^{2}` turn into sub/superscripts. LaTeX previews with `org-fragtog`. |
 | References | Settled (no ADR): optional, hobby scale. Web: `org-insert-link`. Papers, when wanted: Zotero (import from Mendeley) + Better BibTeX exporting one `.bib`, `org-cite`, citar + citar-org-node, org-noter + pdf-tools. |
 | Spelling | Settled (no ADR): jinx in British English (`en_GB`; needs `hunspell-en-GB`, `enchant2-devel`, and Emacs built with modules). |
@@ -202,7 +202,8 @@ doesn't want to convert photos by hand.
 The Old config's packages not otherwise in the plan, reviewed fresh. Many
 came with the fork rather than by Tim's choice.
 
-- **Kept:** multiple-cursors, verb, focus, org-present, ligature, nov,
+- **Kept:** forge, auto-dark (light theme to pick), toc-org (for notes
+  read on GitHub away from home), multiple-cursors, verb, focus, org-present, ligature, nov,
   elfeed, eros, wgrep, git-timemachine, git-link, org-appear, olivetti,
   rainbow-delimiters, hl-todo, pdf-view-restore.
 - **Replaced:** expand-region → expreg (tree-sitter); undo-fu → built-in
@@ -217,9 +218,8 @@ came with the fork rather than by Tim's choice.
   and tree-sitter folding.
 - **Dropped:** move-dup, symbol-overlay, default-text-scale, hide-lines,
   yasnippet (tempel if missed), dwim-shell-command, imenu-list, javelin,
-  consult-xref-stack (`M-,` and `C-M-,` built in), hide-mode-line, forge,
-  blamer, toc-org (add back if browsing notes on GitHub), ox-hugo,
-  writeroom-mode, beacon, auto-dark, south-theme, esup, try.
+  consult-xref-stack (`M-,` and `C-M-,` built in), hide-mode-line,
+  blamer, ox-hugo, writeroom-mode, beacon, south-theme, esup, try.
 - **Decide in PLAN item 8:** org-super-agenda, org-ql.
 
 ## Python environments (direnv)

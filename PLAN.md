@@ -114,7 +114,8 @@ grilled, so they can change with the direction.
   review"); basedpyright in standard mode; jinx in `en_GB`.
 
 Still to grill, in order:
-- Acceptance tests for items 5–8.
+- Journal entries that link to a project's log (Q35, below).
+- Calendar on the phone: read-only in Orgzly, or not at all (Q36).
 
 ### 4. Cutover
 
@@ -148,9 +149,22 @@ a hook converting `.heic` to `.webp`), Babel for Python and shell, tags
 vocabulary, LOGBOOK settings (`org-log-into-drawer t`), jinx with `en_GB`
 (`hunspell-en-GB`), `global-auto-revert-mode`, `casual` (Agenda and Dired),
 org-appear, olivetti, `visual-wrap-prefix-mode`, org-present, focus, and
-ligature.
+ligature, and auto-dark with a light theme to pick.
 
-**Acceptance tests:** to agree when the item starts.
+**Acceptance tests:**
+1. In a scratch Org file, `x_{i}` renders as a subscript; `snake_case`
+   and `~code_here~` stay plain.
+2. `$E=mc^2$` shows a rendered preview when the cursor leaves it and the
+   source when it enters.
+3. Pasting a screenshot with org-download saves it under
+   `attachments/<note>/` and inserts a relative `file:` link shown inline.
+4. Attaching a `.heic` leaves a `.webp`, and the link points at it.
+5. `C-c C-c` on a Python block and on a shell block prints `#+RESULTS:`.
+6. Changing a TODO's state writes the note into a `:LOGBOOK:` drawer.
+7. With the file open and unmodified, `echo "* test" >> file.org` from a
+   shell shows the new heading in the buffer within about 5 seconds.
+8. jinx doesn't flag `colour` and does flag `color`.
+9. `*bold*` hides its asterisks until the cursor is inside it.
 
 **Handoff:** Not started; waits on item 4. Package choices: design notes,
 "Package review".
@@ -163,8 +177,23 @@ templates: `t` TODO, `j` journal entry, `w` web link (org-protocol), and
 `s` code snippet, all to `inbox.org` except `j`. New notes come from
 `org-node-find`; `C-c C-w` in a capture refiles it straight to a heading.
 org-protocol registered with the desktop so the browser can call `w`.
+toc-org for topic files read on GitHub away from home.
 
-**Acceptance tests:** to agree when the item starts.
+**Acceptance tests:**
+1. `org-node-find` with part of an existing title lists that note;
+   confirming new text creates a note with an `:ID:`.
+2. `org-node-insert-link` inserts an `id:` link, and the target's
+   backlinks panel lists the source.
+3. Two `j` captures on one day add two entries under one heading for
+   today in `journal/2026.org`, creating year, month, and day headings
+   if missing.
+4. `t` and `s` captures land in `inbox.org` with `C-c C-c`, and under the
+   chosen heading with `C-c C-w`.
+5. The browser bookmarklet creates a `w` entry with the page title and
+   URL in `inbox.org`.
+6. Indexing `~/org` leaves no errors in `*Messages*`.
+7. Saving a topic file with a `:TOC:` heading refreshes its table of
+   contents.
 
 **Handoff:** Not started. org-roam-ui moved to item 11 (optional).
 When this item is in daily use, delete the Old config's `elpa/` from the
@@ -183,7 +212,21 @@ them? Then a job on glacier converts any `.heic` arriving in
 (git keeps it). A later round moves the jobs to the baby-log OCI VM as a
 trusted peer.
 
-**Acceptance tests:** to agree when the item starts.
+**Acceptance tests:**
+1. A note created in Orgzly appears on glacier within 1 minute while both
+   are online.
+2. Editing one file on both devices with the phone in airplane mode gives
+   a Conflict copy; `tim/resolve-sync-conflicts` opens it in ediff, and
+   the copy is gone after merging.
+3. The phone's copy of `~/org` has no `.git` folder.
+4. The hourly job commits and pushes; the commit shows on GitHub.
+5. After deleting a file locally and running the backup, it's gone from
+   Drive's `current/` and present in `archive/<date>/`.
+6. With the limit set to 2, deleting 3 files makes the backup refuse and
+   leaves Drive unchanged.
+7. A HEIC attached on the phone ends up as `.webp` on glacier with the
+   link rewritten, after the job runs.
+8. The Orgzly image test result is recorded in the design notes.
 
 **Handoff:** Not started. The VM round waits on baby-log's VM item. Open,
 for an agent-env session: whether VM-level config shared by two projects
@@ -198,7 +241,16 @@ calendar first; Tim to name any others), one file per calendar in
 Orgzly reminds about TODOs. A sync-host guard so only one machine fetches
 (glacier now, the VM later). The meeting capture template.
 
-**Acceptance tests:** to agree when the item starts.
+**Acceptance tests:**
+1. `org-gcal-fetch` fills `calendar/<name>.org` with this week's events,
+   and they show in the agenda.
+2. Moving an event's time in Org and syncing changes it in Google
+   Calendar, and the reverse.
+3. The meeting capture creates an event that appears in Google Calendar.
+4. On a host other than the sync host, `org-gcal-fetch` refuses with a
+   message.
+5. Eight days after first login, sync still works without logging in
+   again ("In production" status).
 
 **Handoff:** Not started. Choose between kidd/org-gcal.el and the
 martianh fork by which installs cleanly. Set the OAuth client to "In
@@ -213,7 +265,7 @@ modes, flymake with ruff, apheleia, dape, and envrc. Editing: expreg,
 multiple-cursors, vundo, `electric-pair-mode`, `auto-save-visited-mode`,
 a `C-a` toggle between indentation and line start, eros, built-in
 editorconfig, verb, windmove, wgrep, git-timemachine, git-link,
-rainbow-delimiters, and hl-todo.
+rainbow-delimiters, hl-todo, and forge (token in `~/.authinfo.gpg`).
 
 **Acceptance tests:** to agree when the item starts.
 
