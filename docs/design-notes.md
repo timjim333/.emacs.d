@@ -1,9 +1,10 @@
 # Org notes system: design notes
 
-Last updated 2026-10-25. Consolidated from the design discussion with Tim
+Last updated 2026-10-26. Consolidated from the design discussion with Tim
 in Claude Chat (the original working doc, with round-by-round history:
-https://claude.ai/artifact/4JmVXL9vudaSeydRmS1iJ5). The decisions below are
-**proposed**: PLAN.md item 3 grills them into `CONTEXT.md` and ADRs. Items,
+https://claude.ai/artifact/4JmVXL9vudaSeydRmS1iJ5). The decisions below were
+grilled in PLAN.md item 3 (2026-10-26) into `CONTEXT.md`, ADRs, and rows
+marked settled. Items,
 status, and open questions live in `PLAN.md`; the Emacs build is in
 `docs/emacs-build.md`.
 
@@ -50,7 +51,7 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 | Layout | Settled (no ADR): **hybrid**, like OneNote notebooks: topic files whose headings are nodes, plus the Journal. Split a heading into its own file only when it grows (`org-node-extract-subtree`). |
 | Journal | Settled (no ADR): **one file per year with a date tree** (`journal/2026.org`, `file+olp+datetree`). The phone may edit it; a day's heading gets an `:ID:` only when first linked to. |
 | Tasks | Settled (no ADR): Org TODOs in `projects.org` and inside notes. Orgzly shows and reminds about them on the phone; no push to a Google calendar (revisit if missed). |
-| Calendar | Settled (no ADR): **org-gcal** for one Google account, events two-way, one file per calendar. One sync host: glacier now, the baby-log VM later. OAuth client set to "In production". |
+| Calendar | Settled (no ADR): **org-gcal** for one Google account, events two-way, one file per calendar in `~/org-calendar/` (Receive Only on the phone; see [ADR 0004](adr/0004-sync-and-backup.md)). On the phone, edit events in the Google Calendar app. One sync host: glacier now, the baby-log VM later. OAuth client set to "In production". |
 | Sync | Accepted: [ADR 0004](adr/0004-sync-and-backup.md). Syncthing (glacier, phone, later the VM as a trusted peer), one Inbox per device, git history pushed to GitHub, nightly plaintext `rclone sync` to Drive with dated archives. `global-auto-revert-mode` on. The work machine never syncs notes. |
 | Media | Settled (no ADR): all media in `~/org/attachments/<note>/`, linked with **relative `file:` links** (not `attachment:`, which other devices can't resolve). HEIC becomes WebP at glacier: a hook for attachments made in Emacs, and a job for HEIC arriving from the phone (see "HEIC photos"). |
 | Python envs | Settled (no ADR): **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
@@ -71,11 +72,18 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
   journal/2026.org        date tree: 2026 > 2026-10 October > 2026-10-24 Saturday
   notes/                  topic files (e.g. coding.org, hobbies.org, travel.org,
                           research.org) whose headings are org-node nodes
-  calendar/               org-gcal files, one per Google calendar (desktop syncs)
   attachments/<note>/     images, audio, diagrams; relative file: links
   attachments/phone/      drop folder for phone photos/recordings
   refs.bib                bibliography
+~/org-calendar/           org-gcal files, one per Google calendar; a separate
+                          Syncthing folder, Receive Only on the phone, not in
+                          git or the Drive backup
 ```
+
+Projects keep a `Log` heading whose children are dated entries, each with
+an `:ID:`. The `l` capture writes one there and adds a linked headline to
+today's Journal, so the Journal is the day view and each project's `Log`
+is its review view.
 
 ## org-node notes
 

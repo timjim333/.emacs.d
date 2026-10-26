@@ -30,8 +30,8 @@ _Avoid_: install, version (when the folder is meant)
 ## Notes
 
 **Notes folder**:
-`~/org/`, the one folder holding every note, the journal, and the inboxes;
-synced to every device.
+`~/org/`, the folder holding every note, the Journal, and the Inboxes;
+synced to every Device and kept in git.
 _Avoid_: vault, org directory
 
 **Inbox**:
@@ -40,8 +40,20 @@ device has its own.
 _Avoid_: scratch, quick notes
 
 **Journal**:
-Dated entries, one file per year with a heading per day.
+The day view: one file per year with a heading per day, holding entries
+and linked headlines of Log entries.
 _Avoid_: diary, daily notes
+
+**Log entry**:
+A dated heading under a project's `Log` heading, recording one piece of
+work on it, linked from that day in the Journal.
+_Avoid_: logbook note (the LOGBOOK drawer holds state changes and clock
+times only)
+
+**Calendar folder**:
+`~/org-calendar/`, the Org copies of Google calendars, written only by
+org-gcal on the sync host; read-only on the phone.
+_Avoid_: agenda files (the agenda also reads the Notes folder)
 
 **Device**:
 A machine that holds a synced copy of the Notes folder: glacier, the

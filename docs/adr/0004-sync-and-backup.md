@@ -25,6 +25,14 @@ accepts Drive in plaintext for its web view, and GitHub as one more
 access-controlled (not encrypted) copy. Don't "fix" either by encrypting
 them without asking.
 
+Calendar files from org-gcal live in a sibling folder, `~/org-calendar/`,
+shared as a separate Syncthing folder that is **Receive Only** on the
+phone (amended 2026-10-26). Orgzly can show them, but an edit there never
+leaves the phone, so it can't collide with org-gcal rewriting the files
+on glacier. Events are edited on the phone in the Google Calendar app.
+The folder is outside git and the Drive backup: org-gcal rewrites it on
+every fetch, and it can be rebuilt from Google.
+
 ## Considered options
 
 - **Encrypted backups** (`rclone crypt`, restic, or kopia): private, but
@@ -34,6 +42,9 @@ them without asking.
   deleted files. Plain `rclone sync`: copies a wipe to the backup.
 - **Git for live sync:** merges line by line, but isn't live, needs SSH
   keys on the phone, and same-line edits still conflict.
+- **Calendar files inside `~/org`:** Orgzly edits to them would be lost
+  (new headings aren't posted to Google) or collide with org-gcal's
+  rewrites; Syncthing discourages nesting a separate folder inside one.
 - **VPS as an encrypted (untrusted) Syncthing peer:** no exposure, but it
   can't run the jobs below.
 

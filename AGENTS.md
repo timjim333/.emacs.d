@@ -26,7 +26,8 @@ plus light IDE-style coding. Read these before starting work:
 - `/opt/emacs/`: Emacs source, build tree, and install prefix; see
   `docs/emacs-build.md`. Links in `/usr/local` are managed by the
   `emacs-opt` alternative.
-- `~/org/`: the notes folder (planned; synced by Syncthing).
+- `~/org/`: the Notes folder (planned; Syncthing, git, Drive backup).
+- `~/org-calendar/`: org-gcal's calendar files (planned; Syncthing only).
 
 ## Conventions
 

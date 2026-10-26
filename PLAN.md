@@ -34,7 +34,7 @@ is a separate project once the desktop setup is stable.
 
 - [x] 1. Config skeleton
 - [x] 2. Build and install Emacs 31.1
-- [ ] 3. Grill the design
+- [x] 3. Grill the design
 - [ ] 4. Cutover
 - [ ] 5. Org basics
 - [ ] 6. Notes: org-node, journal, capture
@@ -89,33 +89,27 @@ an ADR, marked settled, or marked open; the questions below each have an
 answer or an owner; each later item gets goals and tests as its topic is
 grilled, so they can change with the direction.
 
-**Handoff:** In progress (rounds 1–2 committed 2026-10-26). Settled so far:
-- Version switching: keep `alternatives` with the plain systemd unit (see
-  `docs/emacs-build.md`); `/opt/emacs/README.md` written as a reminder.
+**Handoff:** Done on 2026-10-26. Every row of the design notes'
+Decisions table is an ADR (0001–0004) or marked settled; every question
+here was answered; items 5–8 have agreed tests, and items 9–11 get theirs
+when each starts. Settled:
+- Version switching: keep `alternatives` with the plain systemd unit;
+  `/opt/emacs/README.md` is the reminder.
 - [ADR 0002](docs/adr/0002-xdg-layout-state-outside-the-repo.md): XDG
   layout, State outside the repo, repo renamed to `~/repos/emacs-config`.
 - [ADR 0003](docs/adr/0003-literate-config-with-untracked-tangle.md):
   literate `config.org`, `init.el` stub, `config.el` untracked.
-- Workflow: new item 4 (Cutover), then one worktree and branch per item.
-- Fork leftovers (`images/`, `snippets/`, `README.org`) go in item 4.
-- Completion: current set plus `casual`; Corfu stays.
-- Notes in `~/org/`; one Inbox per device; yearly Journal, phone may edit.
-- Keep the old `elpa/` until item 6 is in daily use, then delete it.
-- XDG for other configs: proposed in agent-env's `global/rule-ideas.md`.
-- Notes: org-node (no ADR; reasoning in design notes), hybrid layout,
-  org-roam-ui deferred, four capture templates (item 6).
-- [ADR 0004](docs/adr/0004-sync-and-backup.md): sync and backup, new
-  item 7; the work machine never syncs notes.
-- Calendar: one account, events two-way, no TODO push (item 8).
-- References: optional item 10, Zotero when started.
-- HEIC: convert to WebP at glacier, both on attach and on arrival from
-  the phone (item 7, after the Orgzly test).
-- Packages from the Old config reviewed (design notes, "Package
-  review"); basedpyright in standard mode; jinx in `en_GB`.
-
-Still to grill, in order:
-- Journal entries that link to a project's log (Q35, below).
-- Calendar on the phone: read-only in Orgzly, or not at all (Q36).
+- [ADR 0004](docs/adr/0004-sync-and-backup.md): Syncthing, git pushed to
+  GitHub, plaintext Drive mirror with dated archives, `~/org-calendar/`
+  Receive Only on the phone; the work machine never syncs notes.
+- Workflow: item 4 (Cutover), then one worktree and branch per item.
+- Notes: org-node (reasoning in design notes), hybrid layout, yearly
+  Journal, one Inbox per Device, Log entries linked from the Journal.
+- Packages from the Old config reviewed (design notes, "Package review").
+- XDG for other configs, and where shared VM config lives: proposed in
+  agent-env's `global/rule-ideas.md` for an agent-env session.
+Not merged: this branch still carries the untested skeleton; item 4
+merges it.
 
 ### 4. Cutover
 
@@ -177,7 +171,10 @@ templates: `t` TODO, `j` journal entry, `w` web link (org-protocol), and
 `s` code snippet, all to `inbox.org` except `j`. New notes come from
 `org-node-find`; `C-c C-w` in a capture refiles it straight to a heading.
 org-protocol registered with the desktop so the browser can call `w`.
-toc-org for topic files read on GitHub away from home.
+toc-org for topic files read on GitHub away from home. An `l` capture
+for Log entries (prompts for a project, files a dated heading with an
+`:ID:` under its `Log` heading, and adds a linked headline to today's
+Journal), and a "refile as log entry" command for phone captures.
 
 **Acceptance tests:**
 1. `org-node-find` with part of an existing title lists that note;
@@ -194,6 +191,8 @@ toc-org for topic files read on GitHub away from home.
 6. Indexing `~/org` leaves no errors in `*Messages*`.
 7. Saving a topic file with a `:TOC:` heading refreshes its table of
    contents.
+8. One `l` capture creates an entry under the chosen project's `Log`
+   heading and a Journal line whose link opens that entry.
 
 **Handoff:** Not started. org-roam-ui moved to item 11 (optional).
 When this item is in daily use, delete the Old config's `elpa/` from the
@@ -206,8 +205,9 @@ glacier and the phone, `.stignore` for `.git`, staggered versioning on
 glacier, `tim/resolve-sync-conflicts` (ediff), the hourly auto-commit and
 push to a private GitHub repo, and the nightly `rclone sync` to Drive with
 `--backup-dir` (90 days) and `--max-delete 50`. Start by testing Orgzly
-Revived on Waydroid: can it attach and show images, and where does it save
-them? Then a job on glacier converts any `.heic` arriving in
+Revived on Waydroid: can it attach and show images, where does it save
+them, and does its agenda show org-gcal's plain timestamps (if not, the
+phone ignores `~/org-calendar/` instead)? Then a job on glacier converts any `.heic` arriving in
 `~/org/attachments` to `.webp`, rewrites the links, and removes the HEIC
 (git keeps it). A later round moves the jobs to the baby-log OCI VM as a
 trusted peer.
@@ -226,7 +226,8 @@ trusted peer.
    leaves Drive unchanged.
 7. A HEIC attached on the phone ends up as `.webp` on glacier with the
    link rewritten, after the job runs.
-8. The Orgzly image test result is recorded in the design notes.
+8. The Orgzly test results (images, agenda) are recorded in the design
+   notes.
 
 **Handoff:** Not started. The VM round waits on baby-log's VM item. Open,
 for an agent-env session: whether VM-level config shared by two projects
@@ -237,12 +238,13 @@ weekly deletions.
 
 **Goals:** agenda, and org-gcal for one Google account (primary
 calendar first; Tim to name any others), one file per calendar in
-`~/org/calendar/`, events two-way. No push of dated TODOs to a calendar:
+`~/org-calendar/` (a separate Syncthing folder, Receive Only on the
+phone), events two-way. No push of dated TODOs to a calendar:
 Orgzly reminds about TODOs. A sync-host guard so only one machine fetches
 (glacier now, the VM later). The meeting capture template.
 
 **Acceptance tests:**
-1. `org-gcal-fetch` fills `calendar/<name>.org` with this week's events,
+1. `org-gcal-fetch` fills `~/org-calendar/<name>.org` with this week's events,
    and they show in the agenda.
 2. Moving an event's time in Org and syncing changes it in Google
    Calendar, and the reverse.
@@ -251,6 +253,8 @@ Orgzly reminds about TODOs. A sync-host guard so only one machine fetches
    message.
 5. Eight days after first login, sync still works without logging in
    again ("In production" status).
+6. Editing a calendar file in Orgzly leaves glacier's copy unchanged, and
+   Syncthing on the phone offers "Revert local changes".
 
 **Handoff:** Not started. Choose between kidd/org-gcal.el and the
 martianh fork by which installs cleanly. Set the OAuth client to "In
