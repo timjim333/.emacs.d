@@ -22,7 +22,7 @@ tangled, and the tangled file is compiled."
 
 (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
 
-(setq native-comp-eln-load-path '("~/.emacs.d/eln-cache/"))
+(setq native-comp-eln-load-path (list (expand-file-name "eln-cache/" user-emacs-directory)))
 
 (require 'package)
 (require 'use-package)
@@ -43,7 +43,6 @@ tangled, and the tangled file is compiled."
         ("nongnu"       . 0)))
 (package-initialize)
 
-(setq user-emacs-directory "~/.emacs.d/")
 (setq default-directory "~/")
 
 (set-language-environment    "UTF-8")
@@ -798,7 +797,7 @@ When called without a prefix argument, kill just the current buffer
   :diminish yas-minor-mode
   :defer 5
   :config
-  (setq yas-snippet-dirs '("~/.emacs.d/snippets/"))
+  (setq yas-snippet-dirs (list (expand-file-name "snippets/" user-emacs-directory)))
   (yas-global-mode 1)) ;; or M-x yas-reload-all if you've started YASnippet already.
 
 ;; Silences the warning when running a snippet with backticks (runs a command in the snippet)
