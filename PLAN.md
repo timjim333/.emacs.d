@@ -12,14 +12,13 @@ coding, on Emacs 31.1 (pgtk) on glacier (Fedora 44, KDE Plasma, Wayland).
 ## Context
 
 - Design research, option comparisons, and proposed decisions:
-  [docs/design-notes.md](docs/design-notes.md). These came from a Claude
-  Chat session and haven't been grilled yet; item 3 does that.
+  [docs/design-notes.md](docs/design-notes.md), grilled in item 3.
 - Glossary: [CONTEXT.md](CONTEXT.md).
 - Accepted decisions: [docs/adr/](docs/adr/).
 - Emacs build and install: [docs/emacs-build.md](docs/emacs-build.md).
 - Repo conventions and how to test a change: [AGENTS.md](AGENTS.md).
-- The old config (forked from SophieBosio/.emacs.d) is in git history at
-  `b0cee10`.
+- The Old config is at the `old-config` tag; a runnable copy lives in
+  `~/repos/emacs-old-config` (see AGENTS.md).
 
 ## Roadmap
 
@@ -153,7 +152,11 @@ Claude's memory and worktrees are keyed to the old path:
 5. `systemctl --user start emacs`, then `emacsclient -e user-emacs-directory`
 6. Remove the `project-thread` worktree and its branch once nothing
    more is needed from them (both are merged).
-Then tick item 4.
+Then tick item 4. Rounds 1 and 2 are already on `main`, because the
+Cutover needs the daemon's checkout to hold the new config; the item
+wasn't reviewed, as review waits for the end of an item. After the rename,
+start item 5 with `/pickup` in a fresh session, in its own worktree off
+`main`.
 
 ### 5. Org basics
 
@@ -215,8 +218,8 @@ Journal), and a "refile as log entry" command for phone captures.
    heading and a Journal line whose link opens that entry.
 
 **Handoff:** Not started. org-roam-ui moved to item 11 (optional).
-When this item is in daily use, delete the Old config's `elpa/` from the
-main checkout.
+When this item is in daily use, remove the `~/repos/emacs-old-config`
+worktree and its `old-config-fallback` branch (the tag stays).
 
 ### 7. Sync and backup
 
