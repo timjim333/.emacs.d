@@ -19,5 +19,10 @@ full reinstall, mixed Emacs 30 bytecode into the 31.1 switch, and made
 - Rolling back to an old commit restores Config but not packages, because
   ELPA and MELPA serve only current versions.
 - The `.gitignore` whitelist stays as a safety net for `private.el`.
+- `custom.el` is State, because Emacs writes it (Customize, and
+  `package-selected-packages`), so it lives in `~/.local/share/emacs/`.
+  `private.el` is Config that Tim writes, so it stays in the repo folder,
+  gitignored. Look in the data folder before assuming a Customize change
+  was lost.
 - The repo is renamed from `~/repos/.emacs.d` to `~/repos/emacs-config` at
   the end of the Cutover.
