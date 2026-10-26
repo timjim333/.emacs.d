@@ -4,10 +4,14 @@ Tim's Emacs config, being rebuilt from scratch as an Org mode notes system
 plus light IDE-style coding. Read these before starting work:
 
 - `PLAN.md`: roadmap, items, and handoff notes. Start from the next item.
-- `docs/design-notes.md`: design research, option comparisons, and the
-  decisions proposed so far (to be grilled into `CONTEXT.md` and ADRs).
+- `CONTEXT.md`: the glossary. Use its terms.
+- `docs/design-notes.md`: the Decisions table (each row settled or an
+  ADR), option comparisons, and the reasons behind settled choices.
 - `docs/emacs-build.md`: how Emacs 31.1 is built and installed on glacier.
 - `docs/adr/`: accepted decisions.
+
+Until item 4 (Cutover) merges, `init.org` below is the skeleton; item 4
+replaces it with `config.org` per ADRs 0002 and 0003.
 
 ## How this repo works
 
