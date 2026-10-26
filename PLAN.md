@@ -127,29 +127,33 @@ finally rename the repo to `~/repos/emacs-config`.
 3. `emacsclient -e user-emacs-directory` shows `~/.config/emacs/`, and
    packages are under `~/.local/share/emacs/`.
 4. `git status` in the repo is clean after a start: no State in it.
-5. Fedora's `/usr/bin/emacs --init-directory` on an `old-config` checkout
-   still starts the Old config with the old `elpa/`.
+5. Fedora's `/usr/bin/emacs-pgtk --init-directory` on an `old-config`
+   checkout still starts the Old config with the old `elpa/`, and leaves
+   no `~/.emacs.d` behind.
 
-**Handoff:** Round 1 of 3 done on 2026-10-26: the restructure is
-committed on this branch, and tests 1, 2, and 4 pass against the worktree
-with `emacs --init-directory` (test 2 checked by a timer that dumps
-`*Warnings*`; empty on the second start). The first start after installing
-packages logs two native-compiler warnings from vertico-posframe; that's
-expected, and a later start is clean. `custom.el` lives in
-`~/.local/share/emacs/` because Emacs writes it; `private.el` stays in
-the repo folder, gitignored. Packages are already installed in
-`~/.local/share/emacs/elpa` from testing.
-Next rounds:
-2. Switch over: tag `b0cee10` as `old-config`; create the worktree
-   `~/repos/emacs-old-config` at that tag and move the main checkout's
-   `elpa/` and `eln-cache/` into it (the Old config keeps them until item
-   6 is in daily use); merge this branch to `main`; replace `~/.emacs.d`
-   with a `~/.config/emacs` link; restart the daemon; run tests 3 and 5.
-   Tim may need to run the commands that touch the main checkout.
-3. Rename the repo to `~/repos/emacs-config` in Tim's terminal after the
-   session (`git worktree repair` afterwards), because Claude's memory and
-   worktrees are keyed to the old path. Then delete the
-   `plan-lives-on-branch` memory.
+**Handoff:** Rounds 1 and 2 of 3 done on 2026-10-26; tests 1–5 pass.
+The daemon runs the new config from `~/.config/emacs` (a link to this
+repo), with State in `~/.local/share/emacs/` and `~/.cache/emacs/`.
+`custom.el` is State (reason in ADR 0002). The Old config is tagged
+`old-config` and lives in the `~/repos/emacs-old-config` worktree, on
+branch `old-config-fallback`, with its `elpa/`, `eln-cache/`, and history
+moved there from the main checkout. Two gotchas from testing it:
+`/usr/bin/emacs` is a wrapper that breaks while 31.1 is first in PATH (use
+`/usr/bin/emacs-pgtk`), and the tag hard-coded `~/.emacs.d`, so one run
+recreated it and would have made 31.1 ignore `~/.config/emacs`. The
+fallback branch fixes that. The first start after installing packages
+logs native-compiler warnings once; later starts are clean.
+Next, round 3, in Tim's terminal after this session ends, because
+Claude's memory and worktrees are keyed to the old path:
+1. `systemctl --user stop emacs`
+2. `mv ~/repos/.emacs.d ~/repos/emacs-config`
+3. `ln -sfn ~/repos/emacs-config ~/.config/emacs`
+4. `cd ~/repos/emacs-config && git worktree repair` (fixes this repo's
+   worktree links both ways, including `emacs-old-config`)
+5. `systemctl --user start emacs`, then `emacsclient -e user-emacs-directory`
+6. Remove the `project-thread` worktree and its branch once nothing
+   more is needed from them (both are merged).
+Then tick item 4.
 
 ### 5. Org basics
 

@@ -33,9 +33,14 @@ repo, which holds only Config.
 - `~/.local/share/emacs/`: State. `elpa/` (packages), `var/` and `etc/`
   (no-littering), `tree-sitter/` (grammars), and `custom.el`.
 - `~/.cache/emacs/eln-cache/`: native-compiled code; safe to delete.
-- `~/repos/emacs-old-config/`: a worktree at the `old-config` tag, holding
-  the Old config's `elpa/`, for Fedora's Emacs 30.2. Remove it once item 6
-  is in daily use.
+- `~/repos/emacs-old-config/`: a worktree on branch `old-config-fallback`
+  (the `old-config` tag plus one fix so it never writes to `~/.emacs.d`),
+  holding the Old config's `elpa/` and other State. Start it with
+  `/usr/bin/emacs-pgtk --init-directory ~/repos/emacs-old-config`, not
+  `/usr/bin/emacs` (see `docs/emacs-build.md`, "Gotchas"). Remove it once
+  item 6 is in daily use.
+- `~/.emacs.d` must not exist: if it does, Emacs reads it instead of
+  `~/.config/emacs`.
 - `/opt/emacs/`: Emacs source, build tree, and install prefix; see
   `docs/emacs-build.md`. Links in `/usr/local` are managed by the
   `emacs-opt` alternative.

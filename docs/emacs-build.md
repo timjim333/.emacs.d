@@ -1,6 +1,6 @@
 # Building Emacs 31.1 on glacier
 
-Last updated 2026-10-25, after the first build and install. Decision and alternatives:
+Last updated 2026-10-26 (the fallback gotcha); first written after the first build and install. Decision and alternatives:
 `docs/adr/0001-build-emacs-31-from-source-into-opt.md`.
 
 Emacs 31.1 was released on 2026-08-24 and bundles Org 9.8; Fedora 44 ships
@@ -133,6 +133,11 @@ Why these flags:
   byte-compiled by Emacs 30, and 31's `define-minor-mode` expects a variable
   that only 31-compiled minor modes define. Not worth fixing: the new
   config replaces it, and should start from a fresh package folder.
+- **Fedora's `/usr/bin/emacs` starts 30.2 with 31.1's files** and dies
+  with `Error using execdir /opt/emacs/emacs-31.1/bin/`. It's a wrapper
+  script (`emacs-desktop`) that runs `exec -a emacs emacs-pgtk`; Emacs
+  then finds its install folder by searching PATH for `emacs`, and finds
+  `/usr/local/bin/emacs` first. Run the fallback as `/usr/bin/emacs-pgtk`.
 
 ## Configure summary: the expected "no"s
 
