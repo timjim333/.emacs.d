@@ -1,32 +1,22 @@
 #+TITLE: Tim's Emacs Configuration
 #+AUTHOR: Tim Jim
-#+PROPERTY: header-args:emacs-lisp :tangle init.el :results silent
+#+DATE: 2026-10-26
+#+PROPERTY: header-args:emacs-lisp :tangle config.el :results silent
 #+STARTUP: overview
 
 * About
 
-My Emacs configuration, written as a literate Org file. Code blocks are
-tangled into =early-init.el= and =init.el= every time this file is saved (see
-[[*Tangle on save][Tangle on save]]), and both generated files are committed so a fresh
-machine can start from a plain clone.
+My Emacs configuration, written as a literate Org file. The =init.el=
+stub tangles the code blocks into =config.el= whenever this file is newer,
+then loads it; saving this file inside Emacs tangles it straight away (see
+[[*Tangle on save][Tangle on save]]). =config.el= isn't in git
+([[file:docs/adr/0003-literate-config-with-untracked-tangle.md][ADR 0003]]).
 
 This is a fresh rebuild aimed at a notes and knowledge system in Org mode,
-plus light IDE-style coding. The previous config (forked from
-[[https://github.com/SophieBosio/.emacs.d][SophieBosio/.emacs.d]]) is in the git history.
+plus light IDE-style coding. The roadmap is in [[file:PLAN.md][PLAN.md]];
+the previous config is at the =old-config= tag.
 
 Target: Emacs 31.1, pgtk build, on Fedora KDE (Wayland).
-
-** Build order
-
-Each step adds a top-level section to this file.
-
-1. [X] Skeleton: startup, packages, housekeeping, look, completion, git
-2. [ ] Org basics: directories, visuals, equations, images, Babel
-3. [ ] Notes: org-node, daily notes, capture templates, graph
-4. [ ] Tasks, agenda and Google Calendar (org-gcal)
-5. [ ] Coding: eglot, tree-sitter, ruff, formatting, debugging, direnv
-6. [ ] References: citar, org-noter
-7. [ ] Extras: KDE capture shortcut, org-protocol, gptel
 
 ** Prerequisites (Fedora)
 
@@ -41,54 +31,17 @@ sudo dnf install ripgrep fd-find enchant2-devel pkgconf \
 - Nerd Font icons: run =M-x nerd-icons-install-fonts= once.
 
 * Start-up
-** Early init
 
-=early-init.el= runs before the package system and the first frame are set
-up, so it's the place to hide UI elements (no flicker) and to relax the
-garbage collector while starting.
-
-#+begin_src emacs-lisp :tangle early-init.el
-;;; early-init.el --- Tangled from init.org -*- lexical-binding: t -*-
-
-;; Collect garbage rarely while starting, then go back to a sane value.
-(setq gc-cons-threshold most-positive-fixnum
-      gc-cons-percentage 0.6)
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (setq gc-cons-threshold (* 64 1024 1024)
-                  gc-cons-percentage 0.1)))
-
-;; Language servers send a lot of data; read it in bigger chunks.
-(setq read-process-output-max (* 4 1024 1024))
-
-;; Prefer newer .el files over stale .elc files.
-(setq load-prefer-newer t)
-
-;; No menu bar, tool bar or scroll bars, set before the first frame is drawn.
-(setq default-frame-alist
-      '((menu-bar-lines       . 0)
-        (tool-bar-lines       . 0)
-        (vertical-scroll-bars . nil)
-        (internal-border-width . 16)))
-
-(setq frame-inhibit-implied-resize t
-      frame-resize-pixelwise       t
-      inhibit-startup-screen       t
-      initial-scratch-message      nil)
-
-;; Native compilation warnings are noisy and almost always harmless.
-(setq native-comp-async-report-warnings-errors 'silent)
-
-;; On pgtk, a shorter event timeout makes child frames (the pop-up
-;; completion window) feel snappier.
-(when (boundp 'pgtk-wait-for-event-timeout)
-  (setq pgtk-wait-for-event-timeout 0.001))
-#+end_src
+=early-init.el= is hand-written, not tangled, because it runs before
+anything could tangle it. It sets the State paths outside the repo
+([[file:docs/adr/0002-xdg-layout-state-outside-the-repo.md][ADR 0002]]),
+hides the UI elements before the first frame, and relaxes the garbage
+collector while starting.
 
 ** Lexical binding
 
 #+begin_src emacs-lisp
-;;; init.el --- Tangled from init.org -*- lexical-binding: t -*-
+;;; config.el --- Tangled from config.org -*- lexical-binding: t -*-
 #+end_src
 
 ** Packages
@@ -112,25 +65,27 @@ preferred, with MELPA for everything else.
 
 ** Tangle on save
 
-Saving this file re-tangles =init.el= and =early-init.el=.
+Saving this file re-tangles =config.el=, so =load-file= picks up a change
+without a restart.
 
 #+begin_src emacs-lisp
-(defun tim/tangle-init ()
-  "Tangle init.org when it is saved."
+(defun tim/tangle-config ()
+  "Tangle config.org when it is saved."
   (when (equal (buffer-file-name)
-               (expand-file-name "init.org" user-emacs-directory))
+               (expand-file-name "config.org" user-emacs-directory))
     ;; Avoid running hooks while tangling.
     (let ((prog-mode-hook nil))
       (org-babel-tangle))))
 
-(add-hook 'after-save-hook #'tim/tangle-init)
+(add-hook 'after-save-hook #'tim/tangle-config)
 #+end_src
 
 * Housekeeping
-** Keep ~/.emacs.d tidy
+** Keep State out of the repo
 
 [[https://github.com/emacscollective/no-littering][no-littering]] moves the files packages create (history, caches, backups)
-into =var/= and =etc/=. It has to load before other packages.
+into =var/= and =etc/=, which =early-init.el= puts under
+=~/.local/share/emacs/=. It has to load before other packages.
 
 #+begin_src emacs-lisp
 (use-package no-littering
@@ -139,11 +94,12 @@ into =var/= and =etc/=. It has to load before other packages.
   (no-littering-theme-backups))
 #+end_src
 
-Customize writes to its own file, and personal settings that shouldn't be in
-git (API keys, calendar IDs) go in =private.el=. Both are git-ignored.
+Customize writes to its own file, which =early-init.el= puts under
+=~/.local/share/emacs/= because Emacs writes it. Personal settings that
+shouldn't be in git (API keys, calendar IDs) go in =private.el= in this
+folder, which =.gitignore= leaves out.
 
 #+begin_src emacs-lisp
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (dolist (file (list custom-file
                     (expand-file-name "private.el" user-emacs-directory)))
   (when (file-exists-p file)

@@ -130,10 +130,26 @@ finally rename the repo to `~/repos/emacs-config`.
 5. Fedora's `/usr/bin/emacs --init-directory` on an `old-config` checkout
    still starts the Old config with the old `elpa/`.
 
-**Handoff:** Not started. Old `elpa/` stays in the main checkout (untracked)
-until item 6 is in daily use. Paths outside the repo go in `AGENTS.md`.
-Claude's project memory and worktrees are keyed to the old repo path, so
-rename last.
+**Handoff:** Round 1 of 3 done on 2026-10-26: the restructure is
+committed on this branch, and tests 1, 2, and 4 pass against the worktree
+with `emacs --init-directory` (test 2 checked by a timer that dumps
+`*Warnings*`; empty on the second start). The first start after installing
+packages logs two native-compiler warnings from vertico-posframe; that's
+expected, and a later start is clean. `custom.el` lives in
+`~/.local/share/emacs/` because Emacs writes it; `private.el` stays in
+the repo folder, gitignored. Packages are already installed in
+`~/.local/share/emacs/elpa` from testing.
+Next rounds:
+2. Switch over: tag `b0cee10` as `old-config`; create the worktree
+   `~/repos/emacs-old-config` at that tag and move the main checkout's
+   `elpa/` and `eln-cache/` into it (the Old config keeps them until item
+   6 is in daily use); merge this branch to `main`; replace `~/.emacs.d`
+   with a `~/.config/emacs` link; restart the daemon; run tests 3 and 5.
+   Tim may need to run the commands that touch the main checkout.
+3. Rename the repo to `~/repos/emacs-config` in Tim's terminal after the
+   session (`git worktree repair` afterwards), because Claude's memory and
+   worktrees are keyed to the old path. Then delete the
+   `plan-lives-on-branch` memory.
 
 ### 5. Org basics
 

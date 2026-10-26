@@ -10,23 +10,32 @@ plus light IDE-style coding. Read these before starting work:
 - `docs/emacs-build.md`: how Emacs 31.1 is built and installed on glacier.
 - `docs/adr/`: accepted decisions.
 
-Until item 4 (Cutover) merges, `init.org` below is the skeleton; item 4
-replaces it with `config.org` per ADRs 0002 and 0003.
-
 ## How this repo works
 
-- `init.org` is the source of truth. It is a literate config: code blocks
-  tangle to `early-init.el` and `init.el`. Never edit the `.el` files by hand.
-- Saving `init.org` inside Emacs re-tangles it (`tim/tangle-init`). From a
-  shell: `emacs --batch --eval '(progn (require (quote org)) (org-babel-tangle-file "init.org"))'`.
-- Commit `init.org`, `init.el` and `early-init.el` together.
+The layout follows ADRs 0002 and 0003. `~/.config/emacs` links to this
+repo, which holds only Config.
+
+- `config.org` is the source of truth. `init.el` is a hand-written stub
+  that tangles it to `config.el` when the Org file is newer, then loads
+  that. `config.el` is gitignored; never edit it by hand.
+- `early-init.el` is hand-written (it runs before anything could tangle).
+  It sets every State path; change it when adding a package that writes
+  somewhere no-littering doesn't cover.
+- Saving `config.org` inside Emacs re-tangles it (`tim/tangle-config`).
 - `.gitignore` is a whitelist (`/*` then `!/file`). Add a `!/path` line for any
   new top-level file or folder you want tracked.
-- `custom.el` and `private.el` (secrets: OAuth IDs, calendar IDs) are never
-  committed. `var/` and `etc/` are created by no-littering and ignored.
+- `private.el` (secrets: OAuth IDs, calendar IDs) sits in the repo folder
+  and is never committed.
 
 ## Paths outside the repo
 
+- `~/.config/emacs`: link to this repo, read by Emacs.
+- `~/.local/share/emacs/`: State. `elpa/` (packages), `var/` and `etc/`
+  (no-littering), `tree-sitter/` (grammars), and `custom.el`.
+- `~/.cache/emacs/eln-cache/`: native-compiled code; safe to delete.
+- `~/repos/emacs-old-config/`: a worktree at the `old-config` tag, holding
+  the Old config's `elpa/`, for Fedora's Emacs 30.2. Remove it once item 6
+  is in daily use.
 - `/opt/emacs/`: Emacs source, build tree, and install prefix; see
   `docs/emacs-build.md`. Links in `/usr/local` are managed by the
   `emacs-opt` alternative.
@@ -39,7 +48,7 @@ replaces it with `config.org` per ADRs 0002 and 0003.
 - Packages via `use-package` with `use-package-always-ensure t`; archives
   GNU ELPA > NonGNU ELPA > MELPA. Built-in packages use `:ensure nil`.
 - Personal function prefix: `tim/`.
-- Each top-level heading in `init.org` is one build step; keep prose short,
+- Each top-level heading in `config.org` is one build step; keep prose short,
   one short paragraph per block saying why.
 - Prefer built-ins (eglot, flymake, project.el, treesit, which-key) over
   bigger third-party equivalents.
@@ -49,8 +58,10 @@ replaces it with `config.org` per ADRs 0002 and 0003.
 
 ## Testing a change
 
-1. Tangle (above), then load in batch to catch errors:
-   `emacs --batch -l early-init.el -l init.el --eval '(message "ok")'`
-2. Then start the real Emacs (`emacs --init-directory ~/.emacs.d` or restart
-   the daemon: `systemctl --user restart emacs`) and check `*Messages*` and
-   `*Warnings*`.
+1. Load a checkout in batch to catch errors (this tangles first):
+   `emacs --batch --init-directory <checkout> -l <checkout>/early-init.el -l <checkout>/init.el --eval '(message "ok")'`
+2. Then start the real Emacs (`emacs --init-directory <checkout>`, or
+   restart the daemon: `systemctl --user restart emacs`) and check
+   `*Messages*` and `*Warnings*`.
+3. `git status --ignored` in the checkout lists only `config.el` (and
+   `private.el` if present): nothing else is State in the repo.

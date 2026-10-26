@@ -1,11 +1,9 @@
 /*
+!/.gitignore
 !/init.el
 !/early-init.el
-!/init.org
-!/README.org
-!/images/
-!/snippets/
-!/.gitattributes
+!/config.org
+!/README.md
 !/CLAUDE.md
 !/docs/
 !/AGENTS.md
