@@ -40,7 +40,7 @@ is a separate project once the desktop setup is stable.
 - [ ] 6. Notes: org-node, journal, capture
 - [ ] 7. Sync and backup
 - [ ] 8. Tasks, agenda, and org-gcal
-- [ ] 9. Coding
+- [ ] 9. Editing and coding
 - [ ] 10. References
 - [ ] 11. Extras
 
@@ -107,12 +107,14 @@ grilled, so they can change with the direction.
 - [ADR 0004](docs/adr/0004-sync-and-backup.md): sync and backup, new
   item 7; the work machine never syncs notes.
 - Calendar: one account, events two-way, no TODO push (item 8).
+- References: optional item 10, Zotero when started.
+- HEIC: convert to WebP at glacier, both on attach and on arrival from
+  the phone (item 7, after the Orgzly test).
+- Packages from the Old config reviewed (design notes, "Package
+  review"); basedpyright in standard mode; jinx in `en_GB`.
 
 Still to grill, in order:
-- References: Zotero, or a hand-kept `.bib` file for citar?
-- HEIC photos: test whether Orgzly Revived attaches and shows images
-  first, on Waydroid (`waydroid-drive` skill) or the phone.
-- Quick checks on coding, look, equations, and spelling.
+- Acceptance tests for items 5–8.
 
 ### 4. Cutover
 
@@ -141,14 +143,17 @@ rename last.
 ### 5. Org basics
 
 **Goals:** directories, org-modern, mixed-pitch, the sub/superscript fix,
-LaTeX previews with org-fragtog, images (org-download, relative links, HEIC
-handling per item 3), Babel for Python and shell, tags vocabulary, and
-LOGBOOK settings (`org-log-into-drawer t`).
+LaTeX previews with org-fragtog, images (org-download, relative links, and
+a hook converting `.heic` to `.webp`), Babel for Python and shell, tags
+vocabulary, LOGBOOK settings (`org-log-into-drawer t`), jinx with `en_GB`
+(`hunspell-en-GB`), `global-auto-revert-mode`, `casual` (Agenda and Dired),
+org-appear, olivetti, `visual-wrap-prefix-mode`, org-present, focus, and
+ligature.
 
 **Acceptance tests:** to agree when the item starts.
 
-**Handoff:** Not started; waits on items 3 and 4. Add `global-auto-revert-mode`
-and `casual` (Agenda and Dired menus).
+**Handoff:** Not started; waits on item 4. Package choices: design notes,
+"Package review".
 
 ### 6. Notes: org-node, journal, capture
 
@@ -157,6 +162,7 @@ the yearly Journal, the hybrid layout in `~/org/`, and four capture
 templates: `t` TODO, `j` journal entry, `w` web link (org-protocol), and
 `s` code snippet, all to `inbox.org` except `j`. New notes come from
 `org-node-find`; `C-c C-w` in a capture refiles it straight to a heading.
+org-protocol registered with the desktop so the browser can call `w`.
 
 **Acceptance tests:** to agree when the item starts.
 
@@ -170,8 +176,12 @@ main checkout.
 glacier and the phone, `.stignore` for `.git`, staggered versioning on
 glacier, `tim/resolve-sync-conflicts` (ediff), the hourly auto-commit and
 push to a private GitHub repo, and the nightly `rclone sync` to Drive with
-`--backup-dir` (90 days) and `--max-delete 50`. A later round moves the
-jobs to the baby-log OCI VM as a trusted peer.
+`--backup-dir` (90 days) and `--max-delete 50`. Start by testing Orgzly
+Revived on Waydroid: can it attach and show images, and where does it save
+them? Then a job on glacier converts any `.heic` arriving in
+`~/org/attachments` to `.webp`, rewrites the links, and removes the HEIC
+(git keeps it). A later round moves the jobs to the baby-log OCI VM as a
+trusted peer.
 
 **Acceptance tests:** to agree when the item starts.
 
@@ -195,10 +205,15 @@ martianh fork by which installs cleanly. Set the OAuth client to "In
 production", or refresh tokens expire after 7 days; ID and secret go in
 `private.el`.
 
-### 9. Coding
+### 9. Editing and coding
 
-**Goals:** eglot, tree-sitter modes, flymake with ruff, apheleia, dape,
-and envrc.
+**Goals:** eglot with basedpyright (`typeCheckingMode = "standard"`
+globally, so it matches Pylance and the `pyright` CLI), tree-sitter
+modes, flymake with ruff, apheleia, dape, and envrc. Editing: expreg,
+multiple-cursors, vundo, `electric-pair-mode`, `auto-save-visited-mode`,
+a `C-a` toggle between indentation and line start, eros, built-in
+editorconfig, verb, windmove, wgrep, git-timemachine, git-link,
+rainbow-delimiters, and hl-todo.
 
 **Acceptance tests:** to agree when the item starts.
 
@@ -206,16 +221,18 @@ and envrc.
 
 ### 10. References
 
-**Goals:** citar, citar-org-node, and org-noter with pdf-tools.
+**Goals:** optional; start when Tim wants citations. Zotero (import the
+Mendeley library first) with Better BibTeX exporting `~/org/refs.bib`,
+citar, citar-org-node, and org-noter with pdf-tools and pdf-view-restore.
 
 **Acceptance tests:** to agree when the item starts.
 
-**Handoff:** Not started.
+**Handoff:** Not started. Hobby scale: tracking papers and ideas.
 
 ### 11. Extras
 
 **Goals:** a KDE global shortcut for an emacsclient capture frame,
-org-protocol from the browser, gptel, the voice-clip command, and,
+gptel, the voice-clip command, nov (EPUB), elfeed (RSS), and,
 optionally, org-roam-ui through `org-mem-roamy-db` (try at about 100
 linked notes; untested, fallback is org-roam's own indexer).
 

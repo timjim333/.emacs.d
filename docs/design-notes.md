@@ -52,14 +52,14 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 | Tasks | Settled (no ADR): Org TODOs in `projects.org` and inside notes. Orgzly shows and reminds about them on the phone; no push to a Google calendar (revisit if missed). |
 | Calendar | Settled (no ADR): **org-gcal** for one Google account, events two-way, one file per calendar. One sync host: glacier now, the baby-log VM later. OAuth client set to "In production". |
 | Sync | Accepted: [ADR 0004](adr/0004-sync-and-backup.md). Syncthing (glacier, phone, later the VM as a trusted peer), one Inbox per device, git history pushed to GitHub, nightly plaintext `rclone sync` to Drive with dated archives. `global-auto-revert-mode` on. The work machine never syncs notes. |
-| Media | All media in `~/org/attachments/<note>/`, linked with **relative `file:` links** (not `attachment:`, which other devices can't resolve). HEIC photos from the phone: see "HEIC photos" below (open). |
-| Python envs | **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
-| Coding | eglot, tree-sitter `*-ts-mode`s, flymake + ruff, apheleia, dape, project.el. Drop lsp-mode, lsp-ui, flycheck, origami, smartparens, lispy and projectile. |
+| Media | Settled (no ADR): all media in `~/org/attachments/<note>/`, linked with **relative `file:` links** (not `attachment:`, which other devices can't resolve). HEIC becomes WebP at glacier: a hook for attachments made in Emacs, and a job for HEIC arriving from the phone (see "HEIC photos"). |
+| Python envs | Settled (no ADR): **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
+| Coding | Settled (no ADR): eglot with **basedpyright** in "standard" mode, tree-sitter `*-ts-mode`s, flymake + ruff, apheleia, dape, project.el, plus the editing packages in "Package review". |
 | Completion | Settled (no ADR): Vertico + **vertico-posframe**, Orderless, Marginalia, Consult, Embark, Corfu (still better than the built-ins), which-key, helpful, and **casual** menus (Agenda and Dired first). |
-| Look | **doom-nord** (Tim likes Nord's blues; `doom-nord-aurora` is an alternative), `org-modern`, Inter for prose, JetBrains Mono for code. |
-| Equations | `org-use-sub-superscripts '{}` (and the same for export), so only `x_{i}` and `e^{2}` turn into sub/superscripts and `~code_here~` or snake_case stay plain. LaTeX fragment previews with `org-fragtog`. |
-| References | Web: `org-insert-link`. Papers: one `.bib` (Zotero + Better BibTeX if Tim uses Zotero), built-in `org-cite`, **citar** + **citar-org-node** (https://github.com/krisbalintona/citar-org-node), **org-noter** + pdf-tools. |
-| Spelling | jinx (needs `enchant2-devel` and Emacs built with modules). |
+| Look | Settled (no ADR): **doom-nord**, `org-modern`, Inter for prose, JetBrains Mono for code, ligatures. No auto light/dark switching. |
+| Equations | Settled (no ADR): `org-use-sub-superscripts '{}` (and the same for export), so only `x_{i}` and `e^{2}` turn into sub/superscripts. LaTeX previews with `org-fragtog`. |
+| References | Settled (no ADR): optional, hobby scale. Web: `org-insert-link`. Papers, when wanted: Zotero (import from Mendeley) + Better BibTeX exporting one `.bib`, `org-cite`, citar + citar-org-node, org-noter + pdf-tools. |
+| Spelling | Settled (no ADR): jinx in British English (`en_GB`; needs `hunspell-en-GB`, `enchant2-devel`, and Emacs built with modules). |
 
 ## Notes layout (draft)
 
@@ -107,7 +107,7 @@ author; if it stalls, move to org-roam unchanged.
 | Layout | Pros | Cons |
 | --- | --- | --- |
 | One file per day | Native to org-node daily notes; each day is a graph node; tiny files that never conflict | Many files; empty days still create one; harder to scroll a week |
-| One file per year with a date tree (proposed) | Close to Tim's dated-headings habit; few files; `org-capture` builds the tree | Phone and desktop editing the same day can conflict; a day is only a graph node if it gets an ID (a capture template can add one) |
+| One file per year with a date tree (chosen) | Close to Tim's dated-headings habit; few files; `org-capture` builds the tree | Phone and desktop editing the same day can conflict; a day is only a graph node if it gets an ID (a capture template can add one) |
 | One file for everything | Simplest | Grows forever, slower on the phone, most conflict-prone |
 
 ## Calendar and tasks (org-gcal)
@@ -156,12 +156,12 @@ author; if it stalls, move to org-roam unchanged.
 - From the phone: media dropped in `attachments/phone/`, then a command
   moves it into the current note.
 
-### HEIC photos (open, discussed 2026-10-25)
+### HEIC photos (settled 2026-10-26)
 
 Tim keeps the S24 Ultra's camera on HEIF for quality and storage, and
 doesn't want to convert photos by hand.
 
-- **Proposed:** keep HEIC in the phone's gallery, and convert once,
+- **Original proposal:** keep HEIC in the phone's gallery, and convert once,
   automatically, where an image enters the notes. Use WebP (about 30%
   smaller than JPEG at the same quality, and read natively by Emacs,
   Android, and browsers) or JPEG at quality 85.
@@ -186,10 +186,41 @@ doesn't want to convert photos by hand.
   is fine.
 - **glacier already has** ImageMagick 7.1.2 and `libheif-freeworld`, and
   `magick -list format` shows HEIC and AVIF as read-write.
-- **Blocking question:** can Orgzly Revived attach or show images, and
+- **Settled:** option B, convert at glacier. Orgzly's picker (and Emacs on
+  the phone) hand over the original HEIC; Gallery's "Convert HEIF to JPEG
+  when sharing" only helps when sharing from the Gallery. So glacier
+  converts any `.heic` that arrives in `~/org/attachments` to `.webp`,
+  rewrites the links, and removes the HEIC (git keeps it). It runs after
+  the phone's edits have synced, so conflict risk is small.
+- **Still to test (PLAN item 7):** can Orgzly Revived attach or show images, and
   where does it save them? Its F-Droid listing doesn't say, and image
   attachment is a long-standing Orgzly feature request (orgzly-android
   issue #1). Test before choosing the phone-side step.
+
+## Package review (2026-10-26)
+
+The Old config's packages not otherwise in the plan, reviewed fresh. Many
+came with the fork rather than by Tim's choice.
+
+- **Kept:** multiple-cursors, verb, focus, org-present, ligature, nov,
+  elfeed, eros, wgrep, git-timemachine, git-link, org-appear, olivetti,
+  rainbow-delimiters, hl-todo, pdf-view-restore.
+- **Replaced:** expand-region → expreg (tree-sitter); undo-fu → built-in
+  `undo-redo` + vundo; mwim → a `C-a` toggle remapping
+  `move-beginning-of-line`; smartparens and lispy → `electric-pair-mode`;
+  auto-save-buffers-enhanced → `auto-save-visited-mode`; editorconfig →
+  built in (Emacs 30); adaptive-wrap → `visual-wrap-prefix-mode`;
+  switch-window → windmove; transpose-frame → Emacs 31's window-layout
+  commands; browse-kill-ring → `consult-yank-pop`; rg and ripgrep →
+  `consult-ripgrep`; org-superstar and svg-tag-mode → org-modern;
+  lsp-mode, lsp-ui, lsp-treemacs, origami, and flycheck → eglot, flymake,
+  and tree-sitter folding.
+- **Dropped:** move-dup, symbol-overlay, default-text-scale, hide-lines,
+  yasnippet (tempel if missed), dwim-shell-command, imenu-list, javelin,
+  consult-xref-stack (`M-,` and `C-M-,` built in), hide-mode-line, forge,
+  blamer, toc-org (add back if browsing notes on GitHub), ox-hugo,
+  writeroom-mode, beacon, auto-dark, south-theme, esup, try.
+- **Decide in PLAN item 8:** org-super-agenda, org-ql.
 
 ## Python environments (direnv)
 
