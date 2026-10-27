@@ -170,7 +170,6 @@ ligature, and auto-dark with a light theme to pick.
    shell shows the new heading in the buffer within about 5 seconds.
 8. jinx doesn't flag `colour` and does flag `color`.
 9. `*bold*` hides its asterisks until the cursor is inside it.
-
 10. `bin/start-check` passes on the finished item (round 1).
 
 **Rounds:**
@@ -213,46 +212,53 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** Item 5 started on 2026-10-27 in the `org-basics` worktree.
-First commit renamed `CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills
-1.3 looks only for the new name). Round 1 done: `bin/start-check`
-(with `bin/start-check.el`, which writes the report) passes all six
-cases of `test/start-check-test` (tests 1–5 above; 2–4 as clones with
-a committed bad block or stray file), and AGENTS.md covers test 6.
-Reports go to a new `/tmp/emacs-start-check.*` folder per run (agreed
-with Tim). Gotchas: it needs a Wayland session (fine from the phone
-over Remote Control, as windows open on glacier's desktop); only `??`
-and `!!` lines count as stray, so commit before running (the whitelist
-`.gitignore` makes a new top-level file `!!`, not `??`); GTK's stderr
-goes to `startN.stderr` beside the report, because with glacier's
-screen asleep it logs a Gdk-CRITICAL line every second; the config
-starts a server only when none is running, so test starts don't take
-the daemon's socket; `--daemon` sees warnings from the daemon's whole
-run. The 25 s delay is the agreed default, not measured;
-`START_CHECK_DELAY` overrides it. Item 4 ticked on this branch.
-Round 2 done: `config.org` "Org basics" passes tests 1, 2, and 9 in
-`test/org-rendering-test.el`, run by `test/gui-ert` (ERT inside a GUI
-Emacs, for tests that need a frame), and `bin/start-check` passes.
-Tim agreed: olivetti in every Org buffer (`C-c o` toggles it), previews
-rendered when a file opens, and org-appear revealing links, script
-braces, and entities. Preview images go to `~/.cache/emacs/org-latex/`
-(set in `early-init.el`): a regenerable speed-up, not synced or backed
-up, never pruned (each under 1 kB). LaTeX needs `texlive-wrapfig`,
-`texlive-ulem`, and `texlive-capt-of` (in the Prerequisites; Tim
-installed them). Screenshots: render a sample in a throwaway GUI Emacs
-and save `(x-export-frames nil 'png)`, which works on pgtk even with
-the screen asleep. Light theme chosen: `doom-nord-light` (round 5);
-`doom-flatwhite` was a close second, and a search for other paper-like
-themes can be its own session. Seen in screenshots, for round 3: jinx
-flags `markup` and `checkbox`. Next: round 3 (Babel, LOGBOOK, tags;
-jinx and auto-revert are already on, so only their tests remain).
-Open for later rounds: the light theme (options given to Tim:
-doom-nord-light, doom-one-light, modus-operandi, ef-light or ef-frost,
-doom-flatwhite; screenshots offered), Tim installing
-`jetbrains-mono-fonts` and `rsms-inter-fonts` (neither is installed, so
-mixed-pitch and ligatures fall back silently), round 5's tests, and
-where the item 4 tick goes. `org-directory` is set in round 2 even
-though `~/org/` comes in items 6–7: nothing in item 5 writes there.
+**Handoff:** Rounds 1 and 2 of 5 done on 2026-10-27, in the
+`org-basics` worktree (branch `org-basics`, not merged). The branch also
+renames `CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills 1.3 looks only
+for the new name) and ticks item 4; both reach `main` when item 5
+merges. Tests 1, 2, 9, and 10 pass; 3–8 are for rounds 3 and 4.
+
+Tools for the rest of the item (usage in AGENTS.md, "Testing a change"):
+- `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
+  second; fails on warnings, init errors, stray files, or `~/.emacs.d`.
+  Its own tests: `test/start-check-test` (about 3.5 minutes).
+- `test/gui-ert <test-file> [checkout]`: runs ERT inside a GUI Emacs
+  with the config, for tests that need a frame. Round 2's tests are
+  `test/org-rendering-test.el`; add one file per round.
+- Screenshots for Tim: render sample files in a throwaway GUI Emacs and
+  save `(x-export-frames nil 'png)`; works on pgtk with the screen asleep.
+
+Decisions (Tim agreed): olivetti in every Org buffer, `C-c o` toggles
+it; previews rendered when a file opens; org-appear also reveals links,
+script braces, and entities. Preview images live in
+`~/.cache/emacs/org-latex/` (set in `early-init.el`, so no `ltximg/`
+syncs to the phone): a regenerable speed-up, never pruned, each under
+1 kB. Light theme for round 5: `doom-nord-light`; `doom-flatwhite` was
+a close second, and a search for other paper-like themes can be its own
+session.
+
+Gotchas: commit before `bin/start-check`, or new files count as stray
+(the whitelist `.gitignore` shows them as `!!`); GTK floods stderr while
+the screen sleeps, so the scripts send it to a file; Org's LaTeX
+preamble needs `texlive-wrapfig`, `texlive-ulem`, and `texlive-capt-of`
+(now in the Prerequisites); a test written after its code gets run once
+against a clone of the previous commit to see it fail.
+
+Next, round 3 (tests 5–8), in `test/org-behaviour-test.el`:
+- Babel for Python and shell (test 5).
+- `org-log-into-drawer t` and a state-change note (test 6).
+- auto-revert (already on): append to the file from a shell, wait, and
+  check the buffer (test 7).
+- jinx (already on, `en_GB`): `colour` passes, `color` is flagged (test
+  8). It also flags `markup` and `checkbox`; check whether that's the
+  dictionary and whether a personal word list is wanted.
+- Tags vocabulary: ask Tim which tags (`org-tag-alist`) before writing
+  it; the design notes don't list them.
+Then round 4 (images), then round 5, whose tests were proposed but not
+yet agreed: (a) switching KDE to light switches the theme within about
+5 s; (b) `->` and `!=` show as ligatures in Python; (c) casual's menu
+opens from Agenda and Dired; (d) `org-present` steps through headings;
+(e) `focus-mode` dims all but the current paragraph.
 Package choices: design notes, "Package review".
 
 ### 6. Notes: org-node, journal, capture

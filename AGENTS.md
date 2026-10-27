@@ -79,3 +79,7 @@ repo, which holds only Config.
    `*Warnings*` covers the daemon's whole run, not just its start.
 3. For changes to the script itself, run `test/start-check-test`
    (about 3.5 minutes, on throwaway clones of HEAD).
+4. Behaviour that needs a frame (rendering, images, cursor movement)
+   is tested in ERT files run by `test/gui-ert test/<file>.el
+   [checkout]`, which starts a GUI Emacs with the config. Run every
+   `test/*-test.el` file before merging.
