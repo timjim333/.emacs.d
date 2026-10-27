@@ -183,7 +183,62 @@ ligature, and auto-dark with a light theme to pick.
 8. jinx doesn't flag `colour` and does flag `color`.
 9. `*bold*` hides its asterisks until the cursor is inside it.
 
-**Handoff:** Not started; waits on item 4. Package choices: design notes,
+10. `bin/start-check` passes on the finished item (round 1).
+
+**Rounds:**
+1. Start check (below).
+2. Rendering: directories, org-modern, org-appear, the sub/superscript
+   fix, mixed-pitch, olivetti, `visual-wrap-prefix-mode`, and LaTeX
+   previews with org-fragtog (tests 1, 2, and 9).
+3. Behaviour: Babel, LOGBOOK, tags, auto-revert, and jinx (tests 5–8).
+4. Images: org-download, relative links, and HEIC to `.webp` (tests 3
+   and 4).
+5. Presentation and look: org-present, focus, ligature, casual, and
+   auto-dark (tests to agree before the round).
+
+**Round 1, start check.** Goals: a script, `bin/start-check
+<checkout>`, that does item 4's "no warnings after a GUI start" check
+without Tim at the screen, so items 5–11 can script part of their UI
+tests. Not a skill or hook: two GUI starts of about 25 s each are too
+slow for a hook (agreed in an agent-env session, 2026-10-27). It runs
+`timeout 120 emacs --init-directory <checkout>` with a timer that,
+after 25 s, writes a report and calls `kill-emacs`. The report holds
+`emacs-version`, `user-emacs-directory`, `package-user-dir`,
+`init-file-had-error`, the `*Warnings*` buffer (or "NO WARNINGS
+BUFFER"), and `*Messages*`. It starts twice and judges only the second
+start, because the first start after a package install logs one-off
+native-compiler warnings. Then it checks that `git status --ignored`
+lists nothing but `config.el` and `private.el`, and that `~/.emacs.d`
+doesn't exist. It exits non-zero on any warning, init error, timeout,
+or stray file. A `--daemon` variant makes the same reads through
+`emacsclient -e` from the running daemon, without starting Emacs.
+Acceptance tests:
+1. On a clean `main` checkout it exits 0 and prints the report's path.
+2. A `(warn "start-check test")` block in `config.org` makes it exit
+   non-zero with that line in the report; the reverse edit restores 0.
+3. A `(error "x")` in `config.org` makes it exit non-zero and reports
+   `init-file-had-error` as non-nil.
+4. A stray file in the checkout (`touch stray`) makes it exit non-zero
+   and names the file.
+5. `--daemon` reports `~/.config/emacs/` and 31.1 from the running
+   daemon.
+6. The report folder is printed, and recorded in AGENTS.md "Paths
+   outside the repo"; AGENTS.md "Testing a change" uses the script.
+
+**Handoff:** Item 5 started on 2026-10-27 in the `org-basics` worktree.
+First commit renamed `CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills
+1.3 looks only for the new name). Round 1 not started. Gotchas for
+it: the script needs a Wayland session (it runs on glacier, also from
+the phone through Remote Control); the config only calls
+`server-start` when no server is running, so a test start beside the
+daemon doesn't steal its socket; `bin/` needs a `!/bin` line in
+`.gitignore`, and the script a header with author and date. Open for
+round 1: where the report goes (proposed: a new temporary folder per
+run under `/tmp`, printed, so nothing builds up). Open for later
+rounds: the light theme (proposed `doom-nord-light`), installing
+`jetbrains-mono-fonts` and `rsms-inter-fonts` (neither is installed, so
+mixed-pitch and ligatures fall back silently), and setting
+`org-directory` before `~/org/` exists. Package choices: design notes,
 "Package review".
 
 ### 6. Notes: org-node, journal, capture
