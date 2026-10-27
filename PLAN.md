@@ -34,7 +34,7 @@ is a separate project once the desktop setup is stable.
 - [x] 1. Config skeleton
 - [x] 2. Build and install Emacs 31.1
 - [x] 3. Grill the design
-- [ ] 4. Cutover
+- [x] 4. Cutover
 - [ ] 5. Org basics
 - [ ] 6. Notes: org-node, journal, capture
 - [ ] 7. Sync and backup
@@ -130,33 +130,21 @@ finally rename the repo to `~/repos/emacs-config`.
    checkout still starts the Old config with the old `elpa/`, and leaves
    no `~/.emacs.d` behind.
 
-**Handoff:** Rounds 1 and 2 of 3 done on 2026-10-26; tests 1–5 pass.
-The daemon runs the new config from `~/.config/emacs` (a link to this
-repo), with State in `~/.local/share/emacs/` and `~/.cache/emacs/`.
-`custom.el` is State (reason in ADR 0002). The Old config is tagged
-`old-config` and lives in the `~/repos/emacs-old-config` worktree, on
-branch `old-config-fallback`, with its `elpa/`, `eln-cache/`, and history
-moved there from the main checkout. Two gotchas from testing it:
-`/usr/bin/emacs` is a wrapper that breaks while 31.1 is first in PATH (use
-`/usr/bin/emacs-pgtk`), and the tag hard-coded `~/.emacs.d`, so one run
-recreated it and would have made 31.1 ignore `~/.config/emacs`. The
-fallback branch fixes that. The first start after installing packages
-logs native-compiler warnings once; later starts are clean.
-Next, round 3, in Tim's terminal after this session ends, because
-Claude's memory and worktrees are keyed to the old path:
-1. `systemctl --user stop emacs`
-2. `mv ~/repos/.emacs.d ~/repos/emacs-config`
-3. `ln -sfn ~/repos/emacs-config ~/.config/emacs`
-4. `cd ~/repos/emacs-config && git worktree repair` (fixes this repo's
-   worktree links both ways, including `emacs-old-config`)
-5. `systemctl --user start emacs`, then `emacsclient -e user-emacs-directory`
-6. Remove the `project-thread` worktree and its branch once nothing
-   more is needed from them (both are merged).
-Then tick item 4. Rounds 1 and 2 are already on `main`, because the
-Cutover needs the daemon's checkout to hold the new config; the item
-wasn't reviewed, as review waits for the end of an item. After the rename,
-start item 5 with `/pickup` in a fresh session, in its own worktree off
-`main`.
+**Handoff:** Done on 2026-10-27; tests 1–5 pass. The daemon runs 31.1
+with the new config from `~/.config/emacs`, a link to
+`~/repos/emacs-config`, with State in `~/.local/share/emacs/` and
+`~/.cache/emacs/`. `custom.el` is State (reason in ADR 0002). Round 3
+(Tim's terminal) renamed the repo, relinked `~/.config/emacs`, and
+repaired the worktree links; the `project-thread` worktree and branch
+are deleted (the branch's GitHub copy may remain; everything on it is in
+`main`). The Old config is tagged `old-config` and lives in the
+`~/repos/emacs-old-config` worktree on branch `old-config-fallback`.
+Gotchas, also in AGENTS.md and `docs/emacs-build.md`: `/usr/bin/emacs`
+breaks while 31.1 is first in PATH (use `/usr/bin/emacs-pgtk`); the tag
+hard-coded `~/.emacs.d`, which the fallback branch fixes; the first start
+after installing packages logs native-compiler warnings once. Rounds 1
+and 2 went straight to `main`, because the daemon's checkout had to hold
+the new config, and the item had no end-of-item review.
 
 ### 5. Org basics
 
