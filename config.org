@@ -256,6 +256,12 @@ stays plain; =org-pretty-entities= draws them, and =\alpha= as α.
 Emphasis markers are hidden. Previews are rendered when a file opens;
 their images go to the cache, not beside the note (=early-init.el=).
 
+The images in =~/.cache/emacs/org-latex/= are only a speed-up: each is
+named after a hash of its equation, so Emacs reuses it next time and
+redraws any that are missing. Don't sync or back them up; the =.org=
+file is the source. Nothing removes images for equations you edit or
+delete, but each is under 1 kB, so delete the folder whenever you like.
+
 #+begin_src emacs-lisp
 (use-package org
   :ensure nil
@@ -299,14 +305,15 @@ sub/superscript braces, entities) while the cursor is inside it.
 
 [[https://gitlab.com/jabranham/mixed-pitch][mixed-pitch]] sets prose in Inter and keeps code, tables, and timestamps in
 JetBrains Mono. [[https://github.com/rnkn/olivetti][olivetti]] centres the text in a column about
-=fill-column= wide.
+=fill-column= wide; =C-c o= turns it off and on in the current buffer.
 
 #+begin_src emacs-lisp
 (use-package mixed-pitch
   :hook (org-mode . mixed-pitch-mode))
 
 (use-package olivetti
-  :hook (org-mode . olivetti-mode))
+  :hook (org-mode . olivetti-mode)
+  :bind ("C-c o" . olivetti-mode))
 #+end_src
 
 * Help

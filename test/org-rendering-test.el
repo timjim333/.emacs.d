@@ -101,6 +101,15 @@ Opening the file renders it, and no ltximg/ folder lands beside it."
                     org-fragtog-mode))
       (should (and (boundp mode) (symbol-value mode))))))
 
+(ert-deftest tim/olivetti-toggle-key ()
+  "C-c o turns olivetti off and on in an Org buffer."
+  (tim/test-with-org "* Heading\n"
+    (should (eq (key-binding (kbd "C-c o")) 'olivetti-mode))
+    (call-interactively (key-binding (kbd "C-c o")))
+    (should-not olivetti-mode)
+    (call-interactively (key-binding (kbd "C-c o")))
+    (should olivetti-mode)))
+
 (ert-deftest tim/org-directory-is-notes-folder ()
   "Org looks for notes in ~/org/."
   (should (equal (file-name-as-directory (expand-file-name org-directory))

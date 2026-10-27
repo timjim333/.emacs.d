@@ -230,18 +230,22 @@ starts a server only when none is running, so test starts don't take
 the daemon's socket; `--daemon` sees warnings from the daemon's whole
 run. The 25 s delay is the agreed default, not measured;
 `START_CHECK_DELAY` overrides it. Item 4 ticked on this branch.
-Round 2 in progress: the config is in `config.org` ("Org basics") and
+Round 2 done: `config.org` "Org basics" passes tests 1, 2, and 9 in
 `test/org-rendering-test.el`, run by `test/gui-ert` (ERT inside a GUI
-Emacs). Tests 1 and 9 and the mode checks pass; test 2 fails because
-Org's default LaTeX preamble needs `texlive-wrapfig`, `texlive-ulem`,
-and `texlive-capt-of`, for Tim to install (now in the Prerequisites).
-Preview images go to `~/.cache/emacs/org-latex/`, set in
-`early-init.el`. Decisions to confirm with Tim: olivetti on in every
-Org buffer, previews rendered when a file opens
-(`org-startup-with-latex-preview`), and org-appear also revealing
-links, sub/superscript braces, and entities. Next: once LaTeX is
-installed, rerun the tests and `bin/start-check`, then send Tim a
-screenshot of a rendered note.
+Emacs, for tests that need a frame), and `bin/start-check` passes.
+Tim agreed: olivetti in every Org buffer (`C-c o` toggles it), previews
+rendered when a file opens, and org-appear revealing links, script
+braces, and entities. Preview images go to `~/.cache/emacs/org-latex/`
+(set in `early-init.el`): a regenerable speed-up, not synced or backed
+up, never pruned (each under 1 kB). LaTeX needs `texlive-wrapfig`,
+`texlive-ulem`, and `texlive-capt-of` (in the Prerequisites; Tim
+installed them). Screenshots: render a sample in a throwaway GUI Emacs
+and save `(x-export-frames nil 'png)`, which works on pgtk even with
+the screen asleep. Light theme chosen: `doom-nord-light` (round 5);
+`doom-flatwhite` was a close second, and a search for other paper-like
+themes can be its own session. Seen in screenshots, for round 3: jinx
+flags `markup` and `checkbox`. Next: round 3 (Babel, LOGBOOK, tags;
+jinx and auto-revert are already on, so only their tests remain).
 Open for later rounds: the light theme (options given to Tim:
 doom-nord-light, doom-one-light, modus-operandi, ef-light or ef-frost,
 doom-flatwhite; screenshots offered), Tim installing
