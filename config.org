@@ -22,12 +22,16 @@ Target: Emacs 31.1, pgtk build, on Fedora KDE (Wayland).
 
 #+begin_src sh :tangle no
 sudo dnf install ripgrep fd-find enchant2-devel pkgconf \
-     rsms-inter-fonts jetbrains-mono-fonts
+     rsms-inter-fonts jetbrains-mono-fonts \
+     texlive-latex texlive-dvipng texlive-wrapfig texlive-ulem texlive-capt-of
 #+end_src
 
 - =ripgrep= / =fd= are used by Consult for searching.
 - =enchant2-devel= and =pkgconf= let Jinx build its spell-checking module.
 - Inter (prose) and JetBrains Mono (code) are the fonts used below.
+- LaTeX and =dvipng= render equation previews; =wrapfig=, =ulem=, and
+  =capt-of= are in Org's default preamble, and without them every
+  preview fails.
 - Nerd Font icons: run =M-x nerd-icons-install-fonts= once.
 
 * Start-up
@@ -221,6 +225,8 @@ Inter for prose (=variable-pitch=) and JetBrains Mono for code
 (electric-pair-mode 1)   ;; Insert matching brackets and quotes
 (show-paren-mode    1)   ;; Highlight matching brackets
 (add-hook 'text-mode-hook #'visual-line-mode)
+;; Wrapped lines keep the indent of their list item or paragraph.
+(add-hook 'text-mode-hook #'visual-wrap-prefix-mode)
 
 ;; C-/ undoes, C-? redoes.
 (global-set-key (kbd "C-?") #'undo-redo)
@@ -236,6 +242,71 @@ corrects the word at point. It needs =enchant2-devel= to compile.
   :hook (emacs-startup . global-jinx-mode)
   :bind (("M-$"   . jinx-correct)
          ("C-M-$" . jinx-languages)))
+#+end_src
+
+* Org basics
+
+Org itself is built in. Notes live in =~/org/=
+([[file:docs/design-notes.md][design notes]], "Notes layout").
+
+** Rendering
+
+Only =x_{i}= and =e^{2}= become sub- and superscripts, so =snake_case=
+stays plain; =org-pretty-entities= draws them, and =\alpha= as α.
+Emphasis markers are hidden. Previews are rendered when a file opens;
+their images go to the cache, not beside the note (=early-init.el=).
+
+#+begin_src emacs-lisp
+(use-package org
+  :ensure nil
+  :custom
+  (org-directory "~/org/")
+  (org-use-sub-superscripts '{})
+  (org-export-with-sub-superscripts '{})
+  (org-pretty-entities t)
+  (org-hide-emphasis-markers t)
+  (org-startup-with-latex-preview t)
+  :config
+  (plist-put org-format-latex-options :scale 1.5))
+#+end_src
+
+[[https://github.com/minad/org-modern][org-modern]] styles headings, lists, tables, and blocks with text
+properties, so the file itself is unchanged.
+
+#+begin_src emacs-lisp
+(use-package org-modern
+  :after org
+  :config (global-org-modern-mode 1))
+#+end_src
+
+[[https://github.com/awth13/org-appear][org-appear]] shows the hidden markup (emphasis markers, link brackets,
+sub/superscript braces, entities) while the cursor is inside it.
+[[https://github.com/io12/org-fragtog][org-fragtog]] does the same for LaTeX: source inside, preview outside.
+
+#+begin_src emacs-lisp
+(use-package org-appear
+  :hook (org-mode . org-appear-mode)
+  :custom
+  (org-appear-autolinks t)
+  (org-appear-autosubmarkers t)
+  (org-appear-autoentities t))
+
+(use-package org-fragtog
+  :hook (org-mode . org-fragtog-mode))
+#+end_src
+
+** Writing
+
+[[https://gitlab.com/jabranham/mixed-pitch][mixed-pitch]] sets prose in Inter and keeps code, tables, and timestamps in
+JetBrains Mono. [[https://github.com/rnkn/olivetti][olivetti]] centres the text in a column about
+=fill-column= wide.
+
+#+begin_src emacs-lisp
+(use-package mixed-pitch
+  :hook (org-mode . mixed-pitch-mode))
+
+(use-package olivetti
+  :hook (org-mode . olivetti-mode))
 #+end_src
 
 * Help

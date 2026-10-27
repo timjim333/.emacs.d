@@ -35,9 +35,10 @@
     (+ (search-forward string) (- (length string)) (or offset 0))))
 
 (defun tim/test-raised-p (pos)
-  "Non-nil if the character at POS is displayed raised or lowered."
+  "Non-nil if the character at POS is displayed raised or lowered.
+Org sets a list of display specs, such as ((raise -0.3) (height 0.7))."
   (let ((display (get-text-property pos 'display)))
-    (and (consp display) (eq (car display) 'raise))))
+    (and (consp display) (assq 'raise display))))
 
 (defun tim/test-move-to (pos)
   "Move point to POS and run the post-command hooks, as a key press would."

@@ -1,7 +1,7 @@
 ;;; early-init.el --- Paths and frame settings before init -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-26
+;; Date: 2026-10-27
 
 ;;; Commentary:
 
@@ -31,6 +31,10 @@
       no-littering-etc-directory (expand-file-name "etc/" tim/data-dir))
 
 (setq custom-file (expand-file-name "custom.el" tim/data-dir))
+
+;; Org's default, ltximg/ beside each note, would sync to the phone.
+(setq org-preview-latex-image-directory
+      (expand-file-name "org-latex/" tim/cache-dir))
 
 (when (fboundp 'startup-redirect-eln-cache)
   (startup-redirect-eln-cache (expand-file-name "eln-cache/" tim/cache-dir)))

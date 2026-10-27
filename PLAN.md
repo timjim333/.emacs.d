@@ -229,7 +229,19 @@ screen asleep it logs a Gdk-CRITICAL line every second; the config
 starts a server only when none is running, so test starts don't take
 the daemon's socket; `--daemon` sees warnings from the daemon's whole
 run. The 25 s delay is the agreed default, not measured;
-`START_CHECK_DELAY` overrides it. Next: round 2.
+`START_CHECK_DELAY` overrides it. Item 4 ticked on this branch.
+Round 2 in progress: the config is in `config.org` ("Org basics") and
+`test/org-rendering-test.el`, run by `test/gui-ert` (ERT inside a GUI
+Emacs). Tests 1 and 9 and the mode checks pass; test 2 fails because
+Org's default LaTeX preamble needs `texlive-wrapfig`, `texlive-ulem`,
+and `texlive-capt-of`, for Tim to install (now in the Prerequisites).
+Preview images go to `~/.cache/emacs/org-latex/`, set in
+`early-init.el`. Decisions to confirm with Tim: olivetti on in every
+Org buffer, previews rendered when a file opens
+(`org-startup-with-latex-preview`), and org-appear also revealing
+links, sub/superscript braces, and entities. Next: once LaTeX is
+installed, rerun the tests and `bin/start-check`, then send Tim a
+screenshot of a rendered note.
 Open for later rounds: the light theme (options given to Tim:
 doom-nord-light, doom-one-light, modus-operandi, ef-light or ef-frost,
 doom-flatwhite; screenshots offered), Tim installing
