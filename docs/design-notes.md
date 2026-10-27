@@ -3,7 +3,7 @@
 Last updated 2026-10-26. Consolidated from the design discussion with Tim
 in Claude Chat (the original working doc, with round-by-round history:
 https://claude.ai/artifact/4JmVXL9vudaSeydRmS1iJ5). The decisions below were
-grilled in PLAN.md item 3 (2026-10-26) into `CONTEXT.md`, ADRs, and rows
+grilled in PLAN.md item 3 (2026-10-26) into `GLOSSARY.md`, ADRs, and rows
 marked settled. Items,
 status, and open questions live in `PLAN.md`; the Emacs build is in
 `docs/emacs-build.md`.

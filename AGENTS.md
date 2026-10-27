@@ -4,7 +4,7 @@ Tim's Emacs config, being rebuilt from scratch as an Org mode notes system
 plus light IDE-style coding. Read these before starting work:
 
 - `PLAN.md`: roadmap, items, and handoff notes. Start from the next item.
-- `CONTEXT.md`: the glossary. Use its terms.
+- `GLOSSARY.md`: the glossary. Use its terms.
 - `docs/design-notes.md`: the Decisions table (each row settled or an
   ADR), option comparisons, and the reasons behind settled choices.
 - `docs/emacs-build.md`: how Emacs 31.1 is built and installed on glacier.

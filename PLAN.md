@@ -13,7 +13,7 @@ coding, on Emacs 31.1 (pgtk) on glacier (Fedora 44, KDE Plasma, Wayland).
 
 - Design research, option comparisons, and proposed decisions:
   [docs/design-notes.md](docs/design-notes.md), grilled in item 3.
-- Glossary: [CONTEXT.md](CONTEXT.md).
+- Glossary: [GLOSSARY.md](GLOSSARY.md).
 - Accepted decisions: [docs/adr/](docs/adr/).
 - Emacs build and install: [docs/emacs-build.md](docs/emacs-build.md).
 - Repo conventions and how to test a change: [AGENTS.md](AGENTS.md).
@@ -81,7 +81,7 @@ untested new config (item 1); item 4 merges it.
 
 **Goals:** Challenge the decisions proposed in
 [docs/design-notes.md](docs/design-notes.md) with `/grill-with-docs`, then
-record the glossary in `CONTEXT.md` and each settled decision as an ADR.
+record the glossary in `GLOSSARY.md` and each settled decision as an ADR.
 
 **Acceptance tests:** every row of the design notes' Decisions table is
 an ADR, marked settled, or marked open; the questions below each have an
