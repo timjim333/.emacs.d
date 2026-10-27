@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# start-check-test: acceptance tests for bin/start-check.
+#
+# Each case runs bin/start-check on a throwaway clone of this checkout's
+# committed HEAD, so commit before running.  Takes about 5 minutes
+# (two GUI starts per case) and opens Emacs windows on the desktop.
+#
+# Author: Tim Jim
+# Date: 2026-10-27
+
+set -u
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+check="$repo/bin/start-check"
+work=$(mktemp -d /tmp/start-check-test.XXXXXX)
+echo "Test clones: $work"
+failures=0
+
+# Clone HEAD into $work/<name> and print the clone's path.
+clone() {
+    git clone -q "$repo" "$work/$1"
+    echo "$work/$1"
+}
+
+# Append an Emacs Lisp block to a clone's config.org and commit it, so
+# the change isn't mistaken for a stray file.
+add_block() {
+    local dir=$1 form=$2
+    printf '\n* Test\n#+begin_src emacs-lisp\n%s\n#+end_src\n' "$form" \
+        >>"$dir/config.org"
+    git -C "$dir" commit -q -am "test block"
+}
+
+# Run start-check with the given arguments; check the exit status
+# (pass or fail) and that the output contains a fixed string.
+expect() {
+    local name=$1 want=$2 text=$3
+    shift 3
+    local output status got
+    output=$("$check" "$@" 2>&1)
+    status=$?
+    got=pass
+    [[ $status -ne 0 ]] && got=fail
+    if [[ $got == "$want" ]] && grep -qF -- "$text" <<<"$output"; then
+        echo "ok    $name"
+    else
+        echo "FAIL  $name: wanted $want with '$text', got $got (exit $status)"
+        sed 's/^/      /' <<<"$output"
+        failures=$((failures + 1))
+    fi
+}
+
+dir=$(clone clean)
+expect "clean checkout passes" pass "Report: /tmp/emacs-start-check." "$dir"
+
+dir=$(clone warn)
+add_block "$dir" '(warn "start-check test")'
+expect "a warning fails" fail "start-check test" "$dir"
+
+dir=$(clone error)
+add_block "$dir" '(error "start-check error")'
+expect "an init error fails" fail "init-file-had-error: t" "$dir"
+
+dir=$(clone stray)
+touch "$dir/stray"
+expect "a stray file fails" fail "stray" "$dir"
+
+expect "daemon reports its directory" pass \
+    "user-emacs-directory: ~/.config/emacs/" --daemon
+expect "daemon reports 31.1" pass "emacs-version: 31.1" --daemon
+
+echo "$failures failure(s)"
+[[ $failures -eq 0 ]]
