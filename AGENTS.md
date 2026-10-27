@@ -46,6 +46,9 @@ repo, which holds only Config.
   `emacs-opt` alternative.
 - `~/org/`: the Notes folder (planned; Syncthing, git, Drive backup).
 - `~/org-calendar/`: org-gcal's calendar files (planned; Syncthing only).
+- `/tmp/emacs-start-check.*/`: one folder of reports per
+  `bin/start-check` run, printed by the script; nothing cleans them up
+  except the reboot that clears `/tmp`.
 
 ## Conventions
 
@@ -65,8 +68,12 @@ repo, which holds only Config.
 
 1. Load a checkout in batch to catch errors (this tangles first):
    `emacs --batch --init-directory <checkout> -l <checkout>/early-init.el -l <checkout>/init.el --eval '(message "ok")'`
-2. Then start the real Emacs (`emacs --init-directory <checkout>`, or
-   restart the daemon: `systemctl --user restart emacs`) and check
-   `*Messages*` and `*Warnings*`.
-3. `git status --ignored` in the checkout lists only `config.el` (and
-   `private.el` if present): nothing else is State in the repo.
+2. Run `bin/start-check <checkout>` (about 50 s, opens two Emacs
+   windows). It starts Emacs twice and fails on any warning or init
+   error at the second start, on a stray file in the checkout (anything
+   untracked or ignored but `config.el`, `private.el`, and `.claude/`),
+   or if `~/.emacs.d` exists. Commit first, or new files count as stray.
+   `bin/start-check --daemon` reads the running daemon instead; its
+   `*Warnings*` covers the daemon's whole run, not just its start.
+3. For changes to the script itself, run `test/start-check-test`
+   (about 3.5 minutes, on throwaway clones of HEAD).

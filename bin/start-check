@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# start-check: check that Emacs starts cleanly from a checkout.
+#
+# Usage: bin/start-check [CHECKOUT]   GUI start (default: this checkout)
+#        bin/start-check --daemon     read the running daemon instead
+#
+# Starts Emacs twice and judges only the second start, because the
+# first start after a package install logs one-off native-compiler
+# warnings.  Fails on any warning, init error, or timeout, on an
+# untracked or ignored file in the checkout other than config.el,
+# private.el, or .claude/, or if ~/.emacs.d exists.  Reports go to a
+# new folder under /tmp, printed on each run.  Set EMACS to choose the
+# binary and START_CHECK_DELAY for the seconds before each report.
+#
+# Author: Tim Jim
+# Date: 2026-10-27
+
+set -u
+
+here=$(cd "$(dirname "$0")" && pwd)
+emacs=${EMACS:-emacs}
+out=$(mktemp -d /tmp/emacs-start-check.XXXXXX)
+failed=0
+
+fail() {
+    echo "FAIL: $*"
+    failed=1
+}
+
+# Print a report's header lines, then fail on an init error or warnings.
+judge() {
+    local report=$1
+    echo "Report: $report"
+    if [[ ! -s $report ]]; then
+        fail "no report written (Emacs timed out or crashed)"
+        return
+    fi
+    sed -n '1,/^$/p' "$report"
+    grep -qx 'init-file-had-error: nil' "$report" ||
+        fail "$(grep '^init-file-had-error:' "$report")"
+    if ! grep -qE '^warnings-buffer: (none|empty)$' "$report"; then
+        fail "*Warnings* is not empty:"
+        sed -n '/^--- \*Warnings\* ---$/,/^--- \*Messages\* ---$/p' "$report" |
+            sed '1d;$d'
+    fi
+}
+
+# Start a GUI Emacs on the checkout and write its report to $1.txt.
+# GTK's stderr goes to $1.stderr: it's noisy (for example, a
+# Gdk-CRITICAL line every second while the screen is asleep).
+gui_start() {
+    START_CHECK_REPORT=$1.txt timeout 120 "$emacs" \
+        --init-directory "$checkout" \
+        -l "$here/start-check.el" -f tim/start-check-run 2>"$1.stderr"
+}
+
+# Fail on untracked or ignored files that aren't expected there.
+check_stray() {
+    local stray
+    stray=$(git -C "$checkout" status --porcelain --ignored |
+        grep -E '^(\?\?|!!) ' |
+        grep -vxE '!! (config\.el|private\.el|\.claude/)')
+    [[ -z $stray ]] || fail "stray files in $checkout:"$'\n'"$stray"
+}
+
+if [[ ${1:-} == --daemon ]]; then
+    checkout=$(readlink -f ~/.config/emacs)
+    emacsclient -e "(progn (load \"$here/start-check.el\" nil t)
+                           (tim/start-check-report \"$out/daemon.txt\"))" \
+        >/dev/null || fail "emacsclient couldn't reach the daemon"
+    judge "$out/daemon.txt"
+else
+    checkout=$(cd "${1:-$here/..}" && pwd)
+    echo "Start 1 of 2 (not judged): $out/start1.txt"
+    gui_start "$out/start1"
+    gui_start "$out/start2"
+    judge "$out/start2.txt"
+fi
+
+check_stray
+[[ -e ~/.emacs.d ]] && fail "~/.emacs.d exists, so Emacs would read it"
+
+if [[ $failed -eq 0 ]]; then
+    echo "PASS"
+fi
+exit $failed

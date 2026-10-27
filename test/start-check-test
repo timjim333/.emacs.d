@@ -2,8 +2,9 @@
 # start-check-test: acceptance tests for bin/start-check.
 #
 # Each case runs bin/start-check on a throwaway clone of this checkout's
-# committed HEAD, so commit before running.  Takes about 5 minutes
+# committed HEAD, so commit before running.  Takes about 3.5 minutes
 # (two GUI starts per case) and opens Emacs windows on the desktop.
+# The clones are deleted when every case passes.
 #
 # Author: Tim Jim
 # Date: 2026-10-27
@@ -63,11 +64,16 @@ expect "an init error fails" fail "init-file-had-error: t" "$dir"
 
 dir=$(clone stray)
 touch "$dir/stray"
-expect "a stray file fails" fail "stray" "$dir"
+expect "a stray file fails" fail "!! stray" "$dir"
 
 expect "daemon reports its directory" pass \
     "user-emacs-directory: ~/.config/emacs/" --daemon
 expect "daemon reports 31.1" pass "emacs-version: 31.1" --daemon
 
 echo "$failures failure(s)"
-[[ $failures -eq 0 ]]
+if [[ $failures -eq 0 ]]; then
+    rm -rf "$work"
+else
+    echo "Clones kept for inspection: $work"
+    exit 1
+fi

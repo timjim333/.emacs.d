@@ -227,19 +227,29 @@ Acceptance tests:
 
 **Handoff:** Item 5 started on 2026-10-27 in the `org-basics` worktree.
 First commit renamed `CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills
-1.3 looks only for the new name). Round 1 not started. Gotchas for
-it: the script needs a Wayland session (it runs on glacier, also from
-the phone through Remote Control); the config only calls
-`server-start` when no server is running, so a test start beside the
-daemon doesn't steal its socket; `bin/` needs a `!/bin` line in
-`.gitignore`, and the script a header with author and date. Open for
-round 1: where the report goes (proposed: a new temporary folder per
-run under `/tmp`, printed, so nothing builds up). Open for later
-rounds: the light theme (proposed `doom-nord-light`), installing
+1.3 looks only for the new name). Round 1 done: `bin/start-check`
+(with `bin/start-check.el`, which writes the report) passes all six
+cases of `test/start-check-test` (tests 1–5 above; 2–4 as clones with
+a committed bad block or stray file), and AGENTS.md covers test 6.
+Reports go to a new `/tmp/emacs-start-check.*` folder per run (agreed
+with Tim). Gotchas: it needs a Wayland session (fine from the phone
+over Remote Control, as windows open on glacier's desktop); only `??`
+and `!!` lines count as stray, so commit before running (the whitelist
+`.gitignore` makes a new top-level file `!!`, not `??`); GTK's stderr
+goes to `startN.stderr` beside the report, because with glacier's
+screen asleep it logs a Gdk-CRITICAL line every second; the config
+starts a server only when none is running, so test starts don't take
+the daemon's socket; `--daemon` sees warnings from the daemon's whole
+run. The 25 s delay is the agreed default, not measured;
+`START_CHECK_DELAY` overrides it. Next: round 2.
+Open for later rounds: the light theme (options given to Tim:
+doom-nord-light, doom-one-light, modus-operandi, ef-light or ef-frost,
+doom-flatwhite; screenshots offered), Tim installing
 `jetbrains-mono-fonts` and `rsms-inter-fonts` (neither is installed, so
-mixed-pitch and ligatures fall back silently), and setting
-`org-directory` before `~/org/` exists. Package choices: design notes,
-"Package review".
+mixed-pitch and ligatures fall back silently), round 5's tests, and
+where the item 4 tick goes. `org-directory` is set in round 2 even
+though `~/org/` comes in items 6–7: nothing in item 5 writes there.
+Package choices: design notes, "Package review".
 
 ### 6. Notes: org-node, journal, capture
 
