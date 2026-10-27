@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# gui-ert: run an ERT test file inside a GUI Emacs with a checkout's
+# config, for tests that need a real frame (images, invisible text).
+#
+# Usage: test/gui-ert TEST-FILE [CHECKOUT]   (default: this checkout)
+#
+# Prints the ERT summary and exits non-zero if any test fails or Emacs
+# times out.  The full results and Emacs's stderr go to a new folder
+# under /tmp, printed on each run.
+#
+# Author: Tim Jim
+# Date: 2026-10-27
+
+set -u
+
+here=$(cd "$(dirname "$0")" && pwd)
+tests=$(readlink -f "$1")
+checkout=$(cd "${2:-$here/..}" && pwd)
+out=$(mktemp -d /tmp/emacs-gui-ert.XXXXXX)
+
+GUI_ERT_REPORT=$out/results.txt timeout 120 "${EMACS:-emacs}" \
+    --init-directory "$checkout" -l "$here/gui-ert.el" -l "$tests" \
+    -f tim/gui-ert-run 2>"$out/stderr"
+status=$?
+
+echo "Results: $out/results.txt"
+if [[ -s $out/results.txt ]]; then
+    cat "$out/results.txt"
+else
+    echo "FAIL: no results written (Emacs timed out or crashed)"
+    [[ $status -eq 0 ]] && status=1
+fi
+exit $status
