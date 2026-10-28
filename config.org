@@ -420,9 +420,10 @@ Unlike `org-download-clipboard', it adds no :ID: to the heading."
          ("C-c I" . org-download-screenshot))
   :custom
   (org-download-heading-lvl nil)
-  (org-download-annotate-function (lambda (_link) ""))
   (org-download-screenshot-method "spectacle --background --region --nonotify --output %s")
   :config
+  ;; A plain variable, not a user option, so :custom can't set it.
+  (setq org-download-annotate-function (lambda (_link) ""))
   (advice-add 'org-download-image :around #'tim/org-download-heic-as-webp))
 
 (setq image-use-external-converter t)

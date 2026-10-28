@@ -274,7 +274,10 @@ against a clone of the previous commit to see it fail. With the monitor
 asleep, glacier's DRM outputs read "disconnected" and Emacs sees no
 monitors; the DPI pin means previews still render then. The GUI tests use the
 real State, so their temp files land in `recentf` (cleaned up on the
-next start). Python blocks in value mode need `return`; use `:results
+next start). use-package's `:custom` silently does nothing for a plain `defvar`
+(org-download's `org-download-annotate-function`); use `setq` in
+`:config`, and screenshot new UI, which caught this. Python blocks in
+value mode need `return`; use `:results
 output` with `print`. Auto-revert took 5.1 s in the test (polling, not
 file notification), at the edge of test 7's "about 5 seconds".
 
