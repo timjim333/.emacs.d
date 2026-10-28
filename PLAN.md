@@ -252,8 +252,9 @@ folder per note file, mirroring its path under `~/org/attachments/`
 `org-id-get-create`, which would make every heading with an image an
 org-node note. No `#+DOWNLOADED:` line. HEIC becomes WebP (quality 85)
 through an `:around` advice on `org-download-image`, with
-`-auto-orient -strip`, so GPS and other metadata never reach GitHub or
-Drive; the source HEIC stays where it was. Not done here: the
+`-auto-orient`; metadata (GPS, date taken) is kept, at Tim's request,
+though notes go to GitHub and Drive. The source HEIC stays where it
+was. Not done here: the
 `attachments/phone/` "move into this note" command (item 7, once
 Orgzly's image handling is known) and `org-attach` (not used: links are
 plain `file:`).

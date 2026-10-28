@@ -1,6 +1,6 @@
 #+TITLE: Tim's Emacs Configuration
 #+AUTHOR: Tim Jim
-#+DATE: 2026-10-28
+#+DATE: 2026-10-29
 #+PROPERTY: header-args:emacs-lisp :tangle config.el :results silent
 #+STARTUP: overview
 
@@ -379,10 +379,9 @@ which would make it an org-node note, so =C-c i= skips that. No
 =#+DOWNLOADED:= line is added; the file name carries the time.
 
 A =.heic= (the phone's photo format) is converted to =.webp= on the way
-in, which every Device and browser can show. =-strip= drops its metadata,
-including the GPS location, since notes are backed up to GitHub and
-Drive; =-auto-orient= first applies the rotation that metadata held. The
-source file is left alone. Any HEIC that slips through still displays,
+in, which every Device and browser can show. Its metadata (date taken,
+GPS location, camera) is kept; =-auto-orient= bakes in the rotation so
+every viewer shows it upright. The source file is left alone. Any HEIC that slips through still displays,
 through ImageMagick.
 
 #+begin_src emacs-lisp
@@ -407,7 +406,7 @@ Unlike `org-download-clipboard', it adds no :ID: to the heading."
              (webp (expand-file-name (concat (file-name-base file) ".webp") tmp)))
         (unwind-protect
             (if (zerop (call-process "magick" nil nil nil (expand-file-name file)
-                                     "-auto-orient" "-strip" "-quality" "85" webp))
+                                     "-auto-orient" "-quality" "85" webp))
                 (funcall orig webp)
               (user-error "ImageMagick couldn't convert %s" file))
           (delete-directory tmp t))))))
