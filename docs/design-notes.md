@@ -1,6 +1,6 @@
 # Org notes system: design notes
 
-Last updated 2026-10-26. Consolidated from the design discussion with Tim
+Last updated 2026-10-29. Consolidated from the design discussion with Tim
 in Claude Chat (the original working doc, with round-by-round history:
 https://claude.ai/artifact/4JmVXL9vudaSeydRmS1iJ5). The decisions below were
 grilled in PLAN.md item 3 (2026-10-26) into `GLOSSARY.md`, ADRs, and rows
@@ -57,7 +57,7 @@ status, and open questions live in `PLAN.md`; the Emacs build is in
 | Python envs | Settled (no ADR): **direnv** with the `envrc` package: a `.envrc` per repo activates the uv, pixi or conda environment, and eglot, ruff and Babel use it. |
 | Coding | Settled (no ADR): eglot with **basedpyright** in "standard" mode, tree-sitter `*-ts-mode`s, flymake + ruff, apheleia, dape, project.el, plus the editing packages in "Package review". |
 | Completion | Settled (no ADR): Vertico + **vertico-posframe**, Orderless, Marginalia, Consult, Embark, Corfu (still better than the built-ins), which-key, helpful, and **casual** menus (Agenda and Dired first). |
-| Look | Settled (no ADR): **doom-nord**, `org-modern`, Inter for prose, JetBrains Mono for code, ligatures. auto-dark follows KDE's light or dark mode; light theme to pick. |
+| Look | Settled (no ADR): **doom-nord**, `org-modern`, Inter for prose, JetBrains Mono for code, ligatures. Emacs 31's `toolkit-theme-set-functions` follows KDE's light or dark mode (no auto-dark), loading `doom-nord-light` in light mode. |
 | Equations | Settled (no ADR): `org-use-sub-superscripts '{}` (and the same for export), so only `x_{i}` and `e^{2}` turn into sub/superscripts. LaTeX previews with `org-fragtog`. |
 | References | Settled (no ADR): optional, hobby scale. Web: `org-insert-link`. Papers, when wanted: Zotero (import from Mendeley) + Better BibTeX exporting one `.bib`, `org-cite`, citar + citar-org-node, org-noter + pdf-tools. |
 | Spelling | Settled (no ADR): jinx in British English (`en_GB`; needs `hunspell-en-GB`, `enchant2-devel`, and Emacs built with modules). |
@@ -210,7 +210,7 @@ doesn't want to convert photos by hand.
 The Old config's packages not otherwise in the plan, reviewed fresh. Many
 came with the fork rather than by Tim's choice.
 
-- **Kept:** forge, auto-dark (light theme to pick), toc-org (for notes
+- **Kept:** forge, toc-org (for notes
   read on GitHub away from home), multiple-cursors, verb, focus, org-present, ligature, nov,
   elfeed, eros, wgrep, git-timemachine, git-link, org-appear, olivetti,
   rainbow-delimiters, hl-todo, pdf-view-restore.
@@ -228,6 +228,8 @@ came with the fork rather than by Tim's choice.
   yasnippet (tempel if missed), dwim-shell-command, imenu-list, javelin,
   consult-xref-stack (`M-,` and `C-M-,` built in), hide-mode-line,
   blamer, ox-hugo, writeroom-mode, beacon, south-theme, esup, try.
+- **Replaced in item 5:** auto-dark → Emacs 31's built-in
+  `toolkit-theme-set-functions`, which runs when KDE switches mode.
 - **Decide in PLAN item 8:** org-super-agenda, org-ql.
 
 ## Python environments (direnv)

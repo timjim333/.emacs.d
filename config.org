@@ -199,6 +199,32 @@ Inter for prose (=variable-pitch=) and JetBrains Mono for code
   (tim/set-fonts))
 #+end_src
 
+** Ligatures
+
+[[https://github.com/mickeynp/ligature.el][ligature]] lets JetBrains Mono join =->=, =!==, =>== and the like into
+one glyph, in code only; the text itself is unchanged. The list is the
+font's own, from ligature's wiki.
+
+#+begin_src emacs-lisp
+(use-package ligature
+  :config
+  (ligature-set-ligatures
+   'prog-mode
+   '("--" "---" "==" "===" "!=" "!==" "=!=" "=:=" "=/=" "<=" ">=" "&&"
+     "&&&" "&=" "++" "+++" "***" ";;" "!!" "??" "???" "?:" "?." "?="
+     "<:" ":<" ":>" ">:" "<:<" "<>" "<<<" ">>>" "<<" ">>" "||" "-|"
+     "_|_" "|-" "||-" "|=" "||=" "##" "###" "####" "#{" "#[" "]#" "#("
+     "#?" "#_" "#_(" "#:" "#!" "#=" "^=" "<$>" "<$" "$>" "<+>" "<+"
+     "+>" "<*>" "<*" "*>" "</" "</>" "/>" "<!--" "<#--" "-->" "->"
+     "->>" "<<-" "<-" "<=<" "=<<" "<<=" "<==" "<=>" "<==>" "==>" "=>"
+     "=>>" ">=>" ">>=" ">>-" ">-" "-<" "-<<" ">->" "<-<" "<-|" "<=|"
+     "|=>" "|->" "<->" "<~~" "<~" "<~>" "~~" "~~>" "~>" "~-" "-~" "~@"
+     "[||]" "|]" "[|" "|}" "{|" "[<" ">]" "|>" "<|" "||>" "<||" "|||>"
+     "<|||" "<|>" "..." ".." ".=" "..<" ".?" "::" ":::" ":=" "::="
+     ":?" ":?>" "//" "///" "/*" "*/" "/=" "//=" "/==" "@_" "__" ";;;"))
+  (global-ligature-mode 1))
+#+end_src
+
 ** Icons
 
 #+begin_src emacs-lisp
@@ -209,6 +235,11 @@ Inter for prose (=variable-pitch=) and JetBrains Mono for code
 
 =doom-nord= from [[https://github.com/doomemacs/themes][doom-themes]], with its Org tweaks enabled.
 =doom-nord-aurora= is a warmer variant to try with =M-x consult-theme=.
+
+Emacs 31's =toolkit-theme-set-functions= follows the desktop's light or
+dark mode (on KDE through GNOME's =color-scheme= setting, which Plasma
+keeps in step), so no auto-dark package is needed: light mode loads
+=doom-nord-light=. The hook also runs as each frame opens.
 
 #+begin_src emacs-lisp
 (use-package doom-themes
@@ -223,6 +254,14 @@ Inter for prose (=variable-pitch=) and JetBrains Mono for code
 (defun tim/disable-themes (&rest _)
   (mapc #'disable-theme custom-enabled-themes))
 (advice-add 'load-theme :before #'tim/disable-themes)
+
+(defun tim/apply-toolkit-theme (mode)
+  "Load `doom-nord-light' if MODE is `light', else `doom-nord'.
+Does nothing if that theme is already on."
+  (let ((theme (if (eq mode 'light) 'doom-nord-light 'doom-nord)))
+    (unless (custom-theme-enabled-p theme)
+      (load-theme theme t))))
+(add-hook 'toolkit-theme-set-functions #'tim/apply-toolkit-theme)
 #+end_src
 
 * Editing
@@ -334,6 +373,33 @@ JetBrains Mono. [[https://github.com/rnkn/olivetti][olivetti]] centres the text 
 (use-package olivetti
   :hook (org-mode . olivetti-mode)
   :bind ("C-c o" . olivetti-mode))
+#+end_src
+
+** Presenting and focus
+
+[[https://github.com/rlister/org-present][org-present]] shows an Org file as slides, one top-level heading at a
+time: =M-x org-present=, then the arrow keys, and =C-c C-q= to quit. The
+text is enlarged, the cursor hidden, and the buffer read-only until then.
+[[https://github.com/larstvei/Focus][focus]] dims everything but the paragraph at point (=M-x focus-mode=).
+
+#+begin_src emacs-lisp
+(defun tim/org-present-start ()
+  "Enlarge the text, hide the cursor, and make the buffer read-only."
+  (org-present-big)
+  (org-present-hide-cursor)
+  (org-present-read-only))
+
+(defun tim/org-present-end ()
+  "Undo `tim/org-present-start'."
+  (org-present-small)
+  (org-present-show-cursor)
+  (org-present-read-write))
+
+(use-package org-present
+  :hook ((org-present-mode      . tim/org-present-start)
+         (org-present-mode-quit . tim/org-present-end)))
+
+(use-package focus)
 #+end_src
 
 ** Images
@@ -522,6 +588,22 @@ prefix. [[https://github.com/Wilfred/helpful][helpful]] gives richer help buffer
          ([remap describe-key]      . helpful-key)
          ([remap describe-command]  . helpful-command)
          ("C-h F"                   . helpful-function)))
+#+end_src
+
+** Menus
+
+[[https://github.com/kickingvegas/casual][casual]] gives a menu of a mode's commands, with their keys, for modes
+whose keys are hard to remember. =C-o= opens it in Dired (where it
+replaces =dired-display-file=, still on =M-x=) and in the Agenda.
+
+#+begin_src emacs-lisp
+(use-package casual
+  :defer t
+  :init
+  (with-eval-after-load 'dired
+    (keymap-set dired-mode-map "C-o" #'casual-dired-tmenu))
+  (with-eval-after-load 'org-agenda
+    (keymap-set org-agenda-mode-map "C-o" #'casual-agenda-tmenu)))
 #+end_src
 
 * Completion

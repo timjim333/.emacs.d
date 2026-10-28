@@ -14,6 +14,7 @@
 
 (require 'ert)
 (require 'org)
+(require 'cl-lib)
 
 (defmacro tim/test-in-window (mode text &rest body)
   "Run BODY in a buffer in MODE holding TEXT, shown in the selected window."
@@ -28,6 +29,16 @@
            (redisplay t)
            ,@body)
        (kill-buffer buf))))
+
+(defmacro tim/test-with-text-scale-limit (&rest body)
+  "Run BODY with a sane text-scale limit even when the monitor sleeps.
+Asleep, it reports no monitors, so `display-pixel-width' is 0 and
+`text-scale-increase' refuses every change."
+  (declare (indent 0))
+  `(if (> (display-pixel-width) 0)
+       (progn ,@body)
+     (cl-letf (((symbol-function 'text-scale-max-amount) (lambda () 20)))
+       ,@body)))
 
 (defun tim/test-transient-shown-p ()
   "Return non-nil if a transient menu is showing, then close it."
@@ -84,14 +95,16 @@
 (ert-deftest tim/look-org-present-steps ()
   "org-present shows one heading at a time and restores the buffer."
   (tim/test-in-window #'org-mode "* One\nfirst\n* Two\nsecond\n"
-    (org-present)
+    (tim/test-with-text-scale-limit
+      (org-present))
     (unwind-protect
         (progn
           (should (string-prefix-p "* One" (buffer-string)))
           (should-not (string-search "Two" (buffer-string)))
           (org-present-next)
           (should (string-prefix-p "* Two" (buffer-string))))
-      (org-present-quit))
+      (tim/test-with-text-scale-limit
+        (org-present-quit)))
     (should (string-search "* One" (buffer-string)))
     (should-not buffer-read-only)))
 
@@ -100,6 +113,8 @@
   "focus-mode dims every paragraph but the one at point."
   (tim/test-in-window #'text-mode "First paragraph.\n\nSecond paragraph.\n"
     (focus-mode 1)
+    ;; Focus moves its overlays from `post-command-hook'.
+    (run-hooks 'post-command-hook)
     (unwind-protect
         (let ((dimmed (lambda (pos)
                         (seq-some (lambda (ov)
