@@ -212,83 +212,78 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** Rounds 1–4 of 5 done on 2026-10-28, in the `org-basics`
+**Handoff:** Rounds 1–4 of 5 done on 2026-10-29, in the `org-basics`
 worktree (branch `org-basics`, not merged). The branch also renames
-`CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills 1.3 looks only for the
-new name) and ticks item 4; both reach `main` when item 5 merges.
-Tests 1–10 pass. Not yet checked by Tim at the screen: `C-c I`
+`CONTEXT.md` to `GLOSSARY.md` and ticks item 4; both reach `main` when
+item 5 merges. Tests 1–10 pass; the daemon still runs `main`'s config
+until the merge. Not yet checked by Tim at the screen: `C-c I`
 (Spectacle region screenshot) and dropping an image file on a buffer.
 
-Tools for the rest of the item (usage in AGENTS.md, "Testing a change"):
+Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
-  second; fails on warnings, init errors, stray files, or `~/.emacs.d`.
-  Its own tests: `test/start-check-test` (about 3.5 minutes).
-- `test/gui-ert <test-file> [checkout]`: runs ERT inside a GUI Emacs
-  with the config, for tests that need a frame. One file per round:
-  `test/org-rendering-test.el` (round 2), `test/org-behaviour-test.el`
-  (round 3), `test/org-images-test.el` (round 4).
-- Screenshots for Tim: render sample files in a throwaway GUI Emacs and
-  save `(x-export-frames nil 'png)`; works with the screen asleep.
-  Text renders at 15 px there, as on the Dell, so sizes are 1:1.
+  second. Its own tests: `test/start-check-test` (about 3.5 minutes).
+- `test/gui-ert <test-file> [checkout]`: ERT in a GUI Emacs with the
+  config. One file per round: `test/org-rendering-test.el`,
+  `test/org-behaviour-test.el`, `test/org-images-test.el`; add
+  `test/org-look-test.el` for round 5.
+- Screenshots for Tim: render a sample in a throwaway GUI Emacs and
+  save `(x-export-frames nil 'png)`; works with the screen asleep, at
+  the Dell's 1:1 text size. Look at one for any new UI: it caught a
+  bug the tests missed.
 
-Decisions (Tim agreed): olivetti in every Org buffer, `C-c o` toggles
-it; previews rendered when a file opens; org-appear also reveals links,
-script braces, and entities. Preview images live in
-`~/.cache/emacs/org-latex/` (set in `early-init.el`, so no `ltximg/`
-syncs to the phone): a regenerable speed-up, never pruned, each under
-1 kB. Light theme for round 5: `doom-nord-light`; `doom-flatwhite` was
-a close second. Round 3: tags follow Karl Voit's "How to Use Tags"
-(few, controlled, singular, defined) with three Tag types (GLOSSARY);
-the vocabulary is the `tim-tags` table in `config.org`, which the code
-reads through Babel `:var`, so docs and code can't drift. Kind tags
-aren't inherited. One-off tags are allowed; promote any that recur.
-Babel keeps Org's "evaluate?" prompt. `org-log-into-drawer t`; which
-state changes get logged waits for item 8's TODO keywords.
+Decisions (Tim agreed):
+- Rendering: olivetti in every Org buffer (`C-c o` toggles); previews
+  on open, cached in `~/.cache/emacs/org-latex/`; org-appear also
+  reveals links, script braces, and entities. Preview `:scale` 1.2,
+  with Org's DPI pinned at 96 (overriding the internal
+  `org--get-display-dpi`) so equations follow the text on any monitor;
+  Org otherwise uses the largest physical DPI connected (109 on the
+  AW3425DWM). A test fails if Org renames the function.
+- Tags: Karl Voit's rules (few, controlled, singular, defined), three
+  Tag types (GLOSSARY). The `tim-tags` table in `config.org` is the
+  vocabulary and is read by the code through Babel `:var`. Kind tags
+  aren't inherited; one-off tags allowed, promote recurring ones.
+- Babel keeps the "evaluate?" prompt. `org-log-into-drawer t`; what
+  gets logged waits for item 8's TODO keywords. jinx set to `en_GB`.
+- Images: a folder per note file mirroring its path under
+  `~/org/attachments/` (outside `~/org`: `attachments/<name>/` beside
+  the file); relative `file:` links; inline at 400 px. `C-c i` pastes
+  without org-download's `org-id-get-create` (an ID would make the
+  heading an org-node note; add one by hand when wanted).
+  `#+DOWNLOADED:` only for web images, keeping the source URL. HEIC
+  becomes WebP (quality 85, `-auto-orient`) through an `:around`
+  advice on `org-download-image`, keeping its metadata, GPS included;
+  the source HEIC is left alone.
+- Light theme for round 5: `doom-nord-light`.
+- Left for later: the `attachments/phone/` "move into this note"
+  command (item 7); `org-attach` isn't used.
 
-Round 4 (images, no ADR, follows the design notes' Media row): one
-folder per note file, mirroring its path under `~/org/attachments/`
-(files outside `~/org` get `attachments/<name>/` beside them); relative
-`file:` links; inline at 400 px. `C-c i` pastes without org-download's
-`org-id-get-create`, which would make every heading with an image an
-org-node note (Tim agreed; add an ID by hand when a heading should be
-a note). `#+DOWNLOADED:` only for web images, to keep their source URL. HEIC becomes WebP (quality 85)
-through an `:around` advice on `org-download-image`, with
-`-auto-orient`; metadata (GPS, date taken) is kept, at Tim's request,
-though notes go to GitHub and Drive. The source HEIC stays where it
-was. Not done here: the
-`attachments/phone/` "move into this note" command (item 7, once
-Orgzly's image handling is known) and `org-attach` (not used: links are
-plain `file:`).
-Previews: `:scale` 1.2 (Tim chose it from a screenshot) with Org's
-DPI pinned at 96 by overriding the internal `org--get-display-dpi`.
-Org otherwise takes the largest physical DPI of any connected monitor
-(109 on the AW3425DWM), so equations changed size with the monitors;
-text always uses 96. A test fails if Org renames the function.
-Open: Tim adding `markup` and `checkbox` to jinx's
-personal list (`@` in `M-$`); `en_GB` lacks them, `en_US` has them.
+Open: Tim adding `markup`, `checkbox`, and `planform` to jinx's
+personal list (`@` in `M-$`); `en_GB` lacks them.
 
-Gotchas: commit before `bin/start-check`, or new files count as stray
-(the whitelist `.gitignore` shows them as `!!`); GTK floods stderr while
-the screen sleeps, so the scripts send it to a file; Org's LaTeX
-preamble needs `texlive-wrapfig`, `texlive-ulem`, and `texlive-capt-of`
-(now in the Prerequisites); a test written after its code gets run once
-against a clone of the previous commit to see it fail. With the monitor
-asleep, glacier's DRM outputs read "disconnected" and Emacs sees no
-monitors; the DPI pin means previews still render then. The GUI tests use the
-real State, so their temp files land in `recentf` (cleaned up on the
-next start). use-package's `:custom` silently does nothing for a plain `defvar`
-(org-download's `org-download-annotate-function`); use `setq` in
-`:config`, and screenshot new UI, which caught this. Python blocks in
-value mode need `return`; use `:results
-output` with `print`. Auto-revert took 5.1 s in the test (polling, not
-file notification), at the edge of test 7's "about 5 seconds".
+Gotchas:
+- Commit before `bin/start-check`, or new files count as stray.
+- With the monitor asleep, its DRM output reads "disconnected" and
+  Emacs sees no monitors; GTK floods stderr, so scripts send it to a
+  file.
+- use-package's `:custom` silently does nothing for a plain `defvar`
+  (`org-download-annotate-function`); use `setq` in `:config`.
+- Python blocks in value mode need `return`; use `:results output`.
+- The GUI tests use real State, so temp files land in `recentf`.
+- Auto-revert took 5.1 s in the test (polling), at the edge of test 7.
+- A test written after its code is run once with the code disabled to
+  see it fail.
+- The worktree sandbox refuses Bash with `$VAR` paths, or inline
+  scripts whose text names a VCS command or Emacs; write a scratchpad
+  script and run it with `bash` or `python3`.
 
-Next, round 5, tests agreed with Tim on 2026-10-29: (a)
-switching KDE to light switches the theme within about 5 s; (b) `->`
-and `!=` show as ligatures in Python; (c) casual's menu opens from
+Next, round 5, tests agreed with Tim on 2026-10-29: (a) switching KDE
+to light switches the theme to `doom-nord-light` within about 5 s; (b)
+`->` and `!=` show as ligatures in Python; (c) casual's menu opens from
 Agenda and Dired; (d) `org-present` steps through headings; (e)
-`focus-mode` dims all but the current paragraph. Then end-of-item review and merge to `main`, which is when the
-daemon picks up rounds 2–5. Package choices: design notes, "Package review".
+`focus-mode` dims all but the current paragraph. Package choices:
+design notes, "Package review". Then tick the item, run the
+end-of-item review, and merge to `main`.
 
 ### 6. Notes: org-node, journal, capture
 
