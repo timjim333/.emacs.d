@@ -86,6 +86,17 @@ relatively, and shows it inline, with no :ID: or #+DOWNLOADED: line."
     (should-not (string-search "#+DOWNLOADED:" (buffer-string)))
     (should (tim/test-image-overlay-p))))
 
+(ert-deftest tim/org-download-notes-web-source-only ()
+  "Web images get a #+DOWNLOADED: line naming their URL; local files
+don't, since their name already carries the time."
+  (require 'org-download)
+  (should (string-prefix-p "#+DOWNLOADED: https://example.com/fig3.png @ "
+                           (funcall org-download-annotate-function
+                                    "https://example.com/fig3.png")))
+  (should (equal (funcall org-download-annotate-function
+                          "/tmp/phone/photo.webp")
+                 "")))
+
 (defun tim/test-exif (file)
   "Return FILE's GPS latitude and original date, as ImageMagick reads them."
   (car (process-lines "magick" "identify" "-format"
