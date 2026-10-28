@@ -23,7 +23,10 @@ Target: Emacs 31.1, pgtk build, on Fedora KDE (Wayland).
 #+begin_src sh :tangle no
 sudo dnf install ripgrep fd-find enchant2-devel pkgconf \
      rsms-inter-fonts jetbrains-mono-fonts \
-     texlive-latex texlive-dvipng texlive-wrapfig texlive-ulem texlive-capt-of
+     texlive-latex texlive-dvipng texlive-wrapfig texlive-ulem texlive-capt-of \
+     hunspell-en-GB ImageMagick wl-clipboard spectacle
+# HEIC support needs RPM Fusion (free):
+sudo dnf install libheif-freeworld
 #+end_src
 
 - =ripgrep= / =fd= are used by Consult for searching.
@@ -32,6 +35,9 @@ sudo dnf install ripgrep fd-find enchant2-devel pkgconf \
 - LaTeX and =dvipng= render equation previews; =wrapfig=, =ulem=, and
   =capt-of= are in Org's default preamble, and without them every
   preview fails.
+- =hunspell-en-GB= is Jinx's British dictionary.
+- ImageMagick (with =libheif-freeworld= for HEIC), =wl-clipboard=, and
+  Spectacle are for images in notes.
 - Nerd Font icons: run =M-x nerd-icons-install-fonts= once.
 
 * Start-up
@@ -328,6 +334,98 @@ JetBrains Mono. [[https://github.com/rnkn/olivetti][olivetti]] centres the text 
 (use-package olivetti
   :hook (org-mode . olivetti-mode)
   :bind ("C-c o" . olivetti-mode))
+#+end_src
+
+** Images
+
+Images live in =~/org/attachments/=, in a folder per note that mirrors
+the note's path (=topics/aviation.org= → =attachments/topics/aviation/=),
+and are linked with relative =file:= links so every Device can open
+them. Files outside =~/org= get =attachments/<name>/= beside them.
+Images show inline, 400 pixels wide unless a =#+attr_org: :width= says
+otherwise.
+
+#+begin_src emacs-lisp
+(defun tim/org-attachment-dir ()
+  "Return the folder for images added to the current file, or nil.
+Notes under `org-directory' use attachments/<note path>/ there; other
+files use attachments/<file name>/ beside them."
+  (when buffer-file-name
+    (let ((root (file-name-as-directory (expand-file-name org-directory)))
+          (file (expand-file-name buffer-file-name)))
+      (file-name-as-directory
+       (if (file-in-directory-p file root)
+           (expand-file-name (file-name-sans-extension
+                              (file-relative-name file root))
+                             (expand-file-name "attachments" root))
+         (expand-file-name (concat "attachments/" (file-name-base file))
+                           (file-name-directory file)))))))
+
+(defun tim/org-set-attachment-dir ()
+  "Point org-download at this file's attachment folder."
+  (setq-local org-download-image-dir (tim/org-attachment-dir)))
+
+(add-hook 'org-mode-hook #'tim/org-set-attachment-dir)
+
+(setq org-startup-with-inline-images t
+      org-image-actual-width        '(400))
+#+end_src
+
+[[https://github.com/abo-abo/org-download][org-download]] saves an image and links it. =C-c i= pastes from the
+clipboard; =C-c I= takes a Spectacle screenshot of a region; dropping an
+image file on the buffer, or =M-x org-download-image= with a path, adds
+that file. Its own clipboard command also gives the heading an =:ID:=,
+which would make it an org-node note, so =C-c i= skips that. No
+=#+DOWNLOADED:= line is added; the file name carries the time.
+
+A =.heic= (the phone's photo format) is converted to =.webp= on the way
+in, which every Device and browser can show. =-strip= drops its metadata,
+including the GPS location, since notes are backed up to GitHub and
+Drive; =-auto-orient= first applies the rotation that metadata held. The
+source file is left alone. Any HEIC that slips through still displays,
+through ImageMagick.
+
+#+begin_src emacs-lisp
+(defvar org-download-screenshot-method)
+
+(defun tim/org-paste-image ()
+  "Save the image on the clipboard to the attachment folder and link it.
+Unlike `org-download-clipboard', it adds no :ID: to the heading."
+  (interactive)
+  (let ((org-download-screenshot-method "wl-paste -t image/png > %s"))
+    (org-download-screenshot)))
+
+(defun tim/org-download-heic-as-webp (orig link)
+  "Call ORIG with a WebP copy of LINK when LINK is a local HEIC file."
+  (let ((file (if (string-prefix-p "file:" link)
+                  (url-unhex-string (url-filename (url-generic-parse-url link)))
+                link))
+        (case-fold-search t))
+    (if (not (and (string-match-p "\\.hei[cf]\\'" file) (file-exists-p file)))
+        (funcall orig link)
+      (let* ((tmp (make-temp-file "heic-" t))
+             (webp (expand-file-name (concat (file-name-base file) ".webp") tmp)))
+        (unwind-protect
+            (if (zerop (call-process "magick" nil nil nil (expand-file-name file)
+                                     "-auto-orient" "-strip" "-quality" "85" webp))
+                (funcall orig webp)
+              (user-error "ImageMagick couldn't convert %s" file))
+          (delete-directory tmp t))))))
+
+(use-package org-download
+  :after org
+  :commands (org-download-image org-download-screenshot)
+  :bind (:map org-mode-map
+         ("C-c i" . tim/org-paste-image)
+         ("C-c I" . org-download-screenshot))
+  :custom
+  (org-download-heading-lvl nil)
+  (org-download-annotate-function (lambda (_link) ""))
+  (org-download-screenshot-method "spectacle --background --region --nonotify --output %s")
+  :config
+  (advice-add 'org-download-image :around #'tim/org-download-heic-as-webp))
+
+(setq image-use-external-converter t)
 #+end_src
 
 ** Code blocks

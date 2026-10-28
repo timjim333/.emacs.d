@@ -212,11 +212,12 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** Rounds 1–3 of 5 done on 2026-10-28, in the `org-basics`
+**Handoff:** Rounds 1–4 of 5 done on 2026-10-28, in the `org-basics`
 worktree (branch `org-basics`, not merged). The branch also renames
 `CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills 1.3 looks only for the
 new name) and ticks item 4; both reach `main` when item 5 merges.
-Tests 1, 2, and 5–10 pass; 3 and 4 are round 4's.
+Tests 1–10 pass. Not yet checked by Tim at the screen: `C-c I`
+(Spectacle region screenshot) and dropping an image file on a buffer.
 
 Tools for the rest of the item (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
@@ -225,7 +226,7 @@ Tools for the rest of the item (usage in AGENTS.md, "Testing a change"):
 - `test/gui-ert <test-file> [checkout]`: runs ERT inside a GUI Emacs
   with the config, for tests that need a frame. One file per round:
   `test/org-rendering-test.el` (round 2), `test/org-behaviour-test.el`
-  (round 3).
+  (round 3), `test/org-images-test.el` (round 4).
 - Screenshots for Tim: render sample files in a throwaway GUI Emacs and
   save `(x-export-frames nil 'png)`; works with the screen asleep.
   Text renders at 15 px there, as on the Dell, so sizes are 1:1.
@@ -244,6 +245,18 @@ aren't inherited. One-off tags are allowed; promote any that recur.
 Babel keeps Org's "evaluate?" prompt. `org-log-into-drawer t`; which
 state changes get logged waits for item 8's TODO keywords.
 
+Round 4 (images, no ADR, follows the design notes' Media row): one
+folder per note file, mirroring its path under `~/org/attachments/`
+(files outside `~/org` get `attachments/<name>/` beside them); relative
+`file:` links; inline at 400 px. `C-c i` pastes without org-download's
+`org-id-get-create`, which would make every heading with an image an
+org-node note. No `#+DOWNLOADED:` line. HEIC becomes WebP (quality 85)
+through an `:around` advice on `org-download-image`, with
+`-auto-orient -strip`, so GPS and other metadata never reach GitHub or
+Drive; the source HEIC stays where it was. Not done here: the
+`attachments/phone/` "move into this note" command (item 7, once
+Orgzly's image handling is known) and `org-attach` (not used: links are
+plain `file:`).
 Previews: `:scale` 1.2 (Tim chose it from a screenshot) with Org's
 DPI pinned at 96 by overriding the internal `org--get-display-dpi`.
 Org otherwise takes the largest physical DPI of any connected monitor
@@ -265,13 +278,13 @@ next start). Python blocks in value mode need `return`; use `:results
 output` with `print`. Auto-revert took 5.1 s in the test (polling, not
 file notification), at the edge of test 7's "about 5 seconds".
 
-Next, round 4 (images, tests 3 and 4): org-download, relative links
-under `attachments/<note>/`, and the HEIC to `.webp` hook. Then round
-5, whose tests were proposed but not yet agreed: (a) switching KDE to
-light switches the theme within about 5 s; (b) `->` and `!=` show as
-ligatures in Python; (c) casual's menu opens from Agenda and Dired; (d)
-`org-present` steps through headings; (e) `focus-mode` dims all but the
-current paragraph. Package choices: design notes, "Package review".
+Next, round 5, whose tests were proposed but not yet agreed: (a)
+switching KDE to light switches the theme within about 5 s; (b) `->`
+and `!=` show as ligatures in Python; (c) casual's menu opens from
+Agenda and Dired; (d) `org-present` steps through headings; (e)
+`focus-mode` dims all but the current paragraph. Agree them with Tim
+first. Then end-of-item review and merge to `main`, which is when the
+daemon picks up rounds 2–5. Package choices: design notes, "Package review".
 
 ### 6. Notes: org-node, journal, capture
 
