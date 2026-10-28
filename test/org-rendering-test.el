@@ -1,7 +1,7 @@
 ;;; org-rendering-test.el --- Item 5 round 2 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-27
+;; Date: 2026-10-28
 
 ;;; Commentary:
 
@@ -92,6 +92,12 @@ Opening the file renders it, and no ltximg/ folder lands beside it."
       (when (get-file-buffer file)
         (kill-buffer (get-file-buffer file)))
       (delete-directory dir t))))
+
+(ert-deftest tim/org-preview-size-follows-text ()
+  "Previews use the text's 96 dpi, not the monitor's, at scale 1.2.
+Fails if Org renames the internal function the pin overrides."
+  (should (= (org--get-display-dpi) 96))
+  (should (= (plist-get org-format-latex-options :scale) 1.2)))
 
 (ert-deftest tim/org-buffer-modes ()
   "Org buffers get the writing modes."
