@@ -66,7 +66,7 @@ Outside the notes root, they go in attachments/ beside the file."
 ;; Test 3
 (ert-deftest tim/org-paste-image-from-clipboard ()
   "Pasting saves the image under attachments/<note>/, links it
-relatively, shows it inline, and adds no :ID: to the heading."
+relatively, and shows it inline, with no :ID: or #+DOWNLOADED: line."
   (tim/test-with-notes ((note "topics/aviation.org")
                         (png "clip.png"))
     (tim/test-make-image png)
@@ -83,6 +83,7 @@ relatively, shows it inline, and adds no :ID: to the heading."
                (concat "[[file:../attachments/topics/aviation/" (car saved) "]]")
                (buffer-string))))
     (should-not (string-search ":ID:" (buffer-string)))
+    (should-not (string-search "#+DOWNLOADED:" (buffer-string)))
     (should (tim/test-image-overlay-p))))
 
 ;; Test 4
