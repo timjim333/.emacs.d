@@ -212,20 +212,21 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** Rounds 1–4 of 5 done on 2026-10-29, in the `org-basics`
+**Handoff:** All five rounds done on 2026-10-29, in the `org-basics`
 worktree (branch `org-basics`, not merged). The branch also renames
 `CONTEXT.md` to `GLOSSARY.md` and ticks item 4; both reach `main` when
-item 5 merges. Tests 1–10 pass; the daemon still runs `main`'s config
-until the merge. Not yet checked by Tim at the screen: `C-c I`
-(Spectacle region screenshot) and dropping an image file on a buffer.
+item 5 merges. Tests 1–10 and round 5's (a)–(e) pass; the daemon still
+runs `main`'s config until the merge. Not yet checked by Tim at the
+screen: `C-c I` (Spectacle region screenshot), dropping an image file
+on a buffer, and test (a) live (KDE to light, theme follows in ~5 s).
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
   second. Its own tests: `test/start-check-test` (about 3.5 minutes).
 - `test/gui-ert <test-file> [checkout]`: ERT in a GUI Emacs with the
   config. One file per round: `test/org-rendering-test.el`,
-  `test/org-behaviour-test.el`, `test/org-images-test.el`; add
-  `test/org-look-test.el` for round 5.
+  `test/org-behaviour-test.el`, `test/org-images-test.el`, and
+  `test/org-look-test.el`.
 - Screenshots for Tim: render a sample in a throwaway GUI Emacs and
   save `(x-export-frames nil 'png)`; works with the screen asleep, at
   the Dell's 1:1 text size. Look at one for any new UI: it caught a
@@ -254,7 +255,12 @@ Decisions (Tim agreed):
   becomes WebP (quality 85, `-auto-orient`) through an `:around`
   advice on `org-download-image`, keeping its metadata, GPS included;
   the source HEIC is left alone.
-- Light theme for round 5: `doom-nord-light`.
+- Look: Emacs 31's `toolkit-theme-set-functions` replaces auto-dark
+  (it reads GNOME's `color-scheme`, which Plasma keeps in step) and
+  loads `doom-nord-light` in light mode. Ligatures in `prog-mode`
+  only. casual on `C-o` in Dired and the Agenda. org-present enlarges,
+  hides the cursor, and is read-only; focus by `M-x focus-mode`. Test
+  (a) calls the hook directly; a test can't flip KDE's mode.
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
@@ -265,7 +271,10 @@ Gotchas:
 - Commit before `bin/start-check`, or new files count as stray.
 - With the monitor asleep, its DRM output reads "disconnected" and
   Emacs sees no monitors; GTK floods stderr, so scripts send it to a
-  file.
+  file. `display-pixel-width` is then 0, so `text-scale-increase`
+  refuses every change; `test/org-look-test.el` lifts the limit then.
+- Some packages update from `post-command-hook` (Org's LOGBOOK note,
+  focus); tests run the hook by hand.
 - use-package's `:custom` silently does nothing for a plain `defvar`
   (`org-download-annotate-function`); use `setq` in `:config`.
 - Python blocks in value mode need `return`; use `:results output`.
@@ -277,13 +286,14 @@ Gotchas:
   scripts whose text names a VCS command or Emacs; write a scratchpad
   script and run it with `bash` or `python3`.
 
-Next, round 5, tests agreed with Tim on 2026-10-29: (a) switching KDE
-to light switches the theme to `doom-nord-light` within about 5 s; (b)
-`->` and `!=` show as ligatures in Python; (c) casual's menu opens from
-Agenda and Dired; (d) `org-present` steps through headings; (e)
-`focus-mode` dims all but the current paragraph. Package choices:
-design notes, "Package review". Then tick the item, run the
-end-of-item review, and merge to `main`.
+Round 5 tests (agreed 2026-10-29): (a) switching KDE to light switches
+the theme to `doom-nord-light` within about 5 s; (b) `->` and `!=` show
+as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
+(d) `org-present` steps through headings; (e) `focus-mode` dims all but
+the current paragraph.
+
+Next: Tim's screen checks above, then `/wrap-up`: tick the item, run
+the end-of-item review, and merge to `main`.
 
 ### 6. Notes: org-node, journal, capture
 
