@@ -1,7 +1,7 @@
 ;;; org-images-test.el --- Item 5 round 4 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-28
+;; Date: 2026-10-29
 
 ;;; Commentary:
 
@@ -86,18 +86,33 @@ relatively, and shows it inline, with no :ID: or #+DOWNLOADED: line."
     (should-not (string-search "#+DOWNLOADED:" (buffer-string)))
     (should (tim/test-image-overlay-p))))
 
+(defun tim/test-exif (file)
+  "Return FILE's GPS latitude and original date, as ImageMagick reads them."
+  (car (process-lines "magick" "identify" "-format"
+                      "%[EXIF:GPSLatitude] | %[EXIF:DateTimeOriginal]" file)))
+
 ;; Test 4
 (ert-deftest tim/org-heic-becomes-webp ()
-  "Adding a .heic saves a .webp and links that; the source is kept."
+  "Adding a .heic saves a .webp and links that; the source is kept,
+and the photo's metadata (GPS, date taken) carries over."
   (tim/test-with-notes ((note "topics/aviation.org")
+                        (jpg "phone/photo.jpg")
                         (heic "phone/photo.heic"))
     (make-directory (file-name-directory heic) t)
-    (tim/test-make-image heic)
+    (tim/test-make-image jpg)
+    (call-process "exiv2" nil nil nil
+                  "-M" "set Exif.GPSInfo.GPSLatitude 51/1 30/1 0/1"
+                  "-M" "set Exif.Photo.DateTimeOriginal 2026:10:01 12:00:00"
+                  jpg)
+    (call-process "magick" nil nil nil jpg heic)
     (tim/test-open-note note)
     (org-download-image heic)
-    (let ((dir (expand-file-name "attachments/topics/aviation" root)))
-      (should (directory-files dir nil "\\.webp\\'"))
-      (should-not (directory-files dir nil "\\.heic\\'")))
+    (let* ((dir (expand-file-name "attachments/topics/aviation" root))
+           (webp (car (directory-files dir t "\\.webp\\'"))))
+      (should webp)
+      (should-not (directory-files dir nil "\\.heic\\'"))
+      (should (equal (tim/test-exif webp)
+                     "51/1,30/1,0/1 | 2026:10:01 12:00:00")))
     (should (string-match-p "\\[\\[file:[^]]+\\.webp\\]\\]" (buffer-string)))
     (should (file-exists-p heic))))
 
