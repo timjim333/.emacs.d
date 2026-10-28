@@ -265,7 +265,17 @@ redraws any that are missing. Don't sync or back them up; the =.org=
 file is the source. Nothing removes images for equations you edit or
 delete, but each is under 1 kB, so delete the folder whenever you like.
 
+Org sizes previews by the largest physical DPI of any connected monitor,
+but text uses the desktop's 96 dpi, so equations grew or shrank with the
+monitors plugged in. Pinning Org to 96 makes them follow the text on any
+machine, and 1.2 matches LaTeX's letters to Inter's. The pin overrides
+an internal Org function; =test/org-rendering-test.el= catches a rename.
+
 #+begin_src emacs-lisp
+(defun tim/org-display-dpi ()
+  "Return the DPI Emacs sizes text at, for Org's LaTeX previews."
+  96)
+
 (use-package org
   :ensure nil
   :custom
@@ -276,7 +286,8 @@ delete, but each is under 1 kB, so delete the folder whenever you like.
   (org-hide-emphasis-markers t)
   (org-startup-with-latex-preview t)
   :config
-  (plist-put org-format-latex-options :scale 1.5))
+  (plist-put org-format-latex-options :scale 1.2)
+  (advice-add 'org--get-display-dpi :override #'tim/org-display-dpi))
 #+end_src
 
 [[https://github.com/minad/org-modern][org-modern]] styles headings, lists, tables, and blocks with text

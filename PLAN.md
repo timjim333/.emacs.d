@@ -227,8 +227,8 @@ Tools for the rest of the item (usage in AGENTS.md, "Testing a change"):
   `test/org-rendering-test.el` (round 2), `test/org-behaviour-test.el`
   (round 3).
 - Screenshots for Tim: render sample files in a throwaway GUI Emacs and
-  save `(x-export-frames nil 'png)`. Works with the screen asleep only
-  for cached previews (see Gotchas).
+  save `(x-export-frames nil 'png)`; works with the screen asleep.
+  Text renders at 15 px there, as on the Dell, so sizes are 1:1.
 
 Decisions (Tim agreed): olivetti in every Org buffer, `C-c o` toggles
 it; previews rendered when a file opens; org-appear also reveals links,
@@ -244,10 +244,12 @@ aren't inherited. One-off tags are allowed; promote any that recur.
 Babel keeps Org's "evaluate?" prompt. `org-log-into-drawer t`; which
 state changes get logged waits for item 8's TODO keywords.
 
-Open: the LaTeX preview `:scale` (now 1.5; Tim found equations large).
-Tim compares 1.0, 1.2, 1.35, and 1.5 at the screen, since the DPI
-can't be read with the monitor asleep, and the chosen value goes in
-`config.org`. Also open: Tim adding `markup` and `checkbox` to jinx's
+Previews: `:scale` 1.2 (Tim chose it from a screenshot) with Org's
+DPI pinned at 96 by overriding the internal `org--get-display-dpi`.
+Org otherwise takes the largest physical DPI of any connected monitor
+(109 on the AW3425DWM), so equations changed size with the monitors;
+text always uses 96. A test fails if Org renames the function.
+Open: Tim adding `markup` and `checkbox` to jinx's
 personal list (`@` in `M-$`); `en_GB` lacks them, `en_US` has them.
 
 Gotchas: commit before `bin/start-check`, or new files count as stray
@@ -256,9 +258,8 @@ the screen sleeps, so the scripts send it to a file; Org's LaTeX
 preamble needs `texlive-wrapfig`, `texlive-ulem`, and `texlive-capt-of`
 (now in the Prerequisites); a test written after its code gets run once
 against a clone of the previous commit to see it fail. With the monitor
-asleep, glacier's DRM outputs read "disconnected", and any *new*
-preview fails in `org--get-display-dpi` (`seq-max` of nil); round 2's
-test passes only because its image is cached. The GUI tests use the
+asleep, glacier's DRM outputs read "disconnected" and Emacs sees no
+monitors; the DPI pin means previews still render then. The GUI tests use the
 real State, so their temp files land in `recentf` (cleaned up on the
 next start). Python blocks in value mode need `return`; use `:results
 output` with `print`. Auto-revert took 5.1 s in the test (polling, not
