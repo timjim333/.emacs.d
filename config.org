@@ -375,8 +375,11 @@ files use attachments/<file name>/ beside them."
 clipboard; =C-c I= takes a Spectacle screenshot of a region; dropping an
 image file on the buffer, or =M-x org-download-image= with a path, adds
 that file. Its own clipboard command also gives the heading an =:ID:=,
-which would make it an org-node note, so =C-c i= skips that. No
-=#+DOWNLOADED:= line is added; the file name carries the time.
+which would make it an org-node note, so =C-c i= skips that; to make
+a heading a note, give it an ID yourself (=M-x org-id-get-create=, or
+org-node's commands). An image from the web gets a =#+DOWNLOADED:= line
+with its URL, so its source can be cited; other images don't, since
+their file name carries the time.
 
 A =.heic= (the phone's photo format) is converted to =.webp= on the way
 in, which every Device and browser can show. Its metadata (date taken,
@@ -393,6 +396,12 @@ Unlike `org-download-clipboard', it adds no :ID: to the heading."
   (interactive)
   (let ((org-download-screenshot-method "wl-paste -t image/png > %s"))
     (org-download-screenshot)))
+
+(defun tim/org-download-note-web-source (link)
+  "Return a #+DOWNLOADED: line for LINK if it is a web address, else \"\"."
+  (if (string-match-p "\\`https?://" link)
+      (org-download-annotate-default link)
+    ""))
 
 (defun tim/org-download-heic-as-webp (orig link)
   "Call ORIG with a WebP copy of LINK when LINK is a local HEIC file."
@@ -422,7 +431,7 @@ Unlike `org-download-clipboard', it adds no :ID: to the heading."
   (org-download-screenshot-method "spectacle --background --region --nonotify --output %s")
   :config
   ;; A plain variable, not a user option, so :custom can't set it.
-  (setq org-download-annotate-function (lambda (_link) ""))
+  (setq org-download-annotate-function #'tim/org-download-note-web-source)
   (advice-add 'org-download-image :around #'tim/org-download-heic-as-webp))
 
 (setq image-use-external-converter t)

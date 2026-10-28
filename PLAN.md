@@ -250,7 +250,8 @@ folder per note file, mirroring its path under `~/org/attachments/`
 (files outside `~/org` get `attachments/<name>/` beside them); relative
 `file:` links; inline at 400 px. `C-c i` pastes without org-download's
 `org-id-get-create`, which would make every heading with an image an
-org-node note. No `#+DOWNLOADED:` line. HEIC becomes WebP (quality 85)
+org-node note (Tim agreed; add an ID by hand when a heading should be
+a note). `#+DOWNLOADED:` only for web images, to keep their source URL. HEIC becomes WebP (quality 85)
 through an `:around` advice on `org-download-image`, with
 `-auto-orient`; metadata (GPS, date taken) is kept, at Tim's request,
 though notes go to GitHub and Drive. The source HEIC stays where it
@@ -282,12 +283,11 @@ value mode need `return`; use `:results
 output` with `print`. Auto-revert took 5.1 s in the test (polling, not
 file notification), at the edge of test 7's "about 5 seconds".
 
-Next, round 5, whose tests were proposed but not yet agreed: (a)
+Next, round 5, tests agreed with Tim on 2026-10-29: (a)
 switching KDE to light switches the theme within about 5 s; (b) `->`
 and `!=` show as ligatures in Python; (c) casual's menu opens from
 Agenda and Dired; (d) `org-present` steps through headings; (e)
-`focus-mode` dims all but the current paragraph. Agree them with Tim
-first. Then end-of-item review and merge to `main`, which is when the
+`focus-mode` dims all but the current paragraph. Then end-of-item review and merge to `main`, which is when the
 daemon picks up rounds 2–5. Package choices: design notes, "Package review".
 
 ### 6. Notes: org-node, journal, capture
