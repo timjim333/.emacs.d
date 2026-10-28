@@ -212,21 +212,23 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** Rounds 1 and 2 of 5 done on 2026-10-27, in the
-`org-basics` worktree (branch `org-basics`, not merged). The branch also
-renames `CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills 1.3 looks only
-for the new name) and ticks item 4; both reach `main` when item 5
-merges. Tests 1, 2, 9, and 10 pass; 3–8 are for rounds 3 and 4.
+**Handoff:** Rounds 1–3 of 5 done on 2026-10-28, in the `org-basics`
+worktree (branch `org-basics`, not merged). The branch also renames
+`CONTEXT.md` to `GLOSSARY.md` (mattpocock-skills 1.3 looks only for the
+new name) and ticks item 4; both reach `main` when item 5 merges.
+Tests 1, 2, and 5–10 pass; 3 and 4 are round 4's.
 
 Tools for the rest of the item (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
   second; fails on warnings, init errors, stray files, or `~/.emacs.d`.
   Its own tests: `test/start-check-test` (about 3.5 minutes).
 - `test/gui-ert <test-file> [checkout]`: runs ERT inside a GUI Emacs
-  with the config, for tests that need a frame. Round 2's tests are
-  `test/org-rendering-test.el`; add one file per round.
+  with the config, for tests that need a frame. One file per round:
+  `test/org-rendering-test.el` (round 2), `test/org-behaviour-test.el`
+  (round 3).
 - Screenshots for Tim: render sample files in a throwaway GUI Emacs and
-  save `(x-export-frames nil 'png)`; works on pgtk with the screen asleep.
+  save `(x-export-frames nil 'png)`. Works with the screen asleep only
+  for cached previews (see Gotchas).
 
 Decisions (Tim agreed): olivetti in every Org buffer, `C-c o` toggles
 it; previews rendered when a file opens; org-appear also reveals links,
@@ -234,32 +236,41 @@ script braces, and entities. Preview images live in
 `~/.cache/emacs/org-latex/` (set in `early-init.el`, so no `ltximg/`
 syncs to the phone): a regenerable speed-up, never pruned, each under
 1 kB. Light theme for round 5: `doom-nord-light`; `doom-flatwhite` was
-a close second, and a search for other paper-like themes can be its own
-session.
+a close second. Round 3: tags follow Karl Voit's "How to Use Tags"
+(few, controlled, singular, defined) with three Tag types (GLOSSARY);
+the vocabulary is the `tim-tags` table in `config.org`, which the code
+reads through Babel `:var`, so docs and code can't drift. Kind tags
+aren't inherited. One-off tags are allowed; promote any that recur.
+Babel keeps Org's "evaluate?" prompt. `org-log-into-drawer t`; which
+state changes get logged waits for item 8's TODO keywords.
+
+Open: the LaTeX preview `:scale` (now 1.5; Tim found equations large).
+Tim compares 1.0, 1.2, 1.35, and 1.5 at the screen, since the DPI
+can't be read with the monitor asleep, and the chosen value goes in
+`config.org`. Also open: Tim adding `markup` and `checkbox` to jinx's
+personal list (`@` in `M-$`); `en_GB` lacks them, `en_US` has them.
 
 Gotchas: commit before `bin/start-check`, or new files count as stray
 (the whitelist `.gitignore` shows them as `!!`); GTK floods stderr while
 the screen sleeps, so the scripts send it to a file; Org's LaTeX
 preamble needs `texlive-wrapfig`, `texlive-ulem`, and `texlive-capt-of`
 (now in the Prerequisites); a test written after its code gets run once
-against a clone of the previous commit to see it fail.
+against a clone of the previous commit to see it fail. With the monitor
+asleep, glacier's DRM outputs read "disconnected", and any *new*
+preview fails in `org--get-display-dpi` (`seq-max` of nil); round 2's
+test passes only because its image is cached. The GUI tests use the
+real State, so their temp files land in `recentf` (cleaned up on the
+next start). Python blocks in value mode need `return`; use `:results
+output` with `print`. Auto-revert took 5.1 s in the test (polling, not
+file notification), at the edge of test 7's "about 5 seconds".
 
-Next, round 3 (tests 5–8), in `test/org-behaviour-test.el`:
-- Babel for Python and shell (test 5).
-- `org-log-into-drawer t` and a state-change note (test 6).
-- auto-revert (already on): append to the file from a shell, wait, and
-  check the buffer (test 7).
-- jinx (already on, `en_GB`): `colour` passes, `color` is flagged (test
-  8). It also flags `markup` and `checkbox`; check whether that's the
-  dictionary and whether a personal word list is wanted.
-- Tags vocabulary: ask Tim which tags (`org-tag-alist`) before writing
-  it; the design notes don't list them.
-Then round 4 (images), then round 5, whose tests were proposed but not
-yet agreed: (a) switching KDE to light switches the theme within about
-5 s; (b) `->` and `!=` show as ligatures in Python; (c) casual's menu
-opens from Agenda and Dired; (d) `org-present` steps through headings;
-(e) `focus-mode` dims all but the current paragraph.
-Package choices: design notes, "Package review".
+Next, round 4 (images, tests 3 and 4): org-download, relative links
+under `attachments/<note>/`, and the HEIC to `.webp` hook. Then round
+5, whose tests were proposed but not yet agreed: (a) switching KDE to
+light switches the theme within about 5 s; (b) `->` and `!=` show as
+ligatures in Python; (c) casual's menu opens from Agenda and Dired; (d)
+`org-present` steps through headings; (e) `focus-mode` dims all but the
+current paragraph. Package choices: design notes, "Package review".
 
 ### 6. Notes: org-node, journal, capture
 
@@ -293,6 +304,9 @@ Journal), and a "refile as log entry" command for phone captures.
    heading and a Journal line whose link opens that entry.
 
 **Handoff:** Not started. org-roam-ui moved to item 11 (optional).
+About three months into daily use, review the tags (`org-tags-view`):
+drop unused ones, merge near-duplicates, and promote recurring one-offs
+into the `tim-tags` table in `config.org`.
 When this item is in daily use, remove the `~/repos/emacs-old-config`
 worktree and its `old-config-fallback` branch (the tag stays).
 

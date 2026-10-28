@@ -47,8 +47,16 @@ _Avoid_: diary, daily notes
 **Log entry**:
 A dated heading under a project's `Log` heading, recording one piece of
 work on it, linked from that day in the Journal.
-_Avoid_: logbook note (the LOGBOOK drawer holds state changes and clock
-times only)
+_Avoid_: logbook note (the LOGBOOK drawer holds state changes, clock
+times, and `C-c C-z` notes)
+
+**Tag type**:
+One of three kinds of Org tag, set in `config.org`'s tag table: a
+*kind* tag says what a heading is (`paper`) and isn't inherited; a
+*subject* tag says what it's about (`travel`); a *context* tag says
+where a task can be done (`@errand`). Subject and context tags pass to
+child headings.
+_Avoid_: category (Org's `CATEGORY` property is something else)
 
 **Calendar folder**:
 `~/org-calendar/`, the Org copies of Google calendars, written only by

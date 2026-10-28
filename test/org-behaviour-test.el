@@ -33,10 +33,11 @@
 
 ;; Test 5
 (ert-deftest tim/org-babel-python ()
-  "A Python block prints its value under #+RESULTS:."
+  "A Python block prints its output under #+RESULTS:."
   (should (string-match-p
            "#\\+RESULTS:\n: 2"
-           (tim/test-run-block "#+begin_src python\n1 + 1\n#+end_src\n"))))
+           (tim/test-run-block
+            "#+begin_src python :results output\nprint(1 + 1)\n#+end_src\n"))))
 
 (ert-deftest tim/org-babel-shell ()
   "A shell block prints its output under #+RESULTS:."
@@ -52,8 +53,10 @@ is item 8's to choose."
   (tim/test-with-org-text "#+TODO: TODO(t!) | DONE(d!)\n* TODO Task\n"
     (search-forward "* TODO")
     (org-todo "DONE")
+    ;; Org writes the note from `post-command-hook', after the command.
+    (run-hooks 'post-command-hook)
     (should (string-match-p
-             ":LOGBOOK:\n- State \"DONE\" +from \"TODO\""
+             ":LOGBOOK:\n *- State \"DONE\" +from \"TODO\""
              (buffer-string)))))
 
 ;; Tags

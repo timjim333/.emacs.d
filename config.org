@@ -1,6 +1,6 @@
 #+TITLE: Tim's Emacs Configuration
 #+AUTHOR: Tim Jim
-#+DATE: 2026-10-26
+#+DATE: 2026-10-28
 #+PROPERTY: header-args:emacs-lisp :tangle config.el :results silent
 #+STARTUP: overview
 
@@ -235,11 +235,14 @@ Inter for prose (=variable-pitch=) and JetBrains Mono for code
 ** Spell checking
 
 [[https://github.com/minad/jinx][Jinx]] checks only the visible part of the buffer, so it's fast. =M-$=
-corrects the word at point. It needs =enchant2-devel= to compile.
+corrects the word at point. It needs =enchant2-devel= to compile. The
+language is set rather than taken from =LANG=, so British spelling holds
+under any locale.
 
 #+begin_src emacs-lisp
 (use-package jinx
   :hook (emacs-startup . global-jinx-mode)
+  :custom (jinx-languages "en_GB")
   :bind (("M-$"   . jinx-correct)
          ("C-M-$" . jinx-languages)))
 #+end_src
@@ -314,6 +317,75 @@ JetBrains Mono. [[https://github.com/rnkn/olivetti][olivetti]] centres the text 
 (use-package olivetti
   :hook (org-mode . olivetti-mode)
   :bind ("C-c o" . olivetti-mode))
+#+end_src
+
+** Code blocks
+
+=C-c C-c= runs a Python or shell block and writes its result under
+=#+RESULTS:=. Org still asks before each run, so a block pasted from
+elsewhere never runs by accident.
+
+#+begin_src emacs-lisp
+(use-package ob
+  :ensure nil
+  :after org
+  :config
+  (org-babel-do-load-languages 'org-babel-load-languages
+                               '((emacs-lisp . t) (python . t) (shell . t))))
+#+end_src
+
+** Logging
+
+State-change notes and =C-c C-z= notes go in a =:LOGBOOK:= drawer, so
+they fold away under the heading. Which changes get logged is set by the
+TODO keywords, chosen in item 8.
+
+#+begin_src emacs-lisp
+(setq org-log-into-drawer t)
+#+end_src
+
+** Tags
+
+Tags are for finding things later, on an axis that the file a note sits
+in and its links don't already give. This table is the vocabulary, with
+each tag's meaning; the code below reads it, so edit it here. =C-c C-q=
+tags a heading by key; =TAB= there takes a one-off tag. Org tags allow
+only letters, digits, =_=, =@=, =#=, and =%=, so join words with =_=.
+
+| Type    | Says                     | Inherited | Example                                 |
+|---------+--------------------------+-----------+-----------------------------------------|
+| kind    | what the heading is      | no        | a =paper='s section notes aren't papers |
+| subject | what it's about          | yes       | a =travel= trip's TODOs are travel      |
+| context | where a task can be done | yes       | =@errand= on a shopping list            |
+
+Rules of thumb:
+- Tag a subject only if its notes would be spread across files; a topic
+  file is its own tag.
+- One concept, one tag: singular, lower case, British English.
+- Leave out what the file or a TODO keyword already says. Status
+  (draft, done) is a TODO keyword, not a tag.
+
+#+name: tim-tags
+| Tag       | Type    | Key | Meaning                                                  |
+|-----------+---------+-----+----------------------------------------------------------|
+| idea      | kind    | i   | A thought to develop later                               |
+| paper     | kind    | p   | A research paper, or notes on one                        |
+| howto     | kind    | h   | Steps for doing something (code, design, PC build)       |
+| meeting   | kind    | m   | Notes from a meeting or call                             |
+| aviation  | subject | a   | Aircraft, their design, and the technical side of flying |
+| travel    | subject | t   | Trips and holiday ideas                                  |
+| finance   | subject | f   | Money, tax, and investments                              |
+| @computer | context | c   | A task that needs glacier                                |
+| @phone    | context | o   | A call to make                                           |
+| @errand   | context | e   | A task done out and about                                |
+
+#+begin_src emacs-lisp :var tags=tim-tags
+(setq org-tag-persistent-alist
+      (mapcar (lambda (row) (cons (nth 0 row) (string-to-char (nth 2 row))))
+              tags)
+      org-tags-exclude-from-inheritance
+      (mapcar #'car (seq-filter (lambda (row) (equal (nth 1 row) "kind"))
+                                tags)))
 #+end_src
 
 * Help

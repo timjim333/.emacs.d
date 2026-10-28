@@ -35,6 +35,8 @@ repo, which holds only Config.
 - `~/.cache/emacs/eln-cache/`: native-compiled code; safe to delete.
 - `~/.cache/emacs/org-latex/`: LaTeX preview images (set in
   `early-init.el`, so no `ltximg/` lands in `~/org`); safe to delete.
+- `~/.config/enchant/en_GB.dic`: jinx's personal word list (enchant
+  writes it when `@` is chosen in `M-$`); not in the repo.
 - `~/repos/emacs-old-config/`: a worktree on branch `old-config-fallback`
   (the `old-config` tag plus one fix so it never writes to `~/.emacs.d`),
   holding the Old config's `elpa/` and other State. Start it with
