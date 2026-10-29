@@ -35,7 +35,7 @@ is a separate project once the desktop setup is stable.
 - [x] 2. Build and install Emacs 31.1
 - [x] 3. Grill the design
 - [x] 4. Cutover
-- [x] 5. Org basics
+- [ ] 5. Org basics
 - [ ] 6. Notes: org-node, journal, capture
 - [ ] 7. Sync and backup
 - [ ] 8. Tasks, agenda, and org-gcal
@@ -212,16 +212,31 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** Done on 2026-10-29: all five rounds, on branch
-`org-basics`. The branch also renames `CONTEXT.md` to `GLOSSARY.md` and
-ticks item 4. Tests 1–10 and round 5's (a)–(e) pass, as do
-`bin/start-check` and all four `test/*-test.el` files. Tim checked at
-the screen: the theme following KDE live (both ways), `C-c I`, and
-dropping an image file. Restart the daemon after the merge to pick it
-up. Adversarial review: round 1 (Gemini) 0 Findings
+**Handoff:** All five rounds done, on branch `org-basics` (not merged;
+unticked until round 3's review fixes land). The branch also renames
+`CONTEXT.md` to `GLOSSARY.md` and ticks item 4. Tests 1–10 and round
+5's (a)–(e) pass, as do `bin/start-check`, `test/start-check-test`, and
+all four `test/*-test.el` files. Tim checked at the screen: the theme
+following KDE live (both ways), `C-c I`, and dropping an image file.
+
+Adversarial review: round 1 (Gemini) 0 Findings
 ([record](docs/reviews/2026-10-29-item-5-diff.md)); round 2 (Sonnet,
-Tim's request) 9 Findings, 8 fixed test-first and 1 rejected
-([record](docs/reviews/2026-10-29-item-5-diff-r2.md)).
+Tim's request) 9 Findings, 8 fixed test-first, 1 rejected
+([record](docs/reviews/2026-10-29-item-5-diff-r2.md)); round 3 (Sonnet
+as fallback, Gemini 503) 8 Findings, verdicts agreed with Tim
+([record](docs/reviews/2026-10-30-item-5-diff-r3.md)). F1 is fixed and
+F2 moved to item 6. Still to fix, each test-first (details in the
+record's Triage notes):
+- [ ] F3: HEIC tests for a `file:///…%20.HEIC` link, an uppercase
+  extension, and a failing `magick` (no WebP, no link).
+- [ ] F4: start-check-test cases for no report (`EMACS=/bin/false`) and
+  an existing `~/.emacs.d` (temp `HOME`).
+- [ ] F5: AGENTS.md: a check or test run saves history over the
+  daemon's and may install a branch's packages into the shared State.
+- [ ] F6: test the cache against `org-preview-latex-image-directory`;
+  bind `org-download-screenshot-file` to a temp path in the paste test.
+- [ ] F8: a GUI test that a new frame runs
+  `toolkit-theme-set-functions`; Tim checks a start-up in light mode.
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
@@ -299,8 +314,14 @@ as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
 (d) `org-present` steps through headings; (e) `focus-mode` dims all but
 the current paragraph.
 
-Next: item 6. The Dired and Agenda walkthrough Tim asked for is in
-item 8's handoff.
+Next: fix F3–F8 above (one round), re-run every test, then run round 4
+of the review (`/adversarial-review`, the record name ends `-r4`). If it
+needs no code change: tick the item and merge to `main` from Tim's
+terminal (this worktree session can't touch the main checkout):
+`git merge --no-ff org-basics`, run the tests on `main`, restart the
+daemon (`systemctl --user restart emacs`), and run `bin/start-check
+--daemon`. Then remove the worktree and branch. Tim's Dired and Agenda
+walkthrough is in item 8's handoff.
 
 ### 6. Notes: org-node, journal, capture
 
@@ -333,7 +354,13 @@ Journal), and a "refile as log entry" command for phone captures.
 8. One `l` capture creates an entry under the chosen project's `Log`
    heading and a Journal line whose link opens that entry.
 
-**Handoff:** Not started. org-roam-ui moved to item 11 (optional).
+**Handoff:** Not started. First settle how image links survive a
+move (item 5 review r3 F2): links are relative to the note, so
+refiling a heading from `inbox.org` into `notes/coding.org` leaves
+`[[file:attachments/inbox/x.png]]` pointing at a missing file. Verify
+in Org's source that refile doesn't rewrite them, then choose: a
+refile or extract hook that rewrites links, or links that don't depend
+on the note's location. org-roam-ui moved to item 11 (optional).
 About three months into daily use, review the tags (`org-tags-view`):
 drop unused ones, merge near-duplicates, and promote recurring one-offs
 into the `tim-tags` table in `config.org`.

@@ -1,0 +1,90 @@
+[
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "skipped",
+    "reason": "Gemini server error 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    "started": "2026-10-29T15:40:24+00:00",
+    "finished": "2026-10-29T15:40:25+00:00",
+    "first_chunk_s": null,
+    "max_gap_s": null,
+    "chunks": 0,
+    "prompt_chars": 270779,
+    "status": "UNAVAILABLE",
+    "details": {
+      "error": {
+        "code": 503,
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    }
+  },
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "skipped",
+    "reason": "Gemini server error 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    "started": "2026-10-29T15:45:25+00:00",
+    "finished": "2026-10-29T15:45:27+00:00",
+    "first_chunk_s": null,
+    "max_gap_s": null,
+    "chunks": 0,
+    "prompt_chars": 270779,
+    "status": "UNAVAILABLE",
+    "details": {
+      "error": {
+        "code": 503,
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    }
+  },
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "skipped",
+    "reason": "Gemini server error 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    "started": "2026-10-29T15:50:27+00:00",
+    "finished": "2026-10-29T15:50:32+00:00",
+    "first_chunk_s": null,
+    "max_gap_s": null,
+    "chunks": 0,
+    "prompt_chars": 270779,
+    "status": "UNAVAILABLE",
+    "details": {
+      "error": {
+        "code": 503,
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    }
+  },
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "skipped",
+    "reason": "Gemini server error 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    "started": "2026-10-29T15:55:32+00:00",
+    "finished": "2026-10-29T15:55:42+00:00",
+    "first_chunk_s": null,
+    "max_gap_s": null,
+    "chunks": 0,
+    "prompt_chars": 270779,
+    "status": "UNAVAILABLE",
+    "details": {
+      "error": {
+        "code": 503,
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    }
+  },
+  {
+    "reviewer": "sonnet",
+    "model": "claude-sonnet-5-5",
+    "outcome": "done",
+    "reason": null,
+    "started": "2026-10-29T15:55:42+00:00",
+    "finished": "2026-10-29T15:58:40+00:00"
+  }
+]

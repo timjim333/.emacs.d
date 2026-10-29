@@ -1,7 +1,7 @@
 {
   "route": "automated",
   "reviewer": "sonnet",
-  "fallback": true,
+  "fallback": false,
   "model": "claude-sonnet-5-5",
   "model_version": "claude-sonnet-5-5",
   "effort": "high",

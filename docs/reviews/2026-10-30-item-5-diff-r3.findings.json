@@ -1,0 +1,84 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "minor",
+      "category": "bug",
+      "location": "docs/reviews/2026-10-29-item-5-diff-r2.meta.json:4",
+      "claim": "The round 2 review record contradicts itself on whether the run was a fallback.",
+      "evidence": "The meta file has `\"reviewer\": \"sonnet\", \"fallback\": true`. The record `2026-10-29-item-5-diff-r2.md` says \"claude-sonnet-5-5 (Tim's choice, for completeness after Gemini found nothing; not a fallback)\". The round 1 meta has `\"fallback\": false`.",
+      "alternative": "Make the two agree: set `fallback` to false in the meta file, or change the sentence in the record if the run was a fallback.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "design",
+      "location": "config.org (Images: tim/org-attachment-dir, relative file: links)",
+      "claim": "Links are relative to the note's folder, and the attachment folder is keyed to the note's path. Moving a heading to a file at a different depth leaves its image links pointing at the wrong place. Item 6 plans this: `C-c C-w` refile from `inbox.org`, and `org-node-extract-subtree`.",
+      "evidence": "A paste in `inbox.org` writes `[[file:attachments/inbox/x.png]]`. A paste in `topics/aviation.org` writes `[[file:../attachments/topics/aviation/x.png]]`. Refile the first heading into `notes/coding.org`, and the link now resolves to `notes/attachments/inbox/x.png`, which doesn't exist. The same happens when a subtree is extracted to a new file. As far as I remember, Org's refile doesn't rewrite relative `file:` links (from memory, not checked here). No test or doc covers this.",
+      "alternative": "Before item 6, decide how links survive a move. Options: a refile or extract hook that rewrites them, a flat `attachments/` with unique names, or `attachment:` links with a DIR property. At minimum, record the limitation in the handoff.",
+      "confidence": "low"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "test-gap",
+      "location": "test/org-images-test.el:152-170 (tim/org-heic-becomes-webp)",
+      "claim": "Only a lowercase local path to a `.heic` is tested. The advice also handles `file:` URLs, uppercase extensions and conversion failure, none of which is tested. Remote HEIC URLs aren't converted at all.",
+      "evidence": "The test calls `(org-download-image heic)` with a plain path. Dropping a file on the buffer passes a `file:` URL, which goes through the `url-unhex-string`/`url-filename` branch. That branch is untested, as are `.HEIC` and the `user-error` on a non-zero `magick` exit. For `https://.../photo.heic`, `file-exists-p` is nil, so `funcall orig link` saves a raw HEIC into `attachments/`. That contradicts \"Attaching a .heic leaves a .webp\" and the design note that a HEIC shouldn't be left in the notes.",
+      "alternative": "Add cases for a `file:///...%20.HEIC` URL and for a failing converter (no webp left, no link inserted). Either convert downloaded HEICs too or document that web HEICs pass through.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "category": "test-gap",
+      "location": "test/start-check-test (cases list)",
+      "claim": "Several of start-check's failure paths have no test: a timeout or crash (no report), `~/.emacs.d` existing, and the reverse edit restoring 0. The last is acceptance test 2.",
+      "evidence": "The cases are clean, warn, error, stray, missing path, non-git folder and two daemon reads. Nothing sets `START_CHECK_DELAY` above the timeout or fakes `~/.emacs.d` to check `no report written` and `~/.emacs.d exists`. Acceptance test 2 says \"the reverse edit restores 0\"; the warn clone is never reverted and re-run.",
+      "alternative": "Run with `HOME` pointing at a temp folder that has `.emacs.d` for the second case. Use `EMACS=/bin/false` or a stub for the no-report case. Revert the warn commit in its clone and expect a pass.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F5",
+      "severity": "minor",
+      "category": "design",
+      "location": "bin/start-check:gui_start, test/gui-ert",
+      "claim": "The check and test Emacs processes run on the live State (shared `elpa/`, `custom.el`, `savehist`, `recentf` and `save-place`), and exit through `kill-emacs`. Each run therefore rewrites those files under the running daemon.",
+      "evidence": "`kill-emacs 0` runs `kill-emacs-hook`, so savehist, recentf, save-place and the no-littering files are saved from the short-lived Emacs. They are written from the copy it loaded at start, so it can overwrite what the daemon saved in between. Running `bin/start-check <branch>` on a branch with different `use-package :ensure` entries also installs packages into the shared `~/.local/share/emacs/elpa` and rewrites `custom.el`'s `package-selected-packages`. ADR 0002 notes that rollback restores Config but not packages. Round 2 triage rejected a throwaway State, but only for the `recentf` effect. This is the overwrite and install side effect, which it didn't weigh.",
+      "alternative": "Run the check Emacs with its own history files (let-bind the savehist, recentf and save-place files in `start-check.el`), or document in AGENTS.md that a check on a non-main branch changes live packages.",
+      "confidence": "low"
+    },
+    {
+      "id": "F6",
+      "severity": "nit",
+      "category": "test-gap",
+      "location": "test/org-rendering-test.el:93-98, test/org-images-test.el (paste-without-image)",
+      "claim": "Two tests depend on machine state outside the test: a hard-coded `~/.cache/emacs/org-latex/`, and the shared file `org-download-screenshot-file` (`/tmp/screenshot.png`).",
+      "evidence": "`early-init.el` builds the cache path from `$XDG_CACHE_HOME`, but the rendering test hard-codes `\"~/.cache/emacs/org-latex/\"`, so it fails when `XDG_CACHE_HOME` is set. `tim/org-paste-without-image-says-so` asserts `(should-not (file-exists-p org-download-screenshot-file))`. A leftover `/tmp/screenshot.png` from a `C-c I` or an interrupted earlier run fails it for a reason unrelated to the code.",
+      "alternative": "Test against `org-preview-latex-image-directory`. Bind `org-download-screenshot-file` to a temp path in the test.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F7",
+      "severity": "nit",
+      "category": "scope",
+      "location": "config.org (Editing: text-mode-hook visual-wrap-prefix-mode)",
+      "claim": "`visual-wrap-prefix-mode` is turned on for every `text-mode` derivative, not only Org buffers. The goal and the test cover Org only.",
+      "evidence": "`(add-hook 'text-mode-hook #'visual-wrap-prefix-mode)`. This also affects Markdown, mail and other text buffers. The item's goal lists it with the Org basics, and `tim/org-buffer-modes` checks only Org. The hook runs before `org-mode` has set its own wrap or line prefixes.",
+      "alternative": "Use `(add-hook 'org-mode-hook #'visual-wrap-prefix-mode)`, matching the other Org-only modes, or say in the docs that it is deliberately wider.",
+      "confidence": "low"
+    },
+    {
+      "id": "F8",
+      "severity": "nit",
+      "category": "test-gap",
+      "location": "test/org-look-test.el:60-68 (tim/look-theme-follows-toolkit)",
+      "claim": "The theme test only calls the hook by hand. The start-up path is untested: `doom-nord` is loaded unconditionally, then Emacs 31 must call the hook at the first frame for light mode to apply.",
+      "evidence": "The config has `(load-theme 'doom-nord t)` in `:config` and `(add-hook 'toolkit-theme-set-functions ...)` afterwards. The test uses `run-hook-with-args` with `'light`/`'dark`. The claim in config.org that \"the hook also runs as each frame opens\" rests on the commit message and a manual check at the screen.",
+      "alternative": "Record in the handoff that start-up in light mode was seen at the screen, or add a check that the hook is invoked for a newly made frame.",
+      "confidence": "low"
+    }
+  ]
+}
