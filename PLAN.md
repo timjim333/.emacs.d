@@ -218,7 +218,8 @@ ticks item 4. Tests 1–10 and round 5's (a)–(e) pass, as do
 `bin/start-check` and all four `test/*-test.el` files. Tim checked at
 the screen: the theme following KDE live (both ways), `C-c I`, and
 dropping an image file. Restart the daemon after the merge to pick it
-up.
+up. Adversarial review (Gemini, Automated): 0 Findings
+([record](docs/reviews/2026-10-29-item-5-diff.md)).
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the

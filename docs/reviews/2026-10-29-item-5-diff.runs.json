@@ -1,0 +1,15 @@
+[
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "done",
+    "reason": null,
+    "started": "2026-10-29T13:31:38+00:00",
+    "finished": "2026-10-29T13:42:32+00:00",
+    "first_chunk_s": 318.0,
+    "max_gap_s": 9.0,
+    "chunks": 140,
+    "prompt_chars": 224804,
+    "prompt_tokens": 72064
+  }
+]
