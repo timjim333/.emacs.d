@@ -35,7 +35,7 @@ is a separate project once the desktop setup is stable.
 - [x] 2. Build and install Emacs 31.1
 - [x] 3. Grill the design
 - [x] 4. Cutover
-- [ ] 5. Org basics
+- [x] 5. Org basics
 - [ ] 6. Notes: org-node, journal, capture
 - [ ] 7. Sync and backup
 - [ ] 8. Tasks, agenda, and org-gcal
@@ -212,13 +212,13 @@ Acceptance tests:
 6. The report folder is printed, and recorded in AGENTS.md "Paths
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
-**Handoff:** All five rounds done on 2026-10-29, in the `org-basics`
-worktree (branch `org-basics`, not merged). The branch also renames
-`CONTEXT.md` to `GLOSSARY.md` and ticks item 4; both reach `main` when
-item 5 merges. Tests 1–10 and round 5's (a)–(e) pass; the daemon still
-runs `main`'s config until the merge. Not yet checked by Tim at the
-screen: `C-c I` (Spectacle region screenshot), dropping an image file
-on a buffer, and test (a) live (KDE to light, theme follows in ~5 s).
+**Handoff:** Done on 2026-10-29: all five rounds, on branch
+`org-basics`. The branch also renames `CONTEXT.md` to `GLOSSARY.md` and
+ticks item 4. Tests 1–10 and round 5's (a)–(e) pass, as do
+`bin/start-check` and all four `test/*-test.el` files. Tim checked at
+the screen: the theme following KDE live (both ways), `C-c I`, and
+dropping an image file. Restart the daemon after the merge to pick it
+up.
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
@@ -292,8 +292,8 @@ as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
 (d) `org-present` steps through headings; (e) `focus-mode` dims all but
 the current paragraph.
 
-Next: Tim's screen checks above, then `/wrap-up`: tick the item, run
-the end-of-item review, and merge to `main`.
+Next: item 6. The Dired and Agenda walkthrough Tim asked for is in
+item 8's handoff.
 
 ### 6. Notes: org-node, journal, capture
 
@@ -391,7 +391,10 @@ Orgzly reminds about TODOs. A sync-host guard so only one machine fetches
 6. Editing a calendar file in Orgzly leaves glacier's copy unchanged, and
    Syncthing on the phone offers "Revert local changes".
 
-**Handoff:** Not started. Choose between kidd/org-gcal.el and the
+**Handoff:** Not started. Tim hasn't used Dired or the Agenda: start
+with a walkthrough of their ideas and concepts (marks, flags, and
+`wdired`; agenda files, views, and dispatch), using casual's `C-o`
+menus (item 5). Choose between kidd/org-gcal.el and the
 martianh fork by which installs cleanly. Set the OAuth client to "In
 production", or refresh tokens expire after 7 days; ID and secret go in
 `private.el`.
