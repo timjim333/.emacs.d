@@ -7,7 +7,7 @@
 # The clones are deleted when every case passes.
 #
 # Author: Tim Jim
-# Date: 2026-10-27
+# Date: 2026-10-30
 
 set -u
 
@@ -65,6 +65,11 @@ expect "an init error fails" fail "init-file-had-error: t" "$dir"
 dir=$(clone stray)
 touch "$dir/stray"
 expect "a stray file fails" fail "!! stray" "$dir"
+
+expect "a missing checkout fails" fail "not a git checkout" "$work/missing"
+
+dir=$(mktemp -d "$work/not-git.XXXXXX")
+expect "a folder outside git fails" fail "not a git checkout" "$dir"
 
 expect "daemon reports its directory" pass \
     "user-emacs-directory: ~/.config/emacs/" --daemon

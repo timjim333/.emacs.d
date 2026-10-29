@@ -1,7 +1,7 @@
 ;;; org-rendering-test.el --- Item 5 round 2 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-28
+;; Date: 2026-10-30
 
 ;;; Commentary:
 
@@ -75,7 +75,8 @@ Org sets a list of display specs, such as ((raise -0.3) (height 0.7))."
 ;; Test 2
 (ert-deftest tim/org-latex-preview-toggles ()
   "$E=mc^2$ shows a preview outside it and its source inside it.
-Opening the file renders it, and no ltximg/ folder lands beside it."
+Opening the file renders it into the cache, and no ltximg/ folder
+lands beside it."
   (let* ((dir (make-temp-file "org-test-" t))
          (file (expand-file-name "note.org" dir)))
     (unwind-protect
@@ -84,6 +85,11 @@ Opening the file renders it, and no ltximg/ folder lands beside it."
             (insert "Intro line\n\nEnergy $E=mc^2$ here\n"))
           (find-file file)
           (should (tim/test-latex-overlay))
+          (should (file-in-directory-p
+                   (plist-get (cdr (overlay-get (tim/test-latex-overlay)
+                                                'display))
+                              :file)
+                   "~/.cache/emacs/org-latex/"))
           (tim/test-move-to (tim/test-pos "E=mc" 1))
           (should-not (tim/test-latex-overlay))
           (tim/test-move-to (point-min))

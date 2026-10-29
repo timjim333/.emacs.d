@@ -1,7 +1,7 @@
 ;;; org-behaviour-test.el --- Item 5 round 3 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-28
+;; Date: 2026-10-30
 
 ;;; Commentary:
 
@@ -79,22 +79,35 @@ is item 8's to choose."
       (should-not (member "paper" tags)))))
 
 ;; Test 7
+(defun tim/test-wait-until (pred seconds)
+  "Wait up to SECONDS for PRED to return non-nil, and return its value."
+  (let ((deadline (+ (float-time) seconds))
+        value)
+    (while (and (not (setq value (funcall pred)))
+                (< (float-time) deadline))
+      (sit-for 0.1))
+    value))
+
 (ert-deftest tim/auto-revert-picks-up-appends ()
-  "Appending to an open, unmodified file shows up within about 5 s."
+  "Appending to an open, unmodified file shows up within 2 s.
+Global auto-revert starts watching a file at its next tick, up to
+`auto-revert-interval' (5 s) after opening; from then on, inotify
+reports changes at once.  The test waits for the watch, so it times
+the usual case: a sync landing on a file open for a while."
   (let* ((dir (make-temp-file "org-test-" t))
          (file (expand-file-name "note.org" dir)))
     (unwind-protect
         (progn
           (with-temp-file file (insert "* first\n"))
           (with-current-buffer (find-file-noselect file)
+            (should (tim/test-wait-until
+                     (lambda () auto-revert-notify-watch-descriptor) 6))
             (call-process "sh" nil nil nil "-c"
                           (format "echo '* test' >> %s"
                                   (shell-quote-argument file)))
-            (let ((deadline (+ (float-time) 6)))
-              (while (and (< (float-time) deadline)
-                          (not (string-search "* test" (buffer-string))))
-                (sit-for 0.2)))
-            (should (string-search "* test" (buffer-string)))))
+            (should (tim/test-wait-until
+                     (lambda () (string-search "* test" (buffer-string)))
+                     2))))
       (when (get-file-buffer file)
         (kill-buffer (get-file-buffer file)))
       (delete-directory dir t))))

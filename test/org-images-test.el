@@ -1,7 +1,7 @@
 ;;; org-images-test.el --- Item 5 round 4 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-29
+;; Date: 2026-10-30
 
 ;;; Commentary:
 
@@ -41,6 +41,23 @@ BINDINGS names variables bound to files in it, as (VAR RELATIVE-PATH)."
   "Write a small red image to FILE, in the format its extension names."
   (call-process "magick" nil nil nil "-size" "64x48" "xc:red" file))
 
+(defmacro tim/test-keeping-clipboard (&rest body)
+  "Run BODY, then put back what the Wayland clipboard held before.
+Only the first type it offers is kept, which covers text and images."
+  (declare (indent 0))
+  `(let ((type (car (ignore-errors
+                      (process-lines "wl-paste" "--list-types"))))
+         (saved (make-temp-file "clipboard-")))
+     (when type
+       (call-process "wl-paste" nil (list :file saved) nil
+                     "--no-newline" "--type" type))
+     (unwind-protect
+         (progn ,@body)
+       (if type
+           (call-process "wl-copy" saved nil nil "--type" type)
+         (call-process "wl-copy" nil nil nil "--clear"))
+       (delete-file saved))))
+
 (defun tim/test-image-overlay-p ()
   "Non-nil if an inline image is shown in the buffer."
   (seq-find (lambda (ov) (overlay-get ov 'org-image-overlay))
@@ -67,24 +84,64 @@ Outside the notes root, they go in attachments/ beside the file."
 (ert-deftest tim/org-paste-image-from-clipboard ()
   "Pasting saves the image under attachments/<note>/, links it
 relatively, and shows it inline, with no :ID: or #+DOWNLOADED: line."
-  (tim/test-with-notes ((note "topics/aviation.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (call-process "sh" nil nil nil "-c"
-                  (format "wl-copy --type image/png < %s"
-                          (shell-quote-argument png)))
-    (tim/test-open-note note)
-    (call-interactively (key-binding (kbd "C-c i")))
-    (let ((saved (directory-files
-                  (expand-file-name "attachments/topics/aviation" root)
-                  nil "\\.png\\'")))
-      (should (= (length saved) 1))
-      (should (string-search
-               (concat "[[file:../attachments/topics/aviation/" (car saved) "]]")
-               (buffer-string))))
-    (should-not (string-search ":ID:" (buffer-string)))
-    (should-not (string-search "#+DOWNLOADED:" (buffer-string)))
-    (should (tim/test-image-overlay-p))))
+  (tim/test-keeping-clipboard
+    (tim/test-with-notes ((note "topics/aviation.org")
+                          (png "clip.png"))
+      (tim/test-make-image png)
+      (call-process "wl-copy" png nil nil "--type" "image/png")
+      (tim/test-open-note note)
+      (call-interactively (key-binding (kbd "C-c i")))
+      (let ((saved (directory-files
+                    (expand-file-name "attachments/topics/aviation" root)
+                    nil "\\.png\\'")))
+        (should (= (length saved) 1))
+        (should (string-search
+                 (concat "[[file:../attachments/topics/aviation/" (car saved) "]]")
+                 (buffer-string))))
+      (should-not (string-search ":ID:" (buffer-string)))
+      (should-not (string-search "#+DOWNLOADED:" (buffer-string)))
+      (should (tim/test-image-overlay-p)))))
+
+(ert-deftest tim/org-paste-without-image-says-so ()
+  "With no image on the clipboard, C-c i says so and links nothing."
+  (tim/test-keeping-clipboard
+    (call-process "wl-copy" nil nil nil "not an image")
+    (tim/test-with-notes ((note "topics/aviation.org"))
+      (tim/test-open-note note)
+      (should-error (call-interactively (key-binding (kbd "C-c i")))
+                    :type 'user-error)
+      (should-not (string-search "[[file:" (buffer-string)))
+      (should-not (file-exists-p (expand-file-name "attachments" root)))
+      (should-not (file-exists-p org-download-screenshot-file)))))
+
+(ert-deftest tim/test-clipboard-restored ()
+  "The tests above leave the clipboard as they found it."
+  (tim/test-keeping-clipboard
+    (call-process "wl-copy" nil nil nil "keep me")
+    (tim/test-keeping-clipboard
+      (call-process "wl-copy" nil nil nil "scratch"))
+    (should (equal (car (process-lines "wl-paste" "--no-newline"))
+                   "keep me"))))
+
+(ert-deftest tim/org-attachment-dir-through-symlink ()
+  "A note visited by its real path, under a symlinked notes root,
+still gets attachments/<note>/ in that root."
+  (let* ((base (make-temp-file "symlinked-" t))
+         (real (expand-file-name "real-org" base))
+         (link (expand-file-name "org" base))
+         (note (expand-file-name "a.org" real))
+         (org-directory link))
+    (make-directory real)
+    (make-symbolic-link real link)
+    (unwind-protect
+        (progn
+          (tim/test-open-note note)
+          (should (equal (file-truename (tim/org-attachment-dir))
+                         (file-truename
+                          (expand-file-name "attachments/a/" link)))))
+      (when (get-file-buffer note)
+        (kill-buffer (get-file-buffer note)))
+      (delete-directory base t))))
 
 (ert-deftest tim/org-download-notes-web-source-only ()
   "Web images get a #+DOWNLOADED: line naming their URL; local files
