@@ -53,6 +53,11 @@ repo, which holds only Config.
 - `/tmp/emacs-start-check.*/`: one folder of reports per
   `bin/start-check` run, printed by the script; nothing cleans them up
   except the reboot that clears `/tmp`.
+- `/tmp/emacs-gui-ert.*/`: one folder per `test/gui-ert` run (results
+  and Emacs's stderr), printed by the script; also left for the reboot.
+- `/tmp/start-check-test.*/`: `test/start-check-test`'s throwaway
+  clones, deleted when every case passes and kept (path printed) on a
+  failure.
 
 ## Conventions
 

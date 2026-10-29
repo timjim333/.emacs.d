@@ -8,12 +8,14 @@
 # first start after a package install logs one-off native-compiler
 # warnings.  Fails on any warning, init error, or timeout, on an
 # untracked or ignored file in the checkout other than config.el,
-# private.el, or .claude/, or if ~/.emacs.d exists.  Reports go to a
-# new folder under /tmp, printed on each run.  Set EMACS to choose the
-# binary and START_CHECK_DELAY for the seconds before each report.
+# private.el, or .claude/, or if ~/.emacs.d exists.  CHECKOUT must be
+# the top folder of a git checkout, or it stops before starting Emacs.
+# Reports go to a new folder under /tmp, printed on each run.  Set
+# EMACS to choose the binary and START_CHECK_DELAY for the seconds
+# before each report.
 #
 # Author: Tim Jim
-# Date: 2026-10-27
+# Date: 2026-10-30
 
 set -u
 
@@ -56,11 +58,26 @@ gui_start() {
 
 # Fail on untracked or ignored files that aren't expected there.
 check_stray() {
-    local stray
-    stray=$(git -C "$checkout" status --porcelain --ignored |
-        grep -E '^(\?\?|!!) ' |
+    local status stray
+    if ! status=$(git -C "$checkout" status --porcelain --ignored); then
+        fail "git status failed in $checkout"
+        return
+    fi
+    stray=$(grep -E '^(\?\?|!!) ' <<<"$status" |
         grep -vxE '!! (config\.el|private\.el|\.claude/)')
     [[ -z $stray ]] || fail "stray files in $checkout:"$'\n'"$stray"
+}
+
+# Stop before starting Emacs unless $1 (resolved from the path given
+# as $2) is the top of a git checkout, so a mistyped path can't pass
+# by checking some other folder.
+require_checkout() {
+    local top
+    top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)
+    if [[ -z $1 || $top != "$1" ]]; then
+        echo "FAIL: not a git checkout: $2"
+        exit 1
+    fi
 }
 
 if [[ ${1:-} == --daemon ]]; then
@@ -70,7 +87,8 @@ if [[ ${1:-} == --daemon ]]; then
         >/dev/null || fail "emacsclient couldn't reach the daemon"
     judge "$out/daemon.txt"
 else
-    checkout=$(cd "${1:-$here/..}" && pwd)
+    checkout=$(cd "${1:-$here/..}" 2>/dev/null && pwd -P)
+    require_checkout "$checkout" "${1:-$here/..}"
     echo "Start 1 of 2 (not judged): $out/start1.txt"
     gui_start "$out/start1"
     gui_start "$out/start2"

@@ -1,6 +1,6 @@
 #+TITLE: Tim's Emacs Configuration
 #+AUTHOR: Tim Jim
-#+DATE: 2026-10-29
+#+DATE: 2026-10-30
 #+PROPERTY: header-args:emacs-lisp :tangle config.el :results silent
 #+STARTUP: overview
 
@@ -27,6 +27,8 @@ sudo dnf install ripgrep fd-find enchant2-devel pkgconf \
      hunspell-en-GB ImageMagick wl-clipboard spectacle
 # HEIC support needs RPM Fusion (free):
 sudo dnf install libheif-freeworld
+# For the tests only:
+sudo dnf install exiv2
 #+end_src
 
 - =ripgrep= / =fd= are used by Consult for searching.
@@ -38,6 +40,8 @@ sudo dnf install libheif-freeworld
 - =hunspell-en-GB= is Jinx's British dictionary.
 - ImageMagick (with =libheif-freeworld= for HEIC), =wl-clipboard=, and
   Spectacle are for images in notes.
+- =exiv2= writes the photo metadata that =test/org-images-test.el=
+  checks survives the HEIC conversion.
 - Nerd Font icons: run =M-x nerd-icons-install-fonts= once.
 
 * Start-up
@@ -417,8 +421,9 @@ otherwise.
 Notes under `org-directory' use attachments/<note path>/ there; other
 files use attachments/<file name>/ beside them."
   (when buffer-file-name
-    (let ((root (file-name-as-directory (expand-file-name org-directory)))
-          (file (expand-file-name buffer-file-name)))
+    ;; True names, so a symlinked notes root still gives a path inside it.
+    (let ((root (file-name-as-directory (file-truename org-directory)))
+          (file (file-truename buffer-file-name)))
       (file-name-as-directory
        (if (file-in-directory-p file root)
            (expand-file-name (file-name-sans-extension
@@ -458,8 +463,13 @@ through ImageMagick.
 
 (defun tim/org-paste-image ()
   "Save the image on the clipboard to the attachment folder and link it.
-Unlike `org-download-clipboard', it adds no :ID: to the heading."
+Unlike `org-download-clipboard', it adds no :ID: to the heading.
+Without a PNG on the clipboard it says so, rather than linking an
+empty file."
   (interactive)
+  (unless (member "image/png" (ignore-errors
+                                (process-lines "wl-paste" "--list-types")))
+    (user-error "No image on the clipboard"))
   (let ((org-download-screenshot-method "wl-paste -t image/png > %s"))
     (org-download-screenshot)))
 
