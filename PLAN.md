@@ -218,8 +218,10 @@ ticks item 4. Tests 1–10 and round 5's (a)–(e) pass, as do
 `bin/start-check` and all four `test/*-test.el` files. Tim checked at
 the screen: the theme following KDE live (both ways), `C-c I`, and
 dropping an image file. Restart the daemon after the merge to pick it
-up. Adversarial review (Gemini, Automated): 0 Findings
-([record](docs/reviews/2026-10-29-item-5-diff.md)).
+up. Adversarial review: round 1 (Gemini) 0 Findings
+([record](docs/reviews/2026-10-29-item-5-diff.md)); round 2 (Sonnet,
+Tim's request) 9 Findings, 8 fixed test-first and 1 rejected
+([record](docs/reviews/2026-10-29-item-5-diff-r2.md)).
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
@@ -280,7 +282,11 @@ Gotchas:
   (`org-download-annotate-function`); use `setq` in `:config`.
 - Python blocks in value mode need `return`; use `:results output`.
 - The GUI tests use real State, so temp files land in `recentf`.
-- Auto-revert took 5.1 s in the test (polling), at the edge of test 7.
+- Global auto-revert watches a file (inotify, about 0.1 s) only from
+  its next 5 s tick after opening; until then it polls. Test 7 waits
+  for the watch.
+- `C-c i` gives a `user-error` unless the clipboard offers
+  `image/png`. The image tests save and restore Tim's clipboard.
 - A test written after its code is run once with the code disabled to
   see it fail.
 - The worktree sandbox refuses Bash with `$VAR` paths, or inline
