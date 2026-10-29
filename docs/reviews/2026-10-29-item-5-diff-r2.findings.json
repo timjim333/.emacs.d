@@ -1,0 +1,94 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/start-check:62-68",
+      "claim": "The stray-file check fails open. If `git status` errors (checkout isn't a repo, or the path argument is wrong), `stray` is empty and the script reports PASS.",
+      "evidence": "`stray=$(git -C \"$checkout\" status --porcelain --ignored | grep -E ... | grep -vxE ...)`. There is no `pipefail` and no check of git's exit status, so a git error leaves `stray` empty and `[[ -z $stray ]]` succeeds. `checkout=$(cd \"${1:-$here/..}\" && pwd)` is also unchecked: a mistyped path leaves `checkout` empty and Emacs is started with `--init-directory \"\"`.",
+      "alternative": "Validate the checkout argument up front (`git -C \"$checkout\" rev-parse` and fail if it errors). Run `git status` into a variable first and fail if it exits non-zero, then filter.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "bug",
+      "location": "AGENTS.md:\"Paths outside the repo\"",
+      "claim": "`test/gui-ert` and `test/start-check-test` write to new /tmp folders (`/tmp/emacs-gui-ert.*`, `/tmp/start-check-test.*`). Only `/tmp/emacs-start-check.*` is recorded in AGENTS.md.",
+      "evidence": "test/gui-ert: `out=$(mktemp -d /tmp/emacs-gui-ert.XXXXXX)`. test/start-check-test: `work=$(mktemp -d /tmp/start-check-test.XXXXXX)`, kept on failure. The global rule says to print the path and record it in AGENTS.md in the same change. The paths are printed but not recorded.",
+      "alternative": "Add both folders to \"Paths outside the repo\", saying that the clones are kept on failure.",
+      "confidence": "high"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "test-gap",
+      "location": "test/org-behaviour-test.el:84-100",
+      "claim": "The auto-revert test (acceptance test 7) allows 6 s against a spec of \"about 5 seconds\". The handoff says the observed time was 5.1 s, so a strict 5 s bound would fail. The config does nothing to give margin.",
+      "evidence": "`(deadline (+ (float-time) 6))`. The handoff gotcha reads: \"Auto-revert took 5.1 s in the test (polling), at the edge of test 7.\" `auto-revert-interval` is left at its default of 5 s. The test passes only because its own deadline is looser than the spec.",
+      "alternative": "Set `auto-revert-interval` to 1\u20132 s, or find out why notify isn't used, then tighten the deadline to 5 s.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "category": "test-gap",
+      "location": "test/org-rendering-test.el:90-105",
+      "claim": "The LaTeX preview test only checks that no `ltximg/` folder appears beside the note. It never checks that previews land in `~/.cache/emacs/org-latex/`, which config.org and AGENTS.md both document.",
+      "evidence": "The only filesystem assertion is `(should-not (file-exists-p (expand-file-name \"ltximg\" dir)))`. If Org 9.8 stored images somewhere else (for example in `org-persist`), the test would still pass and the documented cache folder would be wrong.",
+      "alternative": "Assert that `org-preview-latex-image-directory` is the cache folder and that it contains a file after the preview renders.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F5",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org (tim/org-paste-image)",
+      "claim": "`C-c i` never checks whether `wl-paste` succeeded. With no PNG on the clipboard, the shell redirect `> %s` still leaves an empty file, which org-download may then attach and link as a broken image.",
+      "evidence": "`(org-download-screenshot-method \"wl-paste -t image/png > %s\")`. When the clipboard holds text or a non-PNG image, `wl-paste` exits non-zero but the redirect has already created the file. This relies on my memory of org-download-screenshot, which checks that the file exists but not that it is non-empty. The packet doesn't show that code.",
+      "alternative": "Check that the clipboard offers `image/png` first (`wl-paste -l`) and `user-error` if not. Alternatively, run `wl-paste` with `call-process`, test its exit status and the file size, then call `org-download-image`.",
+      "confidence": "low"
+    },
+    {
+      "id": "F6",
+      "severity": "minor",
+      "category": "test-gap",
+      "location": "test/org-images-test.el:55-70",
+      "claim": "The clipboard paste test overwrites the user's real Wayland clipboard with `wl-copy`, and the GUI tests run against the real State. Running the suite while working destroys clipboard contents. `recentf`, `savehist` and `save-place` are written by a second Emacs alongside the daemon.",
+      "evidence": "`(format \"wl-copy --type image/png < %s\" ...)` has no save or restore. The handoff admits \"The GUI tests use real State, so temp files land in recentf.\"",
+      "alternative": "Save the clipboard before the test and restore it afterwards, or document the side effect in the test header. Point the test Emacs at a throwaway State directory by setting `XDG_DATA_HOME` and `XDG_CACHE_HOME` in test/gui-ert.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F7",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org (tim/org-attachment-dir)",
+      "claim": "The attachment path is computed with `file-relative-name`, which compares strings. `file-in-directory-p` compares true names. If `~/org` is a symlink (for example a Syncthing folder elsewhere) and the note is visited by its real path, the folder comes out as `attachments/../../\u2026`.",
+      "evidence": "`(if (file-in-directory-p file root) (expand-file-name (file-name-sans-extension (file-relative-name file root)) ...))`. With root `/home/tim/org/` as a symlink to `/data/org`, and file `/data/org/a.org`, `file-in-directory-p` is true. `file-relative-name` then returns `../../../data/org/a.org`. This is a reasoning-only case; the tests use real temp directories.",
+      "alternative": "Pass both `file` and `root` through `file-truename` before computing the relative path.",
+      "confidence": "low"
+    },
+    {
+      "id": "F8",
+      "severity": "nit",
+      "category": "bug",
+      "location": "config.org:Prerequisites",
+      "claim": "test/org-images-test.el calls `exiv2`, which is not in the documented prerequisites. The HEIC test errors on a fresh machine.",
+      "evidence": "`(call-process \"exiv2\" nil nil nil \"-M\" ...)` in `tim/org-heic-becomes-webp`. The `dnf install` list names ImageMagick, wl-clipboard and spectacle, but not exiv2.",
+      "alternative": "Add `exiv2` to the install line, noting it is for tests only, or build the EXIF with ImageMagick `-set exif:...`.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F9",
+      "severity": "nit",
+      "category": "scope",
+      "location": "GLOSSARY.md / PLAN.md item 4 handoff",
+      "claim": "The item 5 branch also renames CONTEXT.md, rewrites item 4's handoff and ticks item 4. None of this belongs to item 5's goals, and it makes the diff harder to review.",
+      "evidence": "The diff deletes CONTEXT.md and adds GLOSSARY.md. It rewrites item 4's Handoff and changes `- [ ] 4. Cutover` to `[x]`. Commit f4d1db8 says it was ticked \"on the item 5 branch at Tim's request\".",
+      "alternative": "Put the rename and the item 4 tick on their own small branch or commit set for `main`. This is disclosed in the handoff, so it is low priority.",
+      "confidence": "medium"
+    }
+  ]
+}
