@@ -229,8 +229,9 @@ F2 moved to item 6, and F3–F6 and F8 are fixed (commits in the
 record's Fixes). The new tests covered code that already worked, so
 each was seen failing against a temporarily broken copy. F8 confirmed
 in Emacs's source that each new pgtk frame queues a toolkit-theme
-event (`xg_set_initial_dark_mode`, `src/gtkutil.c`). Still open: Tim
-checks a start-up in light mode at the screen (steps in Next).
+event (`xg_set_initial_dark_mode`, `src/gtkutil.c`). Tim checked a
+start-up in light mode on 2026-10-30: both `bin/start-check` windows
+opened light, and it passed.
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
@@ -311,9 +312,7 @@ as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
 (d) `org-present` steps through headings; (e) `focus-mode` dims all but
 the current paragraph.
 
-Next: Tim's light-mode start-up check (switch KDE to light, run
-`bin/start-check`, and see both windows open light), then round 4 of
-the review (`/adversarial-review`, the record name ends `-r4`). If it
+Next: round 4 of the review (`/adversarial-review`, the record name ends `-r4`). If it
 needs no code change: tick the item and merge to `main` from Tim's
 terminal (this worktree session can't touch the main checkout):
 `git merge --no-ff org-basics`, run the tests on `main`, restart the
