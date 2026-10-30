@@ -90,3 +90,10 @@ repo, which holds only Config.
    is tested in ERT files run by `test/gui-ert test/<file>.el
    [checkout]`, which starts a GUI Emacs with the config. Run every
    `test/*-test.el` file before merging.
+
+Checks and tests share the daemon's State in `~/.local/share/emacs/`.
+Each Emacs they start saves recentf, savehist, and save-place as it
+exits, so whichever Emacs exits last overwrites the others' history.
+A branch's new packages install into the shared `elpa/`, and the
+daemon's `package-initialize` activates them (loads their autoloads)
+at its next start, even from `main`.
