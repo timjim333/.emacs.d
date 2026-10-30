@@ -99,6 +99,30 @@ lands beside it."
         (kill-buffer (get-file-buffer file)))
       (delete-directory dir t))))
 
+(defun tim/test-latex-image-file ()
+  "Return the image file of the buffer's first LaTeX preview."
+  (plist-get (cdr (overlay-get (tim/test-latex-overlay) 'display)) :file))
+
+(ert-deftest tim/org-latex-preview-follows-theme ()
+  "Switching theme redraws previews in the new theme's colours.
+The colours are part of the image's cache name, so the file changes."
+  (let ((theme (car custom-enabled-themes))
+        (dir (make-temp-file "org-test-" t)))
+    (unwind-protect
+        (let ((file (expand-file-name "note.org" dir)))
+          (with-temp-file file (insert "Energy $E=mc^2$ here\n"))
+          (find-file file)
+          (let ((before (tim/test-latex-image-file)))
+            (should before)
+            (load-theme (if (eq theme 'doom-nord-light) 'doom-nord
+                          'doom-nord-light)
+                        t)
+            (should (tim/test-latex-image-file))
+            (should-not (equal (tim/test-latex-image-file) before)))
+          (kill-buffer))
+      (load-theme theme t)
+      (delete-directory dir t))))
+
 (ert-deftest tim/org-preview-size-follows-text ()
   "Previews use the text's 96 dpi, not the monitor's, at scale 1.2.
 Fails if Org renames the internal function the pin overrides."
