@@ -184,6 +184,45 @@ and the photo's metadata (GPS, date taken) carries over."
     (should (string-match-p "\\[\\[file:[^]]+\\.webp\\]\\]" (buffer-string)))
     (should (file-exists-p heic))))
 
+(defmacro tim/test-adding-heic (heic &rest body)
+  "Open a note, make the image file HEIC (relative to the notes root),
+and run BODY with `dir' bound to the note's attachment folder."
+  (declare (indent 1))
+  `(tim/test-with-notes ((note "topics/aviation.org")
+                         (heic ,heic))
+     (make-directory (file-name-directory heic) t)
+     (tim/test-make-image heic)
+     (tim/test-open-note note)
+     (let ((dir (expand-file-name "attachments/topics/aviation" root)))
+       ,@body)))
+
+(defun tim/test-linked-webp-p (dir)
+  "Non-nil if DIR holds a .webp and the buffer links a .webp."
+  (and (directory-files dir nil "\\.webp\\'")
+       (string-match-p "\\[\\[file:[^]]+\\.webp\\]\\]" (buffer-string))))
+
+(ert-deftest tim/org-heic-from-file-url ()
+  "A file:// link with an escaped space is converted too."
+  (tim/test-adding-heic "phone/my photo.heic"
+    (org-download-image
+     (concat "file://" (string-replace " " "%20" heic)))
+    (should (tim/test-linked-webp-p dir))))
+
+(ert-deftest tim/org-heic-uppercase-extension ()
+  "A .HEIC, as some phones name them, is converted too."
+  (tim/test-adding-heic "phone/IMG_0001.HEIC"
+    (org-download-image heic)
+    (should (tim/test-linked-webp-p dir))))
+
+(ert-deftest tim/org-heic-conversion-failure ()
+  "If ImageMagick can't convert the HEIC, it says so and links nothing."
+  (tim/test-adding-heic "phone/broken.heic"
+    (with-temp-file heic (insert "not an image"))
+    (should-error (org-download-image heic) :type 'user-error)
+    (should-not (file-exists-p dir))
+    (should-not (string-search "[[file:" (buffer-string)))
+    (should (file-exists-p heic))))
+
 (ert-deftest tim/org-heic-displays-as-fallback ()
   "A HEIC that slips through still displays, through ImageMagick."
   (let ((heic (make-temp-file "fallback-" nil ".heic")))
