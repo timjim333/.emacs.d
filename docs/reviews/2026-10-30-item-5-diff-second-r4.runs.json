@@ -1,0 +1,10 @@
+[
+  {
+    "reviewer": "sonnet",
+    "model": "claude-sonnet-5-5",
+    "outcome": "done",
+    "reason": null,
+    "started": "2026-10-30T15:34:56+00:00",
+    "finished": "2026-10-30T15:36:32+00:00"
+  }
+]

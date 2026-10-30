@@ -1,0 +1,54 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "minor",
+      "category": "bug",
+      "location": "test/gui-ert:17-19",
+      "claim": "test/gui-ert has the fail-open checkout handling that review r2 F1 fixed in bin/start-check. A mistyped CHECKOUT leaves `checkout` empty and Emacs starts with `--init-directory \"\"`. A missing TEST-FILE argument also dies with a bare unbound-variable error.",
+      "evidence": "`checkout=$(cd \"${2:-$here/..}\" && pwd)` has no error check, and `tests=$(readlink -f \"$1\")` has no argument check. bin/screenshot validates both and bin/start-check calls `require_checkout`. I have not run Emacs with an empty `--init-directory`. If it falls back to another config, such as the daemon's, the tests could pass against the wrong config. PLAN says to run every `test/*-test.el` file before merging.",
+      "alternative": "Reuse the `cd ... || { echo FAIL; exit 2; }` pattern from bin/screenshot. Check that `$#` is 1 or 2 and that the test file exists.",
+      "confidence": "low"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "design",
+      "location": "config.org:Theme (tim/apply-toolkit-theme)",
+      "claim": "The `toolkit-theme-set-functions` hook runs for every new frame and loads `doom-nord` or `doom-nord-light`. Any theme Tim picked by hand, such as the documented `doom-nord-aurora`, is replaced each time a frame opens, for example with `emacsclient -c` on the daemon.",
+      "evidence": "The function skips only when the exact target theme is already enabled: `(unless (custom-theme-enabled-p theme) (load-theme theme t))`. With `doom-nord-aurora` enabled, `doom-nord` is not enabled, so it loads and `tim/disable-themes` removes the aurora theme. The config text says to try aurora with `M-x consult-theme`. The new-frame test (`tim/look-new-frame-applies-toolkit-theme`) asserts this overwrite as intended behaviour. It is not recorded as a decision in PLAN.",
+      "alternative": "Apply the hook only when the desktop mode actually changes from the last applied mode. Alternatively, skip it when `custom-enabled-themes` holds a non-doom-nord theme. At minimum, document that manual theme choices don't survive a new frame.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F3",
+      "severity": "nit",
+      "category": "test-gap",
+      "location": "test/org-behaviour-test.el:55-62; test/start-check-test (daemon cases)",
+      "claim": "Some tests hard-code values that will break on valid changes. The tags test pins 10 rows and specific keys, even though config.org says the table is the single source of truth. The daemon cases require exactly `emacs-version: 31.1` and a live daemon running the new config.",
+      "evidence": "`(should (= (length org-tag-persistent-alist) 10))` fails as soon as an 11th tag is added to `tim-tags`. `expect \"daemon reports 31.1\" pass \"emacs-version: 31.1\" --daemon` fails on a 31.2 build, or when the daemon is down, although start-check itself is fine.",
+      "alternative": "Compare the alist with the table read through Babel, or drop the count. Match `emacs-version: 31\\.` for the daemon, or skip the daemon cases when no daemon is reachable.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F4",
+      "severity": "nit",
+      "category": "bug",
+      "location": "bin/start-check:92-96",
+      "claim": "`--daemon` mode calls `emacsclient -e` with no timeout. A hung or busy daemon blocks the script forever. Every other Emacs invocation in these scripts is wrapped in `timeout`.",
+      "evidence": "`emacsclient -e \"(progn (load ...) ...)\" >/dev/null || fail ...` has no `timeout`. The script header says it fails on timeout, but that holds only for the GUI path.",
+      "alternative": "Use `timeout 30 emacsclient -e ...`, and report a timeout as a failure.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F5",
+      "severity": "nit",
+      "category": "bug",
+      "location": "bin/screenshot:7-10",
+      "claim": "The header says the frame is set to 1600x900 after 15 s. The code does not resize. It opens a new, slightly smaller frame and the shell script pads the PNGs. A reader who trusts the header will not expect the padding.",
+      "evidence": "The header reads \"After 15 s the frame is set to 1600x900\". `tim/screenshot--size-frame` makes a new frame, deletes the old one, and bin/screenshot ends with `-extent 1600x900`. docs/research/2026-10-30-frame-resize.md explains that a shown frame can't be resized.",
+      "alternative": "Reword the header: \"a new frame of whole columns and lines is opened, and each shot is padded to 1600x900\".",
+      "confidence": "high"
+    }
+  ]
+}
