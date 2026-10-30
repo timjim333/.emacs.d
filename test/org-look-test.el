@@ -1,7 +1,7 @@
 ;;; org-look-test.el --- Item 5 round 5 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-29
+;; Date: 2026-10-30
 
 ;;; Commentary:
 
@@ -57,6 +57,33 @@ Asleep, it reports no monitors, so `display-pixel-width' is 0 and
         (run-hook-with-args 'toolkit-theme-set-functions 'dark)
         (should (equal custom-enabled-themes '(doom-nord))))
     (tim/apply-toolkit-theme (or toolkit-theme 'dark))))
+
+;; A daemon's first frame, started in light mode, takes this path.
+(ert-deftest tim/look-new-frame-applies-toolkit-theme ()
+  "Opening a frame runs the toolkit theme hook, so a theme out of step
+with the desktop is put right."
+  (skip-unless toolkit-theme)
+  (let* ((mode toolkit-theme)
+         (wrong (if (eq mode 'light) 'dark 'light))
+         (seen nil)
+         (record (lambda (m) (push m seen)))
+         frame)
+    (add-hook 'toolkit-theme-set-functions record)
+    (unwind-protect
+        (progn
+          (tim/apply-toolkit-theme wrong)
+          (setq frame (make-frame))
+          ;; GTK queues the event as the frame is made; reading input
+          ;; runs the hook.
+          (with-timeout (5 nil)
+            (while (not seen) (read-event nil nil 0.1)))
+          (should (equal seen (list mode)))
+          (should (equal custom-enabled-themes
+                         (list (if (eq mode 'light) 'doom-nord-light
+                                 'doom-nord)))))
+      (remove-hook 'toolkit-theme-set-functions record)
+      (when (frame-live-p frame) (delete-frame frame))
+      (tim/apply-toolkit-theme mode))))
 
 ;; Test (b)
 (ert-deftest tim/look-ligatures-in-python ()
