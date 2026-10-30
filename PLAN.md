@@ -317,8 +317,9 @@ Review round 4 (head `afed512`): Gemini returned 0 Findings with a
 so two more runs on copies of that workspace (both Findings-free
 `packet.md` and `repo/`, results cleared):
 - Sonnet second run (`review-auto --reviewer sonnet`) in
-  `~/reviews/emacs-config-2026-10-30-diff`; started 31 Oct 2026, see
-  its `findings.json`. Record: `2026-10-30-item-5-diff-second-r4.md`.
+  `~/reviews/emacs-config-2026-10-30-diff`: done, 5 Findings (2 minor,
+  3 nit), `review-check` passes, not yet triaged. Record:
+  `2026-10-30-item-5-diff-second-r4.md`.
 - Tim's Manual Antigravity run: `code --profile Reviewer
   ~/reviews/emacs-config-2026-10-30-diff-manual`; Tim says when
   `findings.json` is there, plus model and thinking level. Record:
@@ -326,7 +327,13 @@ so two more runs on copies of that workspace (both Findings-free
   step 5). The skill has no name rule for a third run; `-manual` is
   this item's choice.
 
-Next: `review-check` each workspace, triage both (skill steps 3–6),
+Flaky: on 31 Oct `test/screenshot-test` failed "two shots give two
+PNGs" once (exit 1, error not captured), then passed all five cases
+on an immediate re-run. Suspect the 5 s wait for the new frame's size
+in `tim/screenshot--size-frame`; reproduce by looping the test, and
+make the test print `error.txt` on failure.
+
+Next: `review-check` the manual workspace, triage both runs (skill steps 3–6),
 then delete the workspaces. If neither needs a code change: tick the item and merge to `main` from Tim's
 terminal (this worktree session can't touch the main checkout):
 `git merge --no-ff org-basics`, run the tests on `main`, restart the
