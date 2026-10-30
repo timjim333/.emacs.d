@@ -1,0 +1,55 @@
+[
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "skipped",
+    "reason": "Gemini server error 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    "started": "2026-10-30T14:47:43+00:00",
+    "finished": "2026-10-30T14:52:40+00:00",
+    "first_chunk_s": null,
+    "max_gap_s": null,
+    "chunks": 0,
+    "prompt_chars": 345943,
+    "status": "UNAVAILABLE",
+    "details": {
+      "error": {
+        "code": 503,
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    }
+  },
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "skipped",
+    "reason": "Gemini server error 503: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.",
+    "started": "2026-10-30T14:57:40+00:00",
+    "finished": "2026-10-30T15:00:20+00:00",
+    "first_chunk_s": null,
+    "max_gap_s": null,
+    "chunks": 0,
+    "prompt_chars": 345943,
+    "status": "UNAVAILABLE",
+    "details": {
+      "error": {
+        "code": 503,
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    }
+  },
+  {
+    "reviewer": "gemini",
+    "model": "gemini-3.8-flash",
+    "outcome": "done",
+    "reason": null,
+    "started": "2026-10-30T15:05:20+00:00",
+    "finished": "2026-10-30T15:15:18+00:00",
+    "first_chunk_s": 393.5,
+    "max_gap_s": 4.2,
+    "chunks": 94,
+    "prompt_chars": 345943,
+    "prompt_tokens": 114842
+  }
+]
