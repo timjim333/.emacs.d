@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# screenshot-test: acceptance tests for bin/screenshot.
+#
+# Runs bin/screenshot on this checkout with small throwaway scripts.
+# Takes about a minute (three GUI starts of about 15 s) and opens
+# Emacs windows on the desktop.  The scripts' folder is deleted when
+# every case passes.
+#
+# Author: Tim Jim
+# Date: 2026-10-30
+
+set -u
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+shoot="$repo/bin/screenshot"
+work=$(mktemp -d /tmp/screenshot-test.XXXXXX)
+echo "Test scripts: $work"
+failures=0
+
+pass() { echo "ok    $1"; }
+fail() {
+    echo "FAIL  $1"
+    [[ -n ${2:-} ]] && sed 's/^/      /' <<<"$2"
+    failures=$((failures + 1))
+}
+
+# Write a shot script to $work/$1.el, from the remaining lines.
+script() {
+    local name=$1
+    shift
+    printf '%s\n' ";;; -*- lexical-binding: t -*-" "$@" >"$work/$name.el"
+    echo "$work/$name.el"
+}
+
+# Print the folder named on bin/screenshot's "Shots:" line.
+shots_dir() { sed -n 's/^Shots: //p' <<<"$1"; }
+
+ok=$(script ok \
+    '(tim/screenshot-add "dark" (switch-to-buffer "*scratch*"))' \
+    '(tim/screenshot-add "light" (load-theme (quote doom-nord-light) t))')
+output=$("$shoot" "$repo" "$ok" 2>&1)
+status=$?
+dir=$(shots_dir "$output")
+if [[ $status -eq 0 && -f $dir/dark.png && -f $dir/light.png ]]; then
+    pass "two shots give two PNGs"
+else
+    fail "two shots give two PNGs (exit $status)" "$output"
+fi
+size=$(magick identify -format '%wx%h' "$dir/dark.png" 2>&1)
+if [[ $size == 1600x900 ]]; then
+    pass "shots are 1600x900"
+else
+    fail "shots are 1600x900, got $size"
+fi
+
+bad=$(script bad '(tim/screenshot-add "boom" (error "shot went wrong"))')
+start=$SECONDS
+output=$("$shoot" "$repo" "$bad" 2>&1)
+status=$?
+if [[ $status -ne 0 ]] && grep -qF "shot went wrong" <<<"$output" &&
+    ((SECONDS - start < 60)); then
+    pass "a failing shot exits early with its error"
+else
+    fail "a failing shot exits early with its error (exit $status, \
+$((SECONDS - start)) s)" "$output"
+fi
+
+guard=$(script guard '(tim/screenshot-add "x" (tim/screenshot-install (quote beacon)))')
+output=$(env -u SCREENSHOT_ELPA "$shoot" "$repo" "$guard" 2>&1)
+status=$?
+if [[ $status -ne 0 ]] && grep -qF "SCREENSHOT_ELPA" <<<"$output"; then
+    pass "installing without SCREENSHOT_ELPA refuses"
+else
+    fail "installing without SCREENSHOT_ELPA refuses (exit $status)" "$output"
+fi
+
+output=$("$shoot" "$repo" 2>&1)
+status=$?
+if [[ $status -ne 0 ]] && grep -qF "Usage" <<<"$output"; then
+    pass "a missing script argument fails"
+else
+    fail "a missing script argument fails (exit $status)" "$output"
+fi
+
+echo "$failures failure(s)"
+if [[ $failures -eq 0 ]]; then
+    rm -rf "$work"
+else
+    echo "Scripts kept for inspection: $work"
+    exit 1
+fi
