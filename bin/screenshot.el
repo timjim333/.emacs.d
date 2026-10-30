@@ -42,9 +42,10 @@ the shared elpa/.  Signals an error if SCREENSHOT_ELPA is unset."
 
 (defun tim/screenshot--size-frame (width height)
   "Replace the selected frame with the largest that fits WIDTH x HEIGHT.
-A frame here can't be resized once shown, and a new one is sized in
-whole columns and lines, so it falls a few pixels short; bin/screenshot
-pads the images.  Signals an error if the size doesn't take."
+PlasmaZones blocks resizing a frame once shown, but a new frame gets
+its size; see docs/research/2026-10-30-frame-resize.md.  The frame is
+whole columns and lines, a few pixels short, so bin/screenshot pads
+the images.  Signals an error if the size doesn't take."
   (let* ((old (selected-frame))
          (dw (- (frame-outer-width old) (frame-text-width old)))
          (dh (- (frame-outer-height old) (frame-text-height old)))

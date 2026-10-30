@@ -102,7 +102,8 @@ repo, which holds only Config.
    [checkout]`, which starts a GUI Emacs with the config. Run every
    `test/*-test.el` file before merging.
 5. Screenshots: `bin/screenshot <checkout> <script.el>` (usage in its
-   header; tests: `test/screenshot-test`).
+   header; tests: `test/screenshot-test`). PlasmaZones blocks resizing
+   a shown frame: `docs/research/2026-10-30-frame-resize.md`.
 
 Checks and tests share the daemon's State in `~/.local/share/emacs/`.
 Each Emacs they start saves recentf, savehist, and save-place as it
