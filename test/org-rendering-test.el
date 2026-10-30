@@ -89,7 +89,7 @@ lands beside it."
                    (plist-get (cdr (overlay-get (tim/test-latex-overlay)
                                                 'display))
                               :file)
-                   "~/.cache/emacs/org-latex/"))
+                   org-preview-latex-image-directory))
           (tim/test-move-to (tim/test-pos "E=mc" 1))
           (should-not (tim/test-latex-overlay))
           (tim/test-move-to (point-min))

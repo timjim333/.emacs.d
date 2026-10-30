@@ -13,13 +13,17 @@
 
 (require 'ert)
 (require 'org)
+(require 'org-download)
 
 (defmacro tim/test-with-notes (bindings &rest body)
   "Run BODY with `org-directory' bound to a fresh temp folder.
-BINDINGS names variables bound to files in it, as (VAR RELATIVE-PATH)."
+BINDINGS names variables bound to files in it, as (VAR RELATIVE-PATH).
+Screenshots go in the folder too, so parallel runs don't share one."
   (declare (indent 1))
   `(let* ((root (file-name-as-directory (make-temp-file "notes-" t)))
           (org-directory root)
+          (org-download-screenshot-file
+           (expand-file-name "screenshot.png" root))
           ,@(mapcar (lambda (b) `(,(car b) (expand-file-name ,(cadr b) root)))
                     bindings))
      (unwind-protect
