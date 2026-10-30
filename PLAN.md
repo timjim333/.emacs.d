@@ -266,6 +266,10 @@ Decisions (Tim agreed):
   becomes WebP (quality 85, `-auto-orient`) through an `:around`
   advice on `org-download-image`, keeping its metadata, GPS included;
   the source HEIC is left alone.
+- LaTeX previews are redrawn in every Org buffer that shows some
+  whenever a theme is enabled (`enable-theme-functions`), since Org
+  bakes the text colour into each image; found by a `bin/screenshot`
+  shot on 2026-10-30.
 - Look: Emacs 31's `toolkit-theme-set-functions` replaces auto-dark
   (it reads GNOME's `color-scheme`, which Plasma keeps in step) and
   loads `doom-nord-light` in light mode. Ligatures in `prog-mode`
@@ -275,10 +279,7 @@ Decisions (Tim agreed):
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
-Open: LaTeX previews keep the colours of the theme they were made in,
-so after KDE switches to light a preview shows as a dark box until
-the file is reopened (seen in a `bin/screenshot` shot, 2026-10-30);
-fix in this item or later, Tim to choose. Tim adding `markup`, `checkbox`, and `planform` to jinx's
+Open: Tim adding `markup`, `checkbox`, and `planform` to jinx's
 personal list (`@` in `M-$`); `en_GB` lacks them.
 
 Gotchas:

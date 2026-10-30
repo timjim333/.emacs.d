@@ -320,10 +320,24 @@ monitors plugged in. Pinning Org to 96 makes them follow the text on any
 machine, and 1.2 matches LaTeX's letters to Inter's. The pin overrides
 an internal Org function; =test/org-rendering-test.el= catches a rename.
 
+A preview is drawn in the text colour of the theme at the time, so a
+theme switch (light and dark follow KDE) redraws the previews in open
+Org buffers.
+
 #+begin_src emacs-lisp
 (defun tim/org-display-dpi ()
   "Return the DPI Emacs sizes text at, for Org's LaTeX previews."
   96)
+
+(defun tim/org-refresh-latex-previews (&rest _)
+  "Redraw LaTeX previews in every Org buffer that shows some.
+Runs after a theme is enabled, so previews take its colours."
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (and (derived-mode-p 'org-mode)
+                 (org-clear-latex-preview))
+        (org-latex-preview '(16))))))
+(add-hook 'enable-theme-functions #'tim/org-refresh-latex-previews)
 
 (use-package org
   :ensure nil
