@@ -71,6 +71,17 @@ expect "a missing checkout fails" fail "not a git checkout" "$work/missing"
 dir=$(mktemp -d "$work/not-git.XXXXXX")
 expect "a folder outside git fails" fail "not a git checkout" "$dir"
 
+# Both cases below run /bin/false as Emacs, so they take seconds: it
+# exits at once and writes no report, as a crash or a timeout would.
+dir=$(clone no-report)
+EMACS=/bin/false expect "no report fails" fail "no report written" "$dir"
+
+dir=$(clone dot-emacs)
+home=$(mktemp -d "$work/home.XXXXXX")
+mkdir "$home/.emacs.d"
+HOME=$home EMACS=/bin/false expect "an existing ~/.emacs.d fails" fail \
+    "~/.emacs.d exists" "$dir"
+
 expect "daemon reports its directory" pass \
     "user-emacs-directory: ~/.config/emacs/" --daemon
 expect "daemon reports 31.1" pass "emacs-version: 31.1" --daemon
