@@ -10,6 +10,13 @@ plus light IDE-style coding. Read these before starting work:
 - `docs/emacs-build.md`: how Emacs 31.1 is built and installed on glacier.
 - `docs/adr/`: accepted decisions.
 
+## Contents
+
+- [How this repo works](#how-this-repo-works)
+- [Paths outside the repo](#paths-outside-the-repo)
+- [Conventions](#conventions)
+- [Testing a change](#testing-a-change)
+
 ## How this repo works
 
 The layout follows ADRs 0002 and 0003. `~/.config/emacs` links to this
@@ -55,6 +62,10 @@ repo, which holds only Config.
   except the reboot that clears `/tmp`.
 - `/tmp/emacs-gui-ert.*/`: one folder per `test/gui-ert` run (results
   and Emacs's stderr), printed by the script; also left for the reboot.
+- `/tmp/emacs-screenshot.*/`: one folder of PNGs per `bin/screenshot`
+  run, printed by the script; left for the reboot.
+- `/tmp/screenshot-test.*/`: `test/screenshot-test`'s scripts, deleted
+  when every case passes and kept (path printed) on a failure.
 - `/tmp/start-check-test.*/`: `test/start-check-test`'s throwaway
   clones, deleted when every case passes and kept (path printed) on a
   failure.
@@ -90,6 +101,8 @@ repo, which holds only Config.
    is tested in ERT files run by `test/gui-ert test/<file>.el
    [checkout]`, which starts a GUI Emacs with the config. Run every
    `test/*-test.el` file before merging.
+5. Screenshots: `bin/screenshot <checkout> <script.el>` (usage in its
+   header; tests: `test/screenshot-test`).
 
 Checks and tests share the daemon's State in `~/.local/share/emacs/`.
 Each Emacs they start saves recentf, savehist, and save-place as it

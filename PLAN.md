@@ -239,10 +239,9 @@ Tools (usage in AGENTS.md, "Testing a change"):
   config. One file per round: `test/org-rendering-test.el`,
   `test/org-behaviour-test.el`, `test/org-images-test.el`, and
   `test/org-look-test.el`.
-- Screenshots for Tim: render a sample in a throwaway GUI Emacs and
-  save `(x-export-frames nil 'png)`; works with the screen asleep, at
-  the Dell's 1:1 text size. Look at one for any new UI: it caught a
-  bug the tests missed.
+- `bin/screenshot <checkout> <script.el>`: PNGs at 1600x900 for Tim
+  or for checking a UI; works with the screen asleep. Look at one for
+  any new UI: it caught a bug the tests missed.
 
 Decisions (Tim agreed):
 - Rendering: olivetti in every Org buffer (`C-c o` toggles); previews
@@ -276,7 +275,10 @@ Decisions (Tim agreed):
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
-Open: Tim adding `markup`, `checkbox`, and `planform` to jinx's
+Open: LaTeX previews keep the colours of the theme they were made in,
+so after KDE switches to light a preview shows as a dark box until
+the file is reopened (seen in a `bin/screenshot` shot, 2026-10-30);
+fix in this item or later, Tim to choose. Tim adding `markup`, `checkbox`, and `planform` to jinx's
 personal list (`@` in `M-$`); `en_GB` lacks them.
 
 Gotchas:
