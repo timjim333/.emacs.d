@@ -312,8 +312,22 @@ as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
 (d) `org-present` steps through headings; (e) `focus-mode` dims all but
 the current paragraph.
 
-Next: round 4 of the review (`/adversarial-review`, the record name ends `-r4`). If it
-needs no code change: tick the item and merge to `main` from Tim's
+Review round 4 (head `afed512`): Gemini returned 0 Findings with a
+9-token answer on a 346k packet ([record](docs/reviews/2026-10-30-item-5-diff-r4.md)),
+so two more runs on copies of that workspace (both Findings-free
+`packet.md` and `repo/`, results cleared):
+- Sonnet second run (`review-auto --reviewer sonnet`) in
+  `~/reviews/emacs-config-2026-10-30-diff`; started 31 Oct 2026, see
+  its `findings.json`. Record: `2026-10-30-item-5-diff-second-r4.md`.
+- Tim's Manual Antigravity run: `code --profile Reviewer
+  ~/reviews/emacs-config-2026-10-30-diff-manual`; Tim says when
+  `findings.json` is there, plus model and thinking level. Record:
+  `2026-10-30-item-5-diff-manual-r4.md`, meta written by hand (skill
+  step 5). The skill has no name rule for a third run; `-manual` is
+  this item's choice.
+
+Next: `review-check` each workspace, triage both (skill steps 3–6),
+then delete the workspaces. If neither needs a code change: tick the item and merge to `main` from Tim's
 terminal (this worktree session can't touch the main checkout):
 `git merge --no-ff org-basics`, run the tests on `main`, restart the
 daemon (`systemctl --user restart emacs`), and run `bin/start-check
