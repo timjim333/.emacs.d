@@ -1,7 +1,7 @@
 ;;; org-images-test.el --- Item 5 round 4 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-30
+;; Date: 2026-10-31
 
 ;;; Commentary:
 
@@ -14,16 +14,19 @@
 (require 'ert)
 (require 'org)
 (require 'org-download)
+(require 'cl-lib)
 
 (defmacro tim/test-with-notes (bindings &rest body)
   "Run BODY with `org-directory' bound to a fresh temp folder.
 BINDINGS names variables bound to files in it, as (VAR RELATIVE-PATH).
-Screenshots go in the folder too, so parallel runs don't share one."
+Screenshots and staged images go in the folder too, so parallel runs
+don't share them."
   (declare (indent 1))
   `(let* ((root (file-name-as-directory (make-temp-file "notes-" t)))
           (org-directory root)
           (org-download-screenshot-file
            (expand-file-name "screenshot.png" root))
+          (tim/org-staging-directory (expand-file-name "staging/" root))
           ,@(mapcar (lambda (b) `(,(car b) (expand-file-name ,(cadr b) root)))
                     bindings))
      (unwind-protect
@@ -105,6 +108,136 @@ relatively, and shows it inline, with no :ID: or #+DOWNLOADED: line."
       (should-not (string-search ":ID:" (buffer-string)))
       (should-not (string-search "#+DOWNLOADED:" (buffer-string)))
       (should (tim/test-image-overlay-p)))))
+
+(defun tim/test-open-draft ()
+  "Show a new Org buffer with no file and one heading; return it."
+  (switch-to-buffer (generate-new-buffer "draft"))
+  (insert "* Heading\n")
+  (org-mode)
+  (current-buffer))
+
+(defun tim/test-staged-files ()
+  "Return the files staged for the current buffer."
+  (directory-files org-download-image-dir t
+                   directory-files-no-dot-files-regexp))
+
+(ert-deftest tim/org-unsaved-buffer-stages-images ()
+  "In a buffer with no file, an image is staged and linked absolutely,
+so the link still finds it if the buffer's folder changes."
+  (tim/test-with-notes ((png "clip.png"))
+    (tim/test-make-image png)
+    (with-current-buffer (tim/test-open-draft)
+      (unwind-protect
+          (progn
+            (should (file-in-directory-p org-download-image-dir
+                                         tim/org-staging-directory))
+            (org-download-image png)
+            (let ((staged (tim/test-staged-files)))
+              (should (= (length staged) 1))
+              (should (string-search (concat "[[file:" (car staged) "]]")
+                                     (buffer-string)))))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
+(ert-deftest tim/org-first-save-refiles-staged-images ()
+  "The first save moves staged images to the note's attachment folder
+and rewrites their links, before the file is written."
+  (tim/test-with-notes ((note "topics/aviation.org")
+                        (png "clip.png"))
+    (tim/test-make-image png)
+    (make-directory (file-name-directory note) t)
+    (with-current-buffer (tim/test-open-draft)
+      (org-download-image png)
+      (let ((staging org-download-image-dir)
+            (name (file-name-nondirectory (car (tim/test-staged-files)))))
+        (cl-letf (((symbol-function 'read-file-name)
+                   (lambda (&rest _) note)))
+          (save-buffer))
+        (let ((link (concat "[[file:../attachments/topics/aviation/" name "]]")))
+          (should (file-exists-p
+                   (expand-file-name (concat "attachments/topics/aviation/" name)
+                                     root)))
+          (should-not (file-exists-p staging))
+          (should (string-search link (buffer-string)))
+          (should (string-search link (with-temp-buffer
+                                        (insert-file-contents note)
+                                        (buffer-string))))
+          (should (equal (file-name-as-directory org-download-image-dir)
+                         (expand-file-name "attachments/topics/aviation/"
+                                           root))))))))
+
+(ert-deftest tim/org-refile-refuses-to-overwrite ()
+  "If the note's folder already has a file of that name, the save stops
+and the staged image stays where it is."
+  (tim/test-with-notes ((note "topics/aviation.org")
+                        (png "clip.png"))
+    (tim/test-make-image png)
+    (make-directory (file-name-directory note) t)
+    (with-current-buffer (tim/test-open-draft)
+      (unwind-protect
+          (progn
+            (org-download-image png)
+            (let* ((staged (car (tim/test-staged-files)))
+                   (dir (expand-file-name "attachments/topics/aviation/" root)))
+              (make-directory dir t)
+              (with-temp-file (expand-file-name
+                               (file-name-nondirectory staged) dir)
+                (insert "already here"))
+              (should-error (write-file note) :type 'user-error)
+              (should (file-exists-p staged))
+              (should-not (file-exists-p note))))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
+(ert-deftest tim/org-killing-unsaved-buffer-discards-staged-images ()
+  "Killing a buffer that was never saved deletes its staged images,
+as its text, which links them, is discarded too."
+  (tim/test-with-notes ((png "clip.png"))
+    (tim/test-make-image png)
+    (with-current-buffer (tim/test-open-draft)
+      (org-download-image png)
+      (let ((staging org-download-image-dir))
+        (should (file-exists-p staging))
+        (set-buffer-modified-p nil)
+        (kill-buffer)
+        (should-not (file-exists-p staging))))))
+
+(ert-deftest tim/org-quitting-discards-staged-images ()
+  "Quitting Emacs deletes the staged images of buffers never saved."
+  (should (memq 'tim/org-discard-all-staged-images kill-emacs-hook))
+  (tim/test-with-notes ((png "clip.png"))
+    (tim/test-make-image png)
+    (with-current-buffer (tim/test-open-draft)
+      (unwind-protect
+          (progn
+            (org-download-image png)
+            (let ((staging org-download-image-dir))
+              (tim/org-discard-all-staged-images)
+              (should-not (file-exists-p staging))))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
+(ert-deftest tim/org-write-file-moves-attachment-dir ()
+  "After C-x C-w to a new name, new images go to the new note's folder."
+  (tim/test-with-notes ((note "topics/aviation.org")
+                        (copy "topics/gliding.org"))
+    (tim/test-open-note note)
+    (write-file copy)
+    (should (equal (file-name-as-directory org-download-image-dir)
+                   (expand-file-name "attachments/topics/gliding/" root)))))
+
+(ert-deftest tim/org-indirect-buffer-uses-base-folder ()
+  "An indirect buffer (as Org capture makes) uses its base file's
+folder, so its images aren't staged."
+  (tim/test-with-notes ((note "inbox.org"))
+    (tim/test-open-note note)
+    (let ((indirect (make-indirect-buffer (current-buffer) "indirect" t)))
+      (unwind-protect
+          (with-current-buffer indirect
+            (org-mode)
+            (should (equal (file-name-as-directory org-download-image-dir)
+                           (expand-file-name "attachments/inbox/" root))))
+        (kill-buffer indirect)))))
 
 (ert-deftest tim/org-paste-without-image-says-so ()
   "With no image on the clipboard, C-c i says so and links nothing."

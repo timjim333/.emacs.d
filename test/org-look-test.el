@@ -1,7 +1,7 @@
 ;;; org-look-test.el --- Item 5 round 5 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-30
+;; Date: 2026-10-31
 
 ;;; Commentary:
 
@@ -56,6 +56,20 @@ Asleep, it reports no monitors, so `display-pixel-width' is 0 and
         (should (equal custom-enabled-themes '(doom-nord-light)))
         (run-hook-with-args 'toolkit-theme-set-functions 'dark)
         (should (equal custom-enabled-themes '(doom-nord))))
+    (tim/apply-toolkit-theme (or toolkit-theme 'dark))))
+
+(ert-deftest tim/look-hand-picked-theme-survives-same-mode ()
+  "A theme picked by hand stays until the desktop changes mode, so a
+new frame (which reruns the hook in the same mode) keeps it."
+  (unwind-protect
+      (progn
+        (tim/apply-toolkit-theme 'dark)
+        (load-theme 'doom-nord-aurora t)
+        (tim/apply-toolkit-theme 'dark)
+        (should (equal custom-enabled-themes '(doom-nord-aurora)))
+        (tim/apply-toolkit-theme 'light)
+        (should (equal custom-enabled-themes '(doom-nord-light))))
+    (setq tim/toolkit-theme-mode nil)
     (tim/apply-toolkit-theme (or toolkit-theme 'dark))))
 
 ;; A daemon's first frame, started in light mode, takes this path.

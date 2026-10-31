@@ -1,7 +1,7 @@
 ;;; org-rendering-test.el --- Item 5 round 2 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-30
+;; Date: 2026-10-31
 
 ;;; Commentary:
 
@@ -119,6 +119,38 @@ The colours are part of the image's cache name, so the file changes."
                         t)
             (should (tim/test-latex-image-file))
             (should-not (equal (tim/test-latex-image-file) before)))
+          (kill-buffer))
+      (load-theme theme t)
+      (delete-directory dir t))))
+
+(defun tim/test-latex-image-files ()
+  "Return the image files of every LaTeX preview in the buffer."
+  (save-restriction
+    (widen)
+    (delq nil (mapcar (lambda (ov)
+                        (and (eq (overlay-get ov 'org-overlay-type)
+                                 'org-latex-overlay)
+                             (plist-get (cdr (overlay-get ov 'display)) :file)))
+                      (overlays-in (point-min) (point-max))))))
+
+(ert-deftest tim/org-latex-preview-follows-theme-when-narrowed ()
+  "A theme switch redraws previews outside the narrowed region too."
+  (let ((theme (car custom-enabled-themes))
+        (dir (make-temp-file "org-test-" t)))
+    (unwind-protect
+        (let ((file (expand-file-name "note.org" dir)))
+          (with-temp-file file (insert "One $E=mc^2$\n\nTwo $a^2+b^2$\n"))
+          (find-file file)
+          (let ((before (tim/test-latex-image-files)))
+            (should (= (length before) 2))
+            (narrow-to-region (point-min) (line-end-position))
+            (load-theme (if (eq theme 'doom-nord-light) 'doom-nord
+                          'doom-nord-light)
+                        t)
+            (widen)
+            (let ((after (tim/test-latex-image-files)))
+              (should (= (length after) 2))
+              (should-not (seq-intersection after before))))
           (kill-buffer))
       (load-theme theme t)
       (delete-directory dir t))))
