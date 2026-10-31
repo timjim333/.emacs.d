@@ -354,12 +354,23 @@ in parts, then end with the count of Findings and of Target files read
 (46 here); reuse it. Its exact text is in `~/.claude/skill-ideas.md`
 ("a Manual run alongside an Automated one").
 
-Review round 6 (head `98d0757`), Argon: 3 Findings, all accepted, not
-yet fixed ([record](docs/reviews/2026-11-01-item-5-diff-r6.md); each
-Finding's "To fix" plan is in its Triage notes): F1 a missing `~/org`
-misroutes attachments (`file-in-directory-p`), F2 open indirect views
-keep stale folder settings, F3 an empty checkout argument falls back
-to the script's own checkout.
+Review round 6 (head `98d0757`), Argon: 3 Findings, all accepted
+([record](docs/reviews/2026-11-01-item-5-diff-r6.md)). Red tests
+`a63cb67`, fixes `e31ce6c`: F1 a prefix test on true names, F2 a
+`:before` advice on `org-download-image` plus the base buffer's
+folder in `tim/org-link-path`, F3 `${1-…}` and an empty-path check in
+`bin/checkout.sh` (covers `bin/screenshot` too).
+
+Crash staging (Tim agreed, 1 Nov), in the same commits: every save
+refiles any file its text links under the staging root, so a
+recovered draft saves relative links; a file another open draft
+stages is copied, not moved. Folders are named
+`buffer-<PID>-<random>/`. `M-x tim/org-download-staging-clean` lists
+folders whose Emacs has gone and deletes them after a yes/no prompt,
+keeping any an auto-save in `var/auto-save/` links. No start-up sweep:
+it would delete the only copy unasked. After the fixes, every suite
+and all four `test/*-test.el` files passed (1 Nov), screenshot-test
+included.
 
 Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
 31 Oct and once on 1 Nov, passing on re-runs; the 1 Nov detail
@@ -371,20 +382,8 @@ restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
-Open (Tim to decide; raised 1 Nov after round 6): staging after a
-crash, `kill -9`, or power loss. `kill-emacs-hook` doesn't run, so
-folders are orphaned for good (a clean quit only deletes its own
-buffers' folders). Worse, `recover-file` on a new note's auto-save
-restores links into the old staging folder, which the save then
-leaves as absolute `var/` links. Proposed: (1) refile by content,
-moving every linked file under the staging root (may also cover part
-of r6 F2); (2) a start-up sweep of folders whose Emacs PID is dead,
-keeping any folder named in an auto-save file under `var/auto-save/`.
-Settle before or with the round 6 fixes.
-
-Next: fix round 6's three Findings test-first (one red-test commit,
-one fix commit), run every suite, then review round 7 (Argon, Manual
-run). When a round needs no code change:
+Next: review round 7 (Argon, Manual run). When a round needs no code
+change:
 tick the item and merge to `main` from Tim's terminal (this worktree
 session can't touch the main checkout): `git merge --no-ff
 org-basics`, run the tests on `main`, restart the daemon (`systemctl
