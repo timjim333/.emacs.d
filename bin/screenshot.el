@@ -1,15 +1,15 @@
 ;;; screenshot.el --- Shot runner for bin/screenshot -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-30
+;; Date: 2026-10-31
 
 ;;; Commentary:
 
-;; Loaded by bin/screenshot after init, before the shot script.  The
-;; script lists its shots with `tim/screenshot-add'; after 15 s, a
-;; timer sizes the frame to 1600x900, takes each shot into
-;; SCREENSHOT_DIR, and exits.  An error is written to error.txt there
-;; and ends the run at once.  Not part of the config.
+;; Loaded by bin/screenshot after init.  After 15 s, a timer loads the
+;; shot script (SCREENSHOT_SCRIPT), which lists its shots with
+;; `tim/screenshot-add', opens a frame just under 1600x900, takes each
+;; shot into SCREENSHOT_DIR, and exits.  An error is written to
+;; error.txt there and ends the run at once.  Not part of the config.
 
 ;;; Code:
 
@@ -72,11 +72,16 @@ the images.  Signals an error if the size doesn't take."
                   (expand-file-name (concat name ".png") dir) nil 'silent)))
 
 (defun tim/screenshot--run ()
-  "Take every shot into SCREENSHOT_DIR, then exit.
-On an error, write it to error.txt there and exit with status 1."
+  "Load SCREENSHOT_SCRIPT, take every shot into SCREENSHOT_DIR, then exit.
+The script is loaded here rather than from the command line, so its
+errors are caught too.  On an error, or if the config had an init
+error, write it to error.txt there and exit with status 1."
   (let ((dir (getenv "SCREENSHOT_DIR")))
     (condition-case err
         (progn
+          (when init-file-had-error
+            (error "The config had an init error; run bin/start-check on it"))
+          (load (getenv "SCREENSHOT_SCRIPT") nil t)
           (unless tim/screenshot--shots
             (error "The script added no shots"))
           (tim/screenshot--size-frame 1600 900)

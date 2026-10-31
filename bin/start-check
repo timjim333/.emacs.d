@@ -8,19 +8,23 @@
 # first start after a package install logs one-off native-compiler
 # warnings.  Fails on any warning, init error, or timeout, on an
 # untracked or ignored file in the checkout other than config.el,
-# private.el, or .claude/, or if ~/.emacs.d exists.  CHECKOUT must be
-# the top folder of a git checkout, or it stops before starting Emacs.
-# Reports go to a new folder under /tmp, printed on each run.  Set
-# EMACS to choose the binary and START_CHECK_DELAY for the seconds
-# before each report.
+# private.el, or .claude/, if ~/.emacs.d exists, or if the report
+# comes from another config.  CHECKOUT (for --daemon, the target of
+# ~/.config/emacs) must be the top folder of a config's git checkout,
+# or it stops before starting Emacs.  emacsclient gets 10 s.  Reports
+# go to a new folder under /tmp, printed on each run.  Set EMACS and
+# EMACSCLIENT to choose the binaries and START_CHECK_DELAY for the
+# seconds before each report.
 #
 # Author: Tim Jim
-# Date: 2026-10-30
+# Date: 2026-10-31
 
 set -u
 
 here=$(cd "$(dirname "$0")" && pwd)
+source "$here/checkout.sh"
 emacs=${EMACS:-emacs}
+emacsclient=${EMACSCLIENT:-emacsclient}
 out=$(mktemp -d /tmp/emacs-start-check.XXXXXX)
 failed=0
 
@@ -29,18 +33,23 @@ fail() {
     failed=1
 }
 
-# Print a report's header lines, then fail on an init error or warnings.
+# Print a report's header lines, then fail on an init error, warnings,
+# or a config other than $checkout.  Only the header is judged: the
+# *Messages* below it can hold any text.
 judge() {
-    local report=$1
+    local report=$1 header
     echo "Report: $report"
     if [[ ! -s $report ]]; then
         fail "no report written (Emacs timed out or crashed)"
         return
     fi
-    sed -n '1,/^$/p' "$report"
-    grep -qx 'init-file-had-error: nil' "$report" ||
-        fail "$(grep '^init-file-had-error:' "$report")"
-    if ! grep -qE '^warnings-buffer: (none|empty)$' "$report"; then
+    header=$(sed -n '1,/^$/p' "$report")
+    echo "$header"
+    grep -qx 'init-file-had-error: nil' <<<"$header" ||
+        fail "$(grep '^init-file-had-error:' <<<"$header")"
+    grep -qxF "user-emacs-directory-truename: $checkout/" <<<"$header" ||
+        fail "the report is from another config, not $checkout"
+    if ! grep -qE '^warnings-buffer: (none|empty)$' <<<"$header"; then
         fail "*Warnings* is not empty:"
         sed -n '/^--- \*Warnings\* ---$/,/^--- \*Messages\* ---$/p' "$report" |
             sed '1d;$d'
@@ -68,23 +77,17 @@ check_stray() {
     [[ -z $stray ]] || fail "stray files in $checkout:"$'\n'"$stray"
 }
 
-# Stop before starting Emacs unless $1 (resolved from the path given
-# as $2) is the top of a git checkout, so a mistyped path can't pass
-# by checking some other folder.
-require_checkout() {
-    local top
-    top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)
-    if [[ -z $1 || $top != "$1" ]]; then
-        echo "FAIL: not a git checkout: $2"
-        exit 1
-    fi
-}
-
 if [[ ${1:-} == --daemon ]]; then
     checkout=$(readlink -f ~/.config/emacs)
-    emacsclient -e "(progn (load \"$here/start-check.el\" nil t)
+    require_checkout "$checkout" "~/.config/emacs"
+    timeout 10 "$emacsclient" -e "(progn (load \"$here/start-check.el\" nil t)
                            (tim/start-check-report \"$out/daemon.txt\"))" \
-        >/dev/null || fail "emacsclient couldn't reach the daemon"
+        >/dev/null
+    case $? in
+    0) ;;
+    124) fail "emacsclient timed out after 10 s" ;;
+    *) fail "emacsclient couldn't reach the daemon" ;;
+    esac
     judge "$out/daemon.txt"
 else
     checkout=$(cd "${1:-$here/..}" 2>/dev/null && pwd -P)

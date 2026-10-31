@@ -6,17 +6,21 @@
 # SCRIPT.el (with a lexical-binding cookie) lists shots, each a body
 # run before the frame is exported:
 #   (tim/screenshot-add "light" (load-theme 'doom-nord-light t))
-# After 15 s the frame is set to 1600x900 and each shot is saved as
-# NAME.png in a new folder under /tmp, printed on each run.  A failing
-# shot ends the run with its error rather than hanging until the 180 s
-# timeout.  To try a package the config lacks, set SCREENSHOT_ELPA to
-# a scratchpad folder and call (tim/screenshot-install 'PACKAGE).
+# After 15 s, SCRIPT.el is loaded, a new frame of whole columns and
+# lines just under 1600x900 opens (a shown frame can't be resized; see
+# docs/research/2026-10-30-frame-resize.md), and each shot is saved as
+# NAME.png in a new folder under /tmp, printed on each run, then padded
+# to exactly 1600x900 in its border's colour.  An error in SCRIPT.el
+# or a shot, or an init error in the config, ends the run with that
+# error rather than hanging until the 180 s timeout.  To try a package
+# the config lacks, set SCREENSHOT_ELPA to a scratchpad folder and
+# call (tim/screenshot-install 'PACKAGE); each run downloads it again.
 # LaTeX previews render with the monitor asleep only through the
 # config's DPI pin (config.org, Rendering).  Set EMACS to choose the
 # binary.
 #
 # Author: Tim Jim
-# Date: 2026-10-30
+# Date: 2026-10-31
 
 set -u
 
@@ -26,10 +30,9 @@ if [[ $# -ne 2 ]]; then
 fi
 
 here=$(cd "$(dirname "$0")" && pwd)
-checkout=$(cd "$1" 2>/dev/null && pwd) || {
-    echo "FAIL: no such checkout: $1"
-    exit 2
-}
+source "$here/checkout.sh"
+checkout=$(cd "$1" 2>/dev/null && pwd -P)
+require_checkout "$checkout" "$1"
 script=$(readlink -f "$2")
 if [[ ! -f $script ]]; then
     echo "FAIL: no such script: $2"
@@ -39,9 +42,8 @@ out=$(mktemp -d /tmp/emacs-screenshot.XXXXXX)
 echo "Shots: $out"
 
 # GTK's stderr is noisy, so it goes to a file beside the shots.
-SCREENSHOT_DIR=$out timeout 180 "${EMACS:-emacs}" \
-    --init-directory "$checkout" \
-    -l "$here/screenshot.el" -l "$script" 2>"$out/stderr"
+SCREENSHOT_DIR=$out SCREENSHOT_SCRIPT=$script timeout 180 "${EMACS:-emacs}" \
+    --init-directory "$checkout" -l "$here/screenshot.el" 2>"$out/stderr"
 status=$?
 
 if [[ -s $out/error.txt ]]; then
@@ -57,15 +59,25 @@ fi
 
 # The frame is a whole number of columns and lines, a few pixels short
 # of 1600x900; pad each shot to the full size in its border's colour.
-# More than 32 px short means the frame wasn't resized at all.
-for png in "$out"/*.png; do
+# More than 32 px short means the frame wasn't sized at all, and any
+# larger would be cropped.
+shopt -s nullglob
+pngs=("$out"/*.png)
+if [[ ${#pngs[@]} -eq 0 ]]; then
+    echo "FAIL: no PNGs in $out (a name starting with . isn't matched)"
+    exit 1
+fi
+for png in "${pngs[@]}"; do
     read -r w h < <(magick identify -format '%w %h' "$png")
-    if ((w < 1600 - 32 || h < 900 - 32)); then
-        echo "FAIL: $png is ${w}x${h}, too far short of 1600x900"
+    if ((w > 1600 || h > 900 || w < 1600 - 32 || h < 900 - 32)); then
+        echo "FAIL: $png is ${w}x${h}; want 1600x900 or up to 32 px short"
         exit 1
     fi
     border=$(magick "$png" -format '%[pixel:p{0,0}]' info:)
     magick "$png" -background "$border" -gravity center \
-        -extent 1600x900 "$png"
+        -extent 1600x900 "$png" || {
+        echo "FAIL: magick couldn't pad $png"
+        exit 1
+    }
 done
-ls "$out"/*.png
+ls "${pngs[@]}"

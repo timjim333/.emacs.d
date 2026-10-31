@@ -69,6 +69,8 @@ repo, which holds only Config.
 - `/tmp/start-check-test.*/`: `test/start-check-test`'s throwaway
   clones, deleted when every case passes and kept (path printed) on a
   failure.
+- `/tmp/gui-ert-test.*/`: `test/gui-ert-test`'s test files, deleted
+  when every case passes and kept (path printed) on a failure.
 
 ## Conventions
 
@@ -96,14 +98,20 @@ repo, which holds only Config.
    `bin/start-check --daemon` reads the running daemon instead; its
    `*Warnings*` covers the daemon's whole run, not just its start.
 3. For changes to the script itself, run `test/start-check-test`
-   (about 3.5 minutes, on throwaway clones of HEAD).
+   (about 4 minutes, on throwaway clones of HEAD).
 4. Behaviour that needs a frame (rendering, images, cursor movement)
    is tested in ERT files run by `test/gui-ert test/<file>.el
    [checkout]`, which starts a GUI Emacs with the config. Run every
-   `test/*-test.el` file before merging.
+   `test/*-test.el` file before merging. `test/gui-ert-test` tests
+   the runner itself.
 5. Screenshots: `bin/screenshot <checkout> <script.el>` (usage in its
-   header; tests: `test/screenshot-test`). PlasmaZones blocks resizing
-   a shown frame: `docs/research/2026-10-30-frame-resize.md`.
+   header; tests: `test/screenshot-test`, about 3 minutes). PlasmaZones
+   blocks resizing a shown frame:
+   `docs/research/2026-10-30-frame-resize.md`.
+
+The three scripts share `bin/checkout.sh`: each stops before starting
+Emacs unless its checkout is the top of a git checkout with
+`early-init.el`.
 
 Checks and tests share the daemon's State in `~/.local/share/emacs/`.
 Each Emacs they start saves recentf, savehist, and save-place as it

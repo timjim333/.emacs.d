@@ -4,23 +4,36 @@
 #
 # Usage: test/gui-ert TEST-FILE [CHECKOUT]   (default: this checkout)
 #
-# Prints the ERT summary and exits non-zero if any test fails or Emacs
-# times out.  The full results and Emacs's stderr go to a new folder
-# under /tmp, printed on each run.
+# Prints the ERT summary and exits non-zero if any test fails, the
+# test file fails to load, or Emacs times out.  CHECKOUT must be the
+# top folder of a config's git checkout, or it stops before starting
+# Emacs.  The full results and Emacs's stderr go to a new folder under
+# /tmp, printed on each run.
 #
 # Author: Tim Jim
-# Date: 2026-10-27
+# Date: 2026-10-31
 
 set -u
 
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+    echo "Usage: test/gui-ert TEST-FILE [CHECKOUT]" >&2
+    exit 2
+fi
+
 here=$(cd "$(dirname "$0")" && pwd)
+source "$here/../bin/checkout.sh"
 tests=$(readlink -f "$1")
-checkout=$(cd "${2:-$here/..}" && pwd)
+if [[ ! -f $tests ]]; then
+    echo "FAIL: no such test file: $1"
+    exit 1
+fi
+checkout=$(cd "${2:-$here/..}" 2>/dev/null && pwd -P)
+require_checkout "$checkout" "${2:-$here/..}"
 out=$(mktemp -d /tmp/emacs-gui-ert.XXXXXX)
 
-GUI_ERT_REPORT=$out/results.txt timeout 120 "${EMACS:-emacs}" \
-    --init-directory "$checkout" -l "$here/gui-ert.el" -l "$tests" \
-    -f tim/gui-ert-run 2>"$out/stderr"
+GUI_ERT_TESTS=$tests GUI_ERT_REPORT=$out/results.txt timeout 120 \
+    "${EMACS:-emacs}" --init-directory "$checkout" \
+    -l "$here/gui-ert.el" -f tim/gui-ert-run 2>"$out/stderr"
 status=$?
 
 echo "Results: $out/results.txt"

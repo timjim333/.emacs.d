@@ -1,7 +1,7 @@
 ;;; start-check.el --- Start report for bin/start-check -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-27
+;; Date: 2026-10-31
 
 ;;; Commentary:
 
@@ -27,6 +27,8 @@ The header lines are what bin/start-check judges; the *Warnings* and
     (with-temp-file file
       (insert (format "emacs-version: %s\n" emacs-version)
               (format "user-emacs-directory: %s\n" user-emacs-directory)
+              (format "user-emacs-directory-truename: %s\n"
+                      (file-truename user-emacs-directory))
               (format "package-user-dir: %s\n" package-user-dir)
               (format "init-file-had-error: %S\n" init-file-had-error)
               (format "warnings-buffer: %s\n"
