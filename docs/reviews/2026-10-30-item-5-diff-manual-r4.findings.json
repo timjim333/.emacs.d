@@ -1,0 +1,105 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "major",
+      "category": "bug",
+      "location": "bin/screenshot:44",
+      "claim": "A top-level error while loading `SCRIPT.el` runs outside `tim/screenshot--run`'s `condition-case` after the 15 s timer is already armed, so `bin/screenshot` either masks the real Lisp error behind `\"The script added no shots\"` or silently exits 0 with partial screenshots.",
+      "evidence": "`bin/screenshot:42-44` invokes GUI Emacs with `-l \"$here/screenshot.el\" -l \"$script\"`, and `bin/screenshot.el:93` schedules `(run-with-timer 15 nil #'tim/screenshot--run)` before `$script` is loaded. As `test/start-check-test:61-63` confirms in this packet, an unhandled load error in GUI Emacs does not exit the process: it logs to `*Messages*` (not `$out/stderr`) and enters the command loop with timers active. If `SCRIPT.el` calls `(tim/screenshot-install 'beacon)` at top level (as `bin/screenshot:12-13` invites) without `SCREENSHOT_ELPA`, or has a syntax error before any `tim/screenshot-add`, `tim/screenshot--shots` remains `nil` and 15 s later `bin/screenshot.el:80-81` overwrites the real cause with `\"The script added no shots\"`. Worse, if a syntax or load error occurs after an earlier `(tim/screenshot-add \"one\" ...)`, `tim/screenshot--run` exports `one.png` and calls `(kill-emacs 0)`.",
+      "alternative": "Pass `$script` via an environment variable such as `SCREENSHOT_SCRIPT` instead of `-l \"$script\"`, and call `(load (getenv \"SCREENSHOT_SCRIPT\") nil t)` inside `tim/screenshot--run`'s `condition-case` before checking `tim/screenshot--shots`. Add a `test/screenshot-test` case with a top-level error after one `tim/screenshot-add`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/screenshot:29",
+      "claim": "`bin/screenshot` neither checks that `CHECKOUT` is a config checkout nor checks `init-file-had-error`, so an unrelated folder or a broken `config.org` still exports 1600x900 PNGs and exits 0.",
+      "evidence": "`bin/screenshot:29` only checks `cd \"$1\" 2>/dev/null && pwd` (unlike `bin/start-check:74-81`'s `require_checkout`), and `bin/screenshot.el:74-87` never inspects `init-file-had-error`. Running `bin/screenshot /tmp script.el` starts Emacs with no `early-init.el` or `init.el` and exports PNGs of unconfigured Emacs with status 0; running it on a checkout whose `config.org` signals an error partway through sets `init-file-had-error` to `t` (which GUI Emacs catches without exiting, per `test/start-check-test:61-63`) and still exports PNGs of a half-loaded config.",
+      "alternative": "Require `$checkout` to be a git checkout top containing `early-init.el` and `init.el` before starting Emacs, and add `(when init-file-had-error (error \"Init file had an error\"))` at the start of `tim/screenshot--run`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/screenshot.el:35",
+      "claim": "`tim/screenshot-install` changes `package-user-dir` after `(package-initialize)` has already run without loading descriptors from `SCREENSHOT_ELPA`, breaking reuse of a scratchpad folder across runs; no test exercises installing with `SCREENSHOT_ELPA` set.",
+      "evidence": "`early-init.el:27` sets `package-user-dir` to `~/.local/share/emacs/elpa`, and `config.org:74` calls `(package-initialize)` during start-up. Later, `bin/screenshot.el:35-41` sets `(setq package-user-dir (expand-file-name dir))` and checks `(unless (package-installed-p package) ...)` without scanning `dir`. Resting on Emacs's `package.el` behaviour, `package-installed-p` consults `package-alist` and built-ins rather than the filesystem, so on a second `bin/screenshot` run reusing the same `SCREENSHOT_ELPA` scratchpad folder (`bin/screenshot:12-13`), packages unpacked there in the first run are neither in `package-alist` nor activated: `package-installed-p` returns `nil`, refreshes archive metadata again, and attempts to unpack over an existing `<package>-<version>` directory. `test/screenshot-test:68-75` tests only the unset-`SCREENSHOT_ELPA` error guard.",
+      "alternative": "Keep the shared `elpa/` in `package-directory-list`, set `package-user-dir` to `(expand-file-name dir)`, and call `(package-load-all-descriptors)` and `(package-activate-all)` before `(package-installed-p package)`. Add a `test/screenshot-test` case that installs a tiny local package into `SCREENSHOT_ELPA` across two runs.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/screenshot:61",
+      "claim": "The PNG padding loop lacks `nullglob`, ignores `magick` exit codes, and checks only for undersized frames before `-extent 1600x900`, which silently crops any screenshot exported larger than 1600x900.",
+      "evidence": "`bin/screenshot:21` sets `set -u` without `set -e`. In `bin/screenshot:61-70`, line 63 checks `((w < 1600 - 32 || h < 900 - 32))` with no upper bound (`w > 1600 || h > 900`), and lines 68-69 run `magick \"$png\" -background \"$border\" -gravity center -extent 1600x900 \"$png\"` unchecked. Resting on ImageMagick's `-extent` behaviour, any frame wider than 1600 or taller than 900 (for instance under Wayland HiDPI scaling or if a shot body opens a larger frame) is cropped to its centre 1600x900 and exits 0; if `magick` fails on line 68, line 71 still prints the unpadded file and exits 0; and if no `*.png` matches (such as a dot-prefixed shot name `\".shot\"`), `\"$out\"/*.png` stays literal and prints `FAIL: .../*.png is x, too far short of 1600x900`.",
+      "alternative": "Enable `shopt -s nullglob`, fail clearly if the matched PNG list is empty, reject `((w < 1600 - 32 || w > 1600 || h < 900 - 32 || h > 900))`, and fail if `magick` exits non-zero.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F5",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/start-check:84",
+      "claim": "`bin/start-check --daemon` skips `require_checkout` and never checks `user-emacs-directory` in the daemon's report, so a missing `~/.config/emacs` checks the current folder for stray files and a server running from another checkout can pass.",
+      "evidence": "In `bin/start-check:83-98`, `require_checkout` is called only in the `else` branch (line 91). In `--daemon` mode, `checkout=$(readlink -f ~/.config/emacs)` leaves `checkout` empty when `~/.config/emacs` is missing or a broken symlink, and line 98 runs `git -C \"\" status --porcelain --ignored` on the caller's working directory (the same `git -C \"\"` flaw Round 2 F1 fixed for GUI mode). Moreover, `judge` (`bin/start-check:33-48`) checks only `init-file-had-error` and `warnings-buffer`, never `user-emacs-directory`; because `config.org:159-161` calls `(server-start)` in non-daemon GUI sessions when no server is running, `emacsclient` can reach a GUI Emacs started on another checkout and `bin/start-check --daemon` still prints `PASS`.",
+      "alternative": "Call `require_checkout \"$checkout\" ~/.config/emacs` in the `--daemon` branch, and verify in `--daemon` mode that the header's `user-emacs-directory` resolves (`readlink -f`) to `$checkout`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F6",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/start-check:41",
+      "claim": "`judge` greps the entire report file, including `*Warnings*` and `*Messages*`, rather than only the header lines.",
+      "evidence": "`bin/start-check.el:24-25` states `\"The header lines are what bin/start-check judges; the *Warnings* and *Messages* buffers follow for reading\"`, and `bin/start-check:40` extracts the header with `sed -n '1,/^$/p' \"$report\"` to print it. Lines 41 and 43 then run `grep -qx 'init-file-had-error: nil' \"$report\"` and `grep -qE '^warnings-buffer: (none|empty)$' \"$report\"` against the whole `$report`. In `--daemon` mode, where `*Messages*` spans the daemon's whole lifetime (`AGENTS.md:96-97`), any message line matching `warnings-buffer: none` or `warnings-buffer: empty` makes a daemon with real warnings in `*Warnings*` pass.",
+      "alternative": "Capture `header=$(sed -n '1,/^$/p' \"$report\")`, print `$header`, and run both `grep` checks against `<<<\"$header\"`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F7",
+      "severity": "minor",
+      "category": "bug",
+      "location": "test/gui-ert:18",
+      "claim": "`test/gui-ert` does not check that `CHECKOUT` exists or is a git checkout, so a mistyped second argument leaves `checkout` empty and runs the tests against the current directory instead.",
+      "evidence": "`test/gui-ert:14-23` runs under `set -u` without `set -e` and executes `checkout=$(cd \"${2:-$here/..}\" && pwd)` before `--init-directory \"$checkout\"`. Running `test/gui-ert test/org-look-test.el /typo/worktree` from a clean `main` checkout makes `cd` fail, leaves `checkout` empty, resolves `--init-directory \"\"` to the current folder, and exits 0. This is the same fail-open `cd && pwd` bug that Round 2 F1 fixed in `bin/start-check` (`docs/reviews/2026-10-29-item-5-diff-r2.md:30`).",
+      "alternative": "Check `$#` (1 or 2) and `[[ -f $tests ]]`, and validate `$checkout` with the same `git -C \"$checkout\" rev-parse --show-toplevel` guard as `bin/start-check` before launching Emacs.",
+      "confidence": "high"
+    },
+    {
+      "id": "F8",
+      "severity": "minor",
+      "category": "bug",
+      "location": "test/gui-ert:22",
+      "claim": "A top-level load error in `TEST-FILE` aborts `-f tim/gui-ert-run`, leaving a GUI Emacs window hanging for the full 120 s timeout and hiding the Lisp error.",
+      "evidence": "`test/gui-ert:21-23` runs GUI Emacs with `-l \"$here/gui-ert.el\" -l \"$tests\" -f tim/gui-ert-run 2>\"$out/stderr\"`. Because `-f tim/gui-ert-run` comes after `-l \"$tests\"`, any syntax error, missing `require`, or unbound symbol while loading `$tests` aborts command-line processing before `tim/gui-ert-run` is called; GUI Emacs writes the Lisp error to `*Messages*` rather than `stderr` and sits idle until `timeout 120` kills it with `\"FAIL: no results written (Emacs timed out or crashed)\"` (`test/gui-ert:30`).",
+      "alternative": "Pass `GUI_ERT_TESTS=$tests` in the environment, invoke `-l \"$here/gui-ert.el\" -f tim/gui-ert-run`, and load `GUI_ERT_TESTS` inside `tim/gui-ert-run` under `condition-case`, writing any load error to `GUI_ERT_REPORT` and calling `(kill-emacs 1)` immediately.",
+      "confidence": "high"
+    },
+    {
+      "id": "F9",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:332",
+      "claim": "`tim/org-refresh-latex-previews` does not widen narrowed Org buffers, so a theme switch during `org-present` leaves equations on every other slide in the previous theme's colours.",
+      "evidence": "`config.org:332-340` calls `(org-clear-latex-preview)` and `(org-latex-preview '(16))` directly in each `org-mode` buffer. As `test/org-look-test.el:129-130` confirms, `org-present` narrows the buffer to one top-level heading at a time. Resting on Org's `org-clear-latex-preview` and `org-latex-preview` behaviour (both default to `(point-min)`..`(point-max)`), a theme switch while presenting either skips the buffer altogether if the current slide has no equations or redraws only the current slide, leaving equations on later slides dark-on-dark or light-on-light when `org-present-next` reveals them.",
+      "alternative": "Wrap the preview check and redraw in `org-with-wide-buffer` (and consider re-rendering only the start positions of cleared `org-latex-overlay` overlays so an equation currently opened at point by `org-fragtog-mode` is not covered either). Add a narrowed-buffer assertion to `tim/org-latex-preview-follows-theme`.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F10",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:449",
+      "claim": "`tim/org-set-attachment-dir` runs only on `org-mode-hook`, so saving an unsaved Org buffer (`C-x C-s`) or saving to a new path (`C-x C-w`) leaves `org-download-image-dir` `nil` or pointing at the old note's folder, and pasting before first save writes into `default-directory`.",
+      "evidence": "`config.org:437` returns `nil` when `buffer-file-name` is `nil`, and `config.org:449-453` hooks `tim/org-set-attachment-dir` only onto `org-mode-hook`. Resting on Emacs's `set-visited-file-name` and `org-download`'s behaviour: saving a newly created `org-mode` buffer (`C-x C-s`) or writing an existing note to another path (`C-x C-w`) runs `after-set-visited-file-name-hook` without re-running `org-mode-hook`, leaving `org-download-image-dir` `nil` or pointing at the old note's `attachments/` folder; and pressing `C-c i` (`config.org:478-488`) in an unsaved Org buffer lets `org-download` fall back to `default-directory`.",
+      "alternative": "Also run `tim/org-set-attachment-dir` from `after-set-visited-file-name-hook` when `(derived-mode-p 'org-mode)`, and signal `(user-error \"Save the buffer before adding an image\")` in `tim/org-paste-image` (or the `org-download-image` advice) when `buffer-file-name` is `nil`.",
+      "confidence": "medium"
+    }
+  ]
+}
+
