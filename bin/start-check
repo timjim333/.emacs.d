@@ -96,8 +96,8 @@ if [[ ${1:-} == --daemon ]]; then
     esac
     judge "$out/daemon.txt"
 else
-    checkout=$(cd "${1:-$here/..}" 2>/dev/null && pwd -P)
-    require_checkout "$checkout" "${1:-$here/..}"
+    checkout=$(cd "${1-$here/..}" 2>/dev/null && pwd -P)
+    require_checkout "$checkout" "${1-$here/..}"
     echo "Start 1 of 2 (not judged): $out/start1.txt"
     gui_start "$out/start1"
     gui_start "$out/start2"

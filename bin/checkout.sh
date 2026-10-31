@@ -5,13 +5,18 @@
 # test/gui-ert.
 #
 # Author: Tim Jim
-# Date: 2026-10-31
+# Date: 2026-11-01
 
 # Stop unless $1 (resolved from the path given as $2) is the top of a
 # git checkout holding early-init.el, so a mistyped path can't pass by
-# starting Emacs on some other folder.
+# starting Emacs on some other folder.  An empty $2 stops too, as `cd ""`
+# stays in the current folder.
 require_checkout() {
     local top
+    if [[ -z $2 ]]; then
+        echo "FAIL: empty checkout path"
+        exit 1
+    fi
     top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)
     if [[ -z $1 || $top != "$1" ]]; then
         echo "FAIL: not a git checkout: $2"

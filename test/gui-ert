@@ -27,8 +27,8 @@ if [[ ! -f $tests ]]; then
     echo "FAIL: no such test file: $1"
     exit 1
 fi
-checkout=$(cd "${2:-$here/..}" 2>/dev/null && pwd -P)
-require_checkout "$checkout" "${2:-$here/..}"
+checkout=$(cd "${2-$here/..}" 2>/dev/null && pwd -P)
+require_checkout "$checkout" "${2-$here/..}"
 out=$(mktemp -d /tmp/emacs-gui-ert.XXXXXX)
 
 GUI_ERT_TESTS=$tests GUI_ERT_REPORT=$out/results.txt timeout 120 \

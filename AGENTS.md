@@ -42,7 +42,9 @@ repo, which holds only Config.
   `var/org-download-staging/` holds images pasted into Org buffers not
   yet saved; each moves to its note on the first save, and is deleted
   if the buffer is killed unsaved or Emacs quits. Leftovers mean a
-  crash; not safe to delete while such a buffer is open.
+  crash; clear them with `M-x tim/org-download-staging-clean`, which
+  keeps folders of a running Emacs (PID in the name) or linked from an
+  auto-save in `var/auto-save/`.
 - `~/.cache/emacs/eln-cache/`: native-compiled code; safe to delete.
 - `~/.cache/emacs/org-latex/`: LaTeX preview images (set in
   `early-init.el`, so no `ltximg/` lands in `~/org`); safe to delete.
