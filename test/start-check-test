@@ -7,7 +7,7 @@
 # The clones are deleted when every case passes.
 #
 # Author: Tim Jim
-# Date: 2026-10-31
+# Date: 2026-11-01
 
 set -u
 
@@ -75,6 +75,11 @@ expect "a folder outside git fails" fail "not a git checkout" "$dir"
 # exits at once and writes no report, as a crash or a timeout would.
 dir=$(clone no-report)
 EMACS=/bin/false expect "no report fails" fail "no report written" "$dir"
+
+dir=$(clone extra-args)
+expect "an argument after --daemon fails" fail "Usage" --daemon "$dir"
+EMACS=/bin/false expect "--daemon after a checkout fails" fail "Usage" \
+    "$dir" --daemon
 
 dir=$(clone dot-emacs)
 home=$(mktemp -d "$work/home.XXXXXX")

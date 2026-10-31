@@ -2,11 +2,11 @@
 # gui-ert-test: acceptance tests for test/gui-ert.
 #
 # Runs test/gui-ert on this checkout with small throwaway test files.
-# Takes about 30 s (two GUI starts) and opens Emacs windows on the
+# Takes about 30 s (four short GUI starts) and opens Emacs windows on the
 # desktop.  The test files' folder is deleted when every case passes.
 #
 # Author: Tim Jim
-# Date: 2026-10-31
+# Date: 2026-11-01
 
 set -u
 
@@ -54,6 +54,21 @@ broken=$(test_file broken '(ert-deftest gui-ert-test-ok () (should t))' \
     '(error "test file went wrong")')
 expect "a load error fails early with its error" fail \
     "test file went wrong" 60 "$broken"
+
+# *Messages* keeps only its last message-log-max lines; a long run
+# mustn't lose the start of its report.
+chatty=$(test_file chatty '(setq message-log-max 50)' \
+    '(ert-deftest gui-ert-test-chatty ()
+       (dotimes (i 200) (message "filler %d" i)) (should t))')
+expect "a long run keeps its whole report" pass "Running 1 tests" "" \
+    "$chatty"
+
+config=$work/broken-config
+git clone -q "$repo" "$config"
+printf '\n* Test\n#+begin_src emacs-lisp\n(error "config went wrong")\n#+end_src\n' \
+    >>"$config/config.org"
+expect "an init error in the config fails" fail "init error" 60 \
+    "$ok" "$config"
 
 expect "no arguments fail" fail "Usage" 10
 expect "a missing test file fails" fail "no such test file" 10 \

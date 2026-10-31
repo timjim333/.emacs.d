@@ -1,7 +1,7 @@
 ;;; org-images-test.el --- Item 5 round 4 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-31
+;; Date: 2026-11-01
 
 ;;; Commentary:
 
@@ -238,6 +238,111 @@ folder, so its images aren't staged."
             (should (equal (file-name-as-directory org-download-image-dir)
                            (expand-file-name "attachments/inbox/" root))))
         (kill-buffer indirect)))))
+
+(defmacro tim/test-with-symlinked-notes (&rest body)
+  "Run BODY with `org-directory' a symlink `link' to a folder `real'.
+`png' is an image file outside both."
+  (declare (indent 0))
+  `(let* ((base (make-temp-file "symlinked-" t))
+          (real (expand-file-name "real-org" base))
+          (link (expand-file-name "org" base))
+          (png (expand-file-name "clip.png" base))
+          (org-directory link)
+          (tim/org-staging-directory (expand-file-name "staging/" base)))
+     (make-directory (expand-file-name "topics" real) t)
+     (make-symbolic-link real link)
+     (tim/test-make-image png)
+     (unwind-protect
+         (progn ,@body)
+       (dolist (buffer (buffer-list))
+         (when (string-prefix-p base (or (buffer-file-name buffer) ""))
+           (with-current-buffer buffer (set-buffer-modified-p nil))
+           (kill-buffer buffer)))
+       (delete-directory base t))))
+
+(ert-deftest tim/org-link-through-symlink-stays-in-notes ()
+  "A note visited through a symlinked notes root links its images
+relative to the note as visited, not through the real folder."
+  (tim/test-with-symlinked-notes
+    (tim/test-open-note (expand-file-name "topics/aviation.org" link))
+    (org-download-image png)
+    (should (string-match-p
+             "\\[\\[file:\\.\\./attachments/topics/aviation/[^]/]+\\.png\\]\\]"
+             (buffer-string)))))
+
+(ert-deftest tim/org-refile-through-symlink-stays-in-notes ()
+  "A draft first saved through a symlinked notes root gets the same
+relative links as a note visited there."
+  (tim/test-with-symlinked-notes
+    (with-current-buffer (tim/test-open-draft)
+      (org-download-image png)
+      (write-file (expand-file-name "topics/draft.org" link))
+      (should (string-match-p
+               "\\[\\[file:\\.\\./attachments/topics/draft/[^]/]+\\.png\\]\\]"
+               (buffer-string))))))
+
+(ert-deftest tim/org-indirect-buffer-on-draft-stages-absolutely ()
+  "An indirect buffer made without cloning, on a draft, stages images
+with absolute links, so the draft's first save refiles them."
+  (tim/test-with-notes ((note "draft.org")
+                        (png "clip.png"))
+    (tim/test-make-image png)
+    (let* ((draft (tim/test-open-draft))
+           (indirect (make-indirect-buffer draft "indirect")))
+      (with-current-buffer indirect
+        (org-mode)
+        (goto-char (point-max))
+        (org-download-image png))
+      (kill-buffer indirect)
+      (with-current-buffer draft
+        (write-file note)
+        (should (string-match-p
+                 "\\[\\[file:attachments/draft/[^]/]+\\.png\\]\\]"
+                 (buffer-string)))))))
+
+(ert-deftest tim/org-closing-indirect-view-keeps-staged-images ()
+  "Closing an indirect view of a draft (C-c C-x b, which clones the
+buffer) leaves the draft's staged images alone."
+  (tim/test-with-notes ((png "clip.png"))
+    (tim/test-make-image png)
+    (with-current-buffer (tim/test-open-draft)
+      (unwind-protect
+          (let ((draft (current-buffer)))
+            (goto-char (point-max))
+            (org-download-image png)
+            (goto-char (point-min))
+            (org-tree-to-indirect-buffer)
+            (let ((staging (buffer-local-value 'tim/org-staging-dir draft)))
+              (kill-buffer (seq-find (lambda (b) (eq (buffer-base-buffer b)
+                                                     draft))
+                                     (buffer-list)))
+              (should (file-exists-p staging))))
+        (set-buffer-modified-p nil)
+        (kill-buffer)))))
+
+(ert-deftest tim/org-new-note-stages-until-written ()
+  "A note opened with C-x C-f but not yet on disk stages its images;
+the first save refiles them, and killing it unsaved leaves nothing."
+  (tim/test-with-notes ((note "topics/new.org")
+                        (other "topics/dropped.org")
+                        (png "clip.png"))
+    (tim/test-make-image png)
+    (make-directory (file-name-directory note) t)
+    (find-file note)
+    (should (string-prefix-p tim/org-staging-directory org-download-image-dir))
+    (org-download-image png)
+    (save-buffer)
+    (should (string-match-p
+             "\\[\\[file:\\.\\./attachments/topics/new/[^]/]+\\.png\\]\\]"
+             (buffer-string)))
+    (find-file other)
+    (org-download-image png)
+    (let ((staging org-download-image-dir))
+      (set-buffer-modified-p nil)
+      (kill-buffer)
+      (should-not (file-exists-p staging))
+      (should-not (file-exists-p
+                   (expand-file-name "attachments/topics/dropped" root))))))
 
 (ert-deftest tim/org-paste-without-image-says-so ()
   "With no image on the clipboard, C-c i says so and links nothing."
