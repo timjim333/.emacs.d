@@ -7,7 +7,7 @@
 # every case passes.
 #
 # Author: Tim Jim
-# Date: 2026-10-31
+# Date: 2026-11-01
 
 set -u
 
@@ -105,6 +105,10 @@ expect_fail "a script error after a shot fails with its error" \
 
 expect_fail "a folder that isn't a checkout fails" "not a git checkout" \
     "$shoot" "$work" "$ok"
+# From inside a checkout, so an empty path can't fall back to one.
+cd "$repo" || exit 1
+expect_fail "an empty checkout fails" "empty checkout path" \
+    "$shoot" "" "$ok"
 
 broken="$work/broken-config"
 git clone -q "$repo" "$broken"

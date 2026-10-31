@@ -75,6 +75,9 @@ expect "a missing test file fails" fail "no such test file" 10 \
     "$work/missing.el"
 expect "a mistyped checkout fails" fail "not a git checkout" 10 \
     "$ok" "$work/missing"
+# From inside a checkout, so an empty path can't fall back to one.
+cd "$repo" || exit 1
+expect "an empty checkout fails" fail "empty checkout path" 10 "$ok" ""
 
 echo "$failures failure(s)"
 if [[ $failures -eq 0 ]]; then
