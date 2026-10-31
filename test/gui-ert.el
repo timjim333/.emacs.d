@@ -1,7 +1,7 @@
 ;;; gui-ert.el --- Run ERT tests in a GUI Emacs -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-31
+;; Date: 2026-11-01
 
 ;;; Commentary:
 
@@ -17,17 +17,24 @@
 (defun tim/gui-ert-run ()
   "Load GUI_ERT_TESTS, run its tests after a short delay, then exit.
 The file is loaded here rather than from the command line, so a load
-error is written to GUI_ERT_REPORT and exits at once with status 1."
+error, or an init error in the config, is written to GUI_ERT_REPORT
+and exits at once with status 1."
   (condition-case err
-      (load (getenv "GUI_ERT_TESTS") nil t)
+      (progn
+        (when init-file-had-error
+          (error "The config had an init error; run bin/start-check on it"))
+        (load (getenv "GUI_ERT_TESTS") nil t))
     (error
      (with-temp-file (getenv "GUI_ERT_REPORT")
-       (insert "FAIL: loading the tests: " (error-message-string err) "\n"))
+       (insert "FAIL: before the tests: " (error-message-string err) "\n"))
      (kill-emacs 1)))
   (run-with-timer
    3 nil
    (lambda ()
-     (let* ((start (with-current-buffer (messages-buffer) (point-max)))
+     ;; Keep every line of *Messages*, so trimming its top can't move
+     ;; the report's start.
+     (let* ((message-log-max t)
+            (start (with-current-buffer (messages-buffer) (point-max)))
             (stats (ert-run-tests-batch t))
             (failed (ert-stats-completed-unexpected stats)))
        (with-temp-file (getenv "GUI_ERT_REPORT")

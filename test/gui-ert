@@ -5,13 +5,13 @@
 # Usage: test/gui-ert TEST-FILE [CHECKOUT]   (default: this checkout)
 #
 # Prints the ERT summary and exits non-zero if any test fails, the
-# test file fails to load, or Emacs times out.  CHECKOUT must be the
-# top folder of a config's git checkout, or it stops before starting
-# Emacs.  The full results and Emacs's stderr go to a new folder under
-# /tmp, printed on each run.
+# test file fails to load, the config has an init error, or Emacs
+# times out.  CHECKOUT must be the top folder of a config's git
+# checkout, or it stops before starting Emacs.  The full results and
+# Emacs's stderr go to a new folder under /tmp, printed on each run.
 #
 # Author: Tim Jim
-# Date: 2026-10-31
+# Date: 2026-11-01
 
 set -u
 

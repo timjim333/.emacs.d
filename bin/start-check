@@ -17,9 +17,15 @@
 # seconds before each report.
 #
 # Author: Tim Jim
-# Date: 2026-10-31
+# Date: 2026-11-01
 
 set -u
+
+if [[ $# -gt 1 ]]; then
+    echo "Usage: bin/start-check [CHECKOUT]" >&2
+    echo "       bin/start-check --daemon" >&2
+    exit 2
+fi
 
 here=$(cd "$(dirname "$0")" && pwd)
 source "$here/checkout.sh"

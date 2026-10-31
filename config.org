@@ -1,6 +1,6 @@
 #+TITLE: Tim's Emacs Configuration
 #+AUTHOR: Tim Jim
-#+DATE: 2026-10-30
+#+DATE: 2026-11-01
 #+PROPERTY: header-args:emacs-lisp :tangle config.el :results silent
 #+STARTUP: overview
 
@@ -435,7 +435,8 @@ Images live in =~/org/attachments/=, in a folder per note that mirrors
 the note's path (=topics/aviation.org= → =attachments/topics/aviation/=),
 and are linked with relative =file:= links so every Device can open
 them. Files outside =~/org= get =attachments/<name>/= beside them.
-In a buffer not yet saved, images wait in a staging folder under
+In a buffer not yet written to disk (no file, or a new note from
+=C-x C-f=), images wait in a staging folder under
 =~/.local/share/emacs/var/org-download-staging/= and move to the note's
 folder on its first save; killing the buffer unsaved, or quitting,
 discards them with its text. =C-x C-w= sends new images to the new
@@ -446,40 +447,45 @@ otherwise.
 #+begin_src emacs-lisp
 (defvar tim/org-staging-directory
   (no-littering-expand-var-file-name "org-download-staging/")
-  "Where images added to a buffer with no file wait for its first save.")
+  "Where images added to a buffer not yet written wait for its first save.")
 
 (defvar-local tim/org-staging-dir nil
-  "This buffer's folder under `tim/org-staging-directory', or nil.")
+  "This buffer's folder under `tim/org-staging-directory', or nil.
+Non-nil until the buffer is first written.")
 ;; Kept when Org restarts (C-c C-c on a #+ line), or the staged images
 ;; would be left behind.
 (put 'tim/org-staging-dir 'permanent-local t)
 
+(defun tim/org-note-attachment-dir (file)
+  "Return the folder for images added to FILE.
+Notes under `org-directory' use attachments/<note path>/ there; other
+files use attachments/<file name>/ beside them."
+  ;; True names, so a symlinked notes root still gives a path inside it.
+  (let ((root (file-name-as-directory (file-truename org-directory)))
+        (file (file-truename file)))
+    (file-name-as-directory
+     (if (file-in-directory-p file root)
+         (expand-file-name (file-name-sans-extension
+                            (file-relative-name file root))
+                           (expand-file-name "attachments" root))
+       (expand-file-name (concat "attachments/" (file-name-base file))
+                         (file-name-directory file))))))
+
 (defun tim/org-attachment-dir ()
   "Return the folder for images added to the current buffer.
-Notes under `org-directory' use attachments/<note path>/ there; other
-files use attachments/<file name>/ beside them.  An indirect buffer
-(such as a capture) uses its base buffer's folder, and a buffer with
-no file stages images in a folder of its own."
+An indirect buffer (such as a capture) uses its base buffer's folder,
+and a buffer not yet written uses its staging folder."
   (cond
    ((buffer-base-buffer)
     (with-current-buffer (buffer-base-buffer) (tim/org-attachment-dir)))
-   ((not buffer-file-name)
-    (or tim/org-staging-dir
-        (setq tim/org-staging-dir
-              (file-name-as-directory
-               (make-temp-name
-                (expand-file-name "buffer-" tim/org-staging-directory))))))
-   (t
-    ;; True names, so a symlinked notes root still gives a path inside it.
-    (let ((root (file-name-as-directory (file-truename org-directory)))
-          (file (file-truename buffer-file-name)))
-      (file-name-as-directory
-       (if (file-in-directory-p file root)
-           (expand-file-name (file-name-sans-extension
-                              (file-relative-name file root))
-                             (expand-file-name "attachments" root))
-         (expand-file-name (concat "attachments/" (file-name-base file))
-                           (file-name-directory file))))))))
+   (tim/org-staging-dir)
+   (t (tim/org-note-attachment-dir buffer-file-name))))
+
+(defun tim/org-link-path (file)
+  "Return FILE relative to the current buffer's folder, for a link.
+Compares true names, so a note visited through a symlink links within
+the notes root rather than through the real folder."
+  (file-relative-name (file-truename file) (file-truename default-directory)))
 
 (defun tim/org-set-attachment-dir ()
   "Point org-download at this buffer's attachment folder.
@@ -487,46 +493,49 @@ Staged images are linked by absolute path, so the links still work
 when a first save changes the buffer's folder."
   (setq-local org-download-image-dir (tim/org-attachment-dir))
   (setq-local org-download-abbreviate-filename-function
-              (if (equal org-download-image-dir tim/org-staging-dir)
+              (if (string-prefix-p tim/org-staging-directory
+                                   org-download-image-dir)
                   #'expand-file-name
-                #'file-relative-name)))
+                #'tim/org-link-path)))
 
 (defun tim/org-refile-staged-images ()
   "Move this buffer's staged images to its attachment folder.
 Runs before each write, so the file is written with links relative to
 it, and returns nil so the write goes ahead.  Stops the save, moving
 nothing, if a name is already taken there."
-  (when (and tim/org-staging-dir buffer-file-name
-             (file-directory-p tim/org-staging-dir))
-    (let* ((dir (tim/org-attachment-dir))
-           (staged (directory-files tim/org-staging-dir t
-                                    directory-files-no-dot-files-regexp))
-           (taken (seq-filter
-                   (lambda (f)
-                     (file-exists-p
-                      (expand-file-name (file-name-nondirectory f) dir)))
-                   staged)))
-      (when taken
-        (user-error "Can't move staged image %s: %s has a file of that name"
-                    (car taken) dir))
-      (make-directory dir t)
+  (when (and tim/org-staging-dir buffer-file-name (not (buffer-base-buffer)))
+    (let ((dir (tim/org-note-attachment-dir buffer-file-name))
+          (staged (and (file-directory-p tim/org-staging-dir)
+                       (directory-files tim/org-staging-dir t
+                                        directory-files-no-dot-files-regexp))))
+      (dolist (file staged)
+        (when (file-exists-p (expand-file-name (file-name-nondirectory file)
+                                               dir))
+          (user-error "Can't move staged image %s: %s has a file of that name"
+                      file dir)))
+      (when staged
+        (make-directory dir t))
       (dolist (file staged)
         (let ((target (expand-file-name (file-name-nondirectory file) dir)))
           (rename-file file target)
           (save-excursion
             (goto-char (point-min))
             (while (search-forward (concat "file:" file) nil t)
-              (replace-match (concat "file:" (file-relative-name target))
+              (replace-match (concat "file:" (tim/org-link-path target))
                              t t)))))
-      (delete-directory tim/org-staging-dir)
+      (when (file-directory-p tim/org-staging-dir)
+        (delete-directory tim/org-staging-dir))
       (setq tim/org-staging-dir nil)
       (tim/org-set-attachment-dir)
-      (org-link-preview-refresh)))
+      (when staged
+        (org-link-preview-refresh))))
   nil)
 
 (defun tim/org-discard-staged-images ()
-  "Delete this buffer's staged images, as its text is being discarded."
-  (when (and tim/org-staging-dir (file-directory-p tim/org-staging-dir))
+  "Delete this buffer's staged images, as its text is being discarded.
+An indirect buffer leaves them to its base buffer."
+  (when (and tim/org-staging-dir (not (buffer-base-buffer))
+             (file-directory-p tim/org-staging-dir))
     (delete-directory tim/org-staging-dir t)))
 
 (defun tim/org-discard-all-staged-images ()
@@ -537,10 +546,17 @@ Only this Emacs's buffers: another Emacs may be staging images too."
 
 (defun tim/org-setup-attachments ()
   "Set this Org buffer's attachment folder, and keep it right as the
-buffer's file changes.  The refile goes on `write-file-functions',
-not `before-save-hook': that runs before a first save asks for the
-name, and ignores errors.  Changing the file name clears it, so this
-runs again then."
+buffer's file changes.  A buffer whose file isn't on disk yet stages
+its images until it's written.  The refile goes on
+`write-file-functions', not `before-save-hook': that runs before a
+first save asks for the name, and ignores errors.  Changing the file
+name clears it, so this runs again then."
+  (when (and (not (buffer-base-buffer)) (not tim/org-staging-dir)
+             (not (and buffer-file-name (file-exists-p buffer-file-name))))
+    (setq tim/org-staging-dir
+          (file-name-as-directory
+           (make-temp-name
+            (expand-file-name "buffer-" tim/org-staging-directory)))))
   (tim/org-set-attachment-dir)
   (add-hook 'after-set-visited-file-name-hook #'tim/org-setup-attachments
             nil t)
