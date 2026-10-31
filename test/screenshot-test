@@ -2,12 +2,12 @@
 # screenshot-test: acceptance tests for bin/screenshot.
 #
 # Runs bin/screenshot on this checkout with small throwaway scripts.
-# Takes about a minute (three GUI starts of about 15 s) and opens
+# Takes about 3 minutes (eight GUI starts of about 20 s) and opens
 # Emacs windows on the desktop.  The scripts' folder is deleted when
 # every case passes.
 #
 # Author: Tim Jim
-# Date: 2026-10-30
+# Date: 2026-10-31
 
 set -u
 
@@ -81,6 +81,56 @@ if [[ $status -ne 0 ]] && grep -qF "Usage" <<<"$output"; then
 else
     fail "a missing script argument fails (exit $status)" "$output"
 fi
+
+# Run a command, after any VAR=value environment settings; check that
+# it fails within 60 s and that the output contains a fixed string.
+expect_fail() {
+    local name=$1 text=$2
+    shift 2
+    local output status start=$SECONDS
+    output=$(env "$@" 2>&1)
+    status=$?
+    if [[ $status -ne 0 ]] && grep -qF -- "$text" <<<"$output" &&
+        ((SECONDS - start < 60)); then
+        pass "$name"
+    else
+        fail "$name (exit $status, $((SECONDS - start)) s)" "$output"
+    fi
+}
+
+late=$(script late '(tim/screenshot-add "one" nil)' \
+    '(error "script went wrong")')
+expect_fail "a script error after a shot fails with its error" \
+    "script went wrong" "$shoot" "$repo" "$late"
+
+expect_fail "a folder that isn't a checkout fails" "not a git checkout" \
+    "$shoot" "$work" "$ok"
+
+broken="$work/broken-config"
+git clone -q "$repo" "$broken"
+printf '\n* Test\n#+begin_src emacs-lisp\n(error "config went wrong")\n#+end_src\n' \
+    >>"$broken/config.org"
+expect_fail "a config with an init error fails" "init error" \
+    "$shoot" "$broken" "$ok"
+
+big=$(script big '(tim/screenshot-add "big"' \
+    '  (select-frame-set-input-focus' \
+    '   (make-frame (quote ((width . 250) (height . 60))))))')
+expect_fail "a shot larger than 1600x900 fails" "want 1600x900" \
+    "$shoot" "$repo" "$big"
+
+# A magick that fails only when padding, so the size check still runs.
+mkdir "$work/bin"
+printf '%s\n' '#!/usr/bin/env bash' \
+    '[[ " $* " == *" -extent "* ]] && exit 1' \
+    "exec $(command -v magick) \"\$@\"" >"$work/bin/magick"
+chmod +x "$work/bin/magick"
+expect_fail "a failed padding fails" "couldn't pad" \
+    PATH="$work/bin:$PATH" "$shoot" "$repo" "$ok"
+
+hidden=$(script hidden '(tim/screenshot-add ".hidden" nil)')
+expect_fail "a run that leaves no PNGs fails" "no PNGs" \
+    "$shoot" "$repo" "$hidden"
 
 echo "$failures failure(s)"
 if [[ $failures -eq 0 ]]; then

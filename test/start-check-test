@@ -2,12 +2,12 @@
 # start-check-test: acceptance tests for bin/start-check.
 #
 # Each case runs bin/start-check on a throwaway clone of this checkout's
-# committed HEAD, so commit before running.  Takes about 3.5 minutes
+# committed HEAD, so commit before running.  Takes about 4 minutes
 # (two GUI starts per case) and opens Emacs windows on the desktop.
 # The clones are deleted when every case passes.
 #
 # Author: Tim Jim
-# Date: 2026-10-30
+# Date: 2026-10-31
 
 set -u
 
@@ -81,6 +81,56 @@ home=$(mktemp -d "$work/home.XXXXXX")
 mkdir "$home/.emacs.d"
 HOME=$home EMACS=/bin/false expect "an existing ~/.emacs.d fails" fail \
     "~/.emacs.d exists" "$dir"
+
+# A fake Emacs that writes $FAKE_REPORT as its report, with @CHECKOUT@
+# replaced by its --init-directory, so the judging can be tested
+# without a GUI start.
+fake_emacs="$work/fake-emacs"
+printf '%s\n' '#!/usr/bin/env bash' \
+    'while [[ $# -gt 0 && $1 != --init-directory ]]; do shift; done' \
+    'sed "s|@CHECKOUT@|$2|" "$FAKE_REPORT" >"$START_CHECK_REPORT"' \
+    >"$fake_emacs"
+chmod +x "$fake_emacs"
+
+# Write a fake report with the given header lines and a *Messages*
+# section that holds lines a whole-file grep would mistake for them.
+fake_report() {
+    local file
+    file=$(mktemp "$work/report.XXXXXX")
+    printf '%s\n' "$@" "" "--- *Warnings* ---" "x" "" "--- *Messages* ---" \
+        "init-file-had-error: nil" "warnings-buffer: none" >"$file"
+    echo "$file"
+}
+
+dir=$(clone fake)
+report=$(fake_report "init-file-had-error: t" "warnings-buffer: none" \
+    "user-emacs-directory-truename: @CHECKOUT@/")
+FAKE_REPORT=$report EMACS=$fake_emacs expect \
+    "an init error fails despite *Messages*" fail "init-file-had-error: t" "$dir"
+report=$(fake_report "init-file-had-error: nil" "warnings-buffer: 1 lines" \
+    "user-emacs-directory-truename: @CHECKOUT@/")
+FAKE_REPORT=$report EMACS=$fake_emacs expect \
+    "warnings fail despite *Messages*" fail "*Warnings* is not empty" "$dir"
+report=$(fake_report "init-file-had-error: nil" "warnings-buffer: none" \
+    "user-emacs-directory-truename: /elsewhere/")
+FAKE_REPORT=$report EMACS=$fake_emacs expect \
+    "a report from another config fails" fail "another config" "$dir"
+
+home=$(mktemp -d "$work/home.XXXXXX")
+HOME=$home expect "--daemon without ~/.config/emacs fails" fail \
+    "not a git checkout" --daemon
+
+dir=$(clone other-config)
+home=$(mktemp -d "$work/home.XXXXXX")
+mkdir "$home/.config"
+ln -s "$dir" "$home/.config/emacs"
+HOME=$home expect "--daemon on another config fails" fail \
+    "another config" --daemon
+
+hang="$work/hanging-emacsclient"
+printf '%s\n' '#!/usr/bin/env bash' 'sleep 60' >"$hang"
+chmod +x "$hang"
+EMACSCLIENT=$hang expect "a hanging daemon times out" fail "timed out" --daemon
 
 expect "daemon reports its directory" pass \
     "user-emacs-directory: ~/.config/emacs/" --daemon

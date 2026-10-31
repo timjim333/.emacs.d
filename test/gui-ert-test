@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# gui-ert-test: acceptance tests for test/gui-ert.
+#
+# Runs test/gui-ert on this checkout with small throwaway test files.
+# Takes about 30 s (two GUI starts) and opens Emacs windows on the
+# desktop.  The test files' folder is deleted when every case passes.
+#
+# Author: Tim Jim
+# Date: 2026-10-31
+
+set -u
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+gui_ert="$repo/test/gui-ert"
+work=$(mktemp -d /tmp/gui-ert-test.XXXXXX)
+echo "Test files: $work"
+failures=0
+
+# Write an ERT file to $work/$1.el, from the remaining lines.
+test_file() {
+    local name=$1
+    shift
+    printf '%s\n' ";;; -*- lexical-binding: t -*-" "(require 'ert)" "$@" \
+        >"$work/$name.el"
+    echo "$work/$name.el"
+}
+
+# Run gui-ert with the given arguments; check the exit status (pass or
+# fail), that the output contains a fixed string, and, if a fourth
+# argument is given, that it took fewer seconds than that.
+expect() {
+    local name=$1 want=$2 text=$3 limit=${4:-}
+    shift 4
+    local output status got start=$SECONDS
+    output=$("$gui_ert" "$@" 2>&1)
+    status=$?
+    got=pass
+    [[ $status -ne 0 ]] && got=fail
+    if [[ $got == "$want" ]] && grep -qF -- "$text" <<<"$output" &&
+        [[ -z $limit || $((SECONDS - start)) -lt $limit ]]; then
+        echo "ok    $name"
+    else
+        echo "FAIL  $name: wanted $want with '$text', got $got \
+(exit $status, $((SECONDS - start)) s)"
+        sed 's/^/      /' <<<"$output"
+        failures=$((failures + 1))
+    fi
+}
+
+ok=$(test_file ok '(ert-deftest gui-ert-test-ok () (should t))')
+expect "a passing file exits 0" pass "Ran 1 test" "" "$ok"
+
+broken=$(test_file broken '(ert-deftest gui-ert-test-ok () (should t))' \
+    '(error "test file went wrong")')
+expect "a load error fails early with its error" fail \
+    "test file went wrong" 60 "$broken"
+
+expect "no arguments fail" fail "Usage" 10
+expect "a missing test file fails" fail "no such test file" 10 \
+    "$work/missing.el"
+expect "a mistyped checkout fails" fail "not a git checkout" 10 \
+    "$ok" "$work/missing"
+
+echo "$failures failure(s)"
+if [[ $failures -eq 0 ]]; then
+    rm -rf "$work"
+else
+    echo "Test files kept for inspection: $work"
+    exit 1
+fi
