@@ -307,7 +307,13 @@ Gotchas:
   see it fail.
 - The worktree sandbox refuses Bash with `$VAR` paths, or inline
   scripts whose text names a VCS command or Emacs; write a scratchpad
-  script and run it with `bash` or `python3`.
+  script and run it with `bash` or `python3`, or use Edit. A refused
+  compound command runs none of its parts: a `chmod +x` lost that way
+  left `test/gui-ert-test` committed non-executable (exit 126).
+- The tool suites run `bin/` and `test/` scripts from the worktree, so
+  don't edit those while a suite runs in the background.
+- `shellcheck -x` on the scripts: the remaining `~` in quotes are
+  display text, on purpose.
 
 Round 5 tests (agreed 2026-10-29): (a) switching KDE to light switches
 the theme to `doom-nord-light` within about 5 s; (b) `->` and `!=` show

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # checkout.sh: shared by the scripts that start Emacs on a checkout.
 #
 # Sourced, not run, by bin/start-check, bin/screenshot, and
