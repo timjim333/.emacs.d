@@ -235,14 +235,17 @@ opened light, and it passed.
 
 Tools (usage in AGENTS.md, "Testing a change"):
 - `bin/start-check [checkout | --daemon]`: two GUI starts, judges the
-  second. Its own tests: `test/start-check-test` (about 3.5 minutes).
+  second. Its own tests: `test/start-check-test` (about 4 minutes).
 - `test/gui-ert <test-file> [checkout]`: ERT in a GUI Emacs with the
   config. One file per round: `test/org-rendering-test.el`,
   `test/org-behaviour-test.el`, `test/org-images-test.el`, and
-  `test/org-look-test.el`.
+  `test/org-look-test.el`. Its own tests: `test/gui-ert-test`.
 - `bin/screenshot <checkout> <script.el>`: PNGs at 1600x900 for Tim
   or for checking a UI; works with the screen asleep. Look at one for
-  any new UI: it caught a bug the tests missed.
+  any new UI: it caught a bug the tests missed. Its own tests:
+  `test/screenshot-test` (about 3 minutes).
+- All three share `bin/checkout.sh` and stop on a path that isn't a
+  config checkout.
 
 Decisions (Tim agreed):
 - Rendering: olivetti in every Org buffer (`C-c o` toggles); previews
@@ -312,34 +315,49 @@ as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
 (d) `org-present` steps through headings; (e) `focus-mode` dims all but
 the current paragraph.
 
-Review round 4 (head `afed512`): Gemini returned 0 Findings with a
-9-token answer on a 346k packet ([record](docs/reviews/2026-10-30-item-5-diff-r4.md)),
-so two more runs on copies of that workspace (both Findings-free
-`packet.md` and `repo/`, results cleared):
-- Sonnet second run (`review-auto --reviewer sonnet`) in
-  `~/reviews/emacs-config-2026-10-30-diff`: done, 5 Findings (2 minor,
-  3 nit), `review-check` passes, not yet triaged. Record:
-  `2026-10-30-item-5-diff-second-r4.md`.
-- Tim's Manual Antigravity run: `code --profile Reviewer
-  ~/reviews/emacs-config-2026-10-30-diff-manual`; Tim says when
-  `findings.json` is there, plus model and thinking level. Record:
-  `2026-10-30-item-5-diff-manual-r4.md`, meta written by hand (skill
-  step 5). The skill has no name rule for a third run; `-manual` is
-  this item's choice.
+Review round 4 (head `afed512`): Gemini 3.8 Flash returned 0
+Findings with a 9-token answer on a 346k packet
+([record](docs/reviews/2026-10-30-item-5-diff-r4.md)), so two more
+runs on copies of its workspace, both triaged with Tim on 31 Oct and
+their workspaces deleted:
+- Sonnet second run: 5 Findings, 4 accepted, F3 rejected
+  ([record](docs/reviews/2026-10-30-item-5-diff-second-r4.md)).
+- Manual run, Gemini 4 Argon on high: 10 Findings, 8 accepted, F9
+  partly rejected, F3 rejected
+  ([record](docs/reviews/2026-10-30-item-5-diff-manual-r4.md)). Its
+  F7 is Sonnet's F1. The prompt told it to read the whole packet in
+  parts and end with a count of Findings and Target files read (33);
+  reuse that prompt for later Manual runs.
 
-Flaky: on 31 Oct `test/screenshot-test` failed "two shots give two
-PNGs" once (exit 1, error not captured), then passed all five cases
-on an immediate re-run. Suspect the 5 s wait for the new frame's size
-in `tim/screenshot--size-frame`; reproduce by looping the test, and
-make the test print `error.txt` on failure.
+Fix rounds (agreed with Tim):
+1. Test tools: done. Red tests `510cf0c`, fixes `fe0b7ff`; all three
+   tool suites and the four GUI ERT files pass.
+2. Config: Argon F9 (`org-with-wide-buffer` in the LaTeX redraw, test
+   with a narrowed buffer), Argon F10 (also set the attachment folder
+   on `after-set-visited-file-name-hook`; `C-c i` refuses without a
+   file), and Sonnet F2 (the theme hook remembers the last mode it
+   applied and skips an unchanged one, so a hand-picked theme survives
+   new frames; Tim chose this over a doc line). Red test first for
+   each; plan in the records' Triage notes.
+3. Review round 5 on the new diff (skill step 7), with Argon through
+   Antigravity if Tim wants it again.
 
-Next: `review-check` the manual workspace, triage both runs (skill steps 3–6),
-then delete the workspaces. If neither needs a code change: tick the item and merge to `main` from Tim's
-terminal (this worktree session can't touch the main checkout):
-`git merge --no-ff org-basics`, run the tests on `main`, restart the
-daemon (`systemctl --user restart emacs`), and run `bin/start-check
---daemon`. Then remove the worktree and branch. Tim's Dired and Agenda
-walkthrough is in item 8's handoff.
+Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
+31 Oct, passing on re-runs): captured once as `light.png is 688x680`,
+the config's start-up frame size, while `dark.png` from the same run
+was right. So the new frame had its size and later went back to it
+between shots; not the 5 s wait. Hypothesis, unproven: PlasmaZones
+restoring its remembered geometry late. Next: loop the test with
+PlasmaZones stopped (Tim, at the screen) to confirm, then check the
+frame size before each shot.
+
+Next: round 2 above, then round 3. When a round needs no code change:
+tick the item and merge to `main` from Tim's terminal (this worktree
+session can't touch the main checkout): `git merge --no-ff
+org-basics`, run the tests on `main`, restart the daemon (`systemctl
+--user restart emacs`), and run `bin/start-check --daemon`. Then
+remove the worktree and branch. Tim's Dired and Agenda walkthrough is
+in item 8's handoff.
 
 ### 6. Notes: org-node, journal, capture
 

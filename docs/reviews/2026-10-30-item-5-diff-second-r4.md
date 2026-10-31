@@ -28,8 +28,9 @@ A Manual run (Antigravity) on another copy is recorded as `-manual-r4`.
   mistyped checkout runs the tests against whatever config the shell
   is in, and can pass. With no arguments, `$1: unbound variable` ends
   only the command substitution; Emacs then starts and the run fails
-  after the 120 s timeout. A sibling of r2 F1 (`bin/start-check`). To
-  fix: check the arguments and the `cd` as `bin/screenshot` does.
+  after the 120 s timeout. A sibling of r2 F1 (`bin/start-check`).
+  Fixed in `fe0b7ff` (shared `bin/checkout.sh`), red test `510cf0c`
+  (new `test/gui-ert-test`); the mistyped case passed (exit 0) before.
 - **F2:** confirmed from r3 F8 (each new pgtk frame runs the hook). To
   fix: the hook remembers the mode it last applied and does nothing
   when the mode is unchanged, so a hand-picked theme lasts until the
@@ -40,7 +41,7 @@ A Manual run (Antigravity) on another copy is recorded as `-manual-r4`.
   commit. On 31.2, the daemon case failing is the prompt to update the
   script and docs. `--daemon` only reads a running daemon, so its tests
   need one. Rejected by Tim.
-- **F4:** to fix: wrap the `emacsclient` call in `timeout 30` and
-  report a timeout as a failure, as the header promises.
-- **F5:** to fix: reword the header to say a new frame of whole columns
-  and lines opens, and each shot is padded to 1600x900.
+- **F4:** fixed in `fe0b7ff` (`timeout 10`, which is ample for a local
+  `emacsclient -e`), red test `510cf0c` (a hanging stub emacsclient).
+- **F5:** fixed in `fe0b7ff`: the header says a new frame of whole
+  columns and lines opens, and each shot is padded to 1600x900.

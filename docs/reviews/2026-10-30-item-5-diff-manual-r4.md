@@ -33,26 +33,31 @@ Sonnet's F1, found independently; one fix covers both.
 ## Triage notes
 
 - **F1:** reproduced: a script that adds one shot, then signals an
-  error, gave `one.png` and exit 0, with no error printed. To fix: load
-  the script inside the runner's `condition-case`; test that case.
-- **F2:** true by reading. To fix: require `early-init.el` in the
-  checkout, and fail when `init-file-had-error` is set.
+  error, gave `one.png` and exit 0, with no error printed. Fixed in
+  `fe0b7ff`: the runner loads the script (`SCREENSHOT_SCRIPT`) inside
+  its `condition-case`; red test `510cf0c`.
+- **F2:** true by reading. Fixed in `fe0b7ff`: `bin/checkout.sh`
+  requires a git checkout with `early-init.el`, and the runner fails on
+  `init-file-had-error`; red tests `510cf0c`.
 - **F3:** the mechanism is right (`package-installed-p` doesn't see the
   earlier run's packages, so they install again), but the outcome isn't
   a break: `package-unpack` runs `make-directory … t` and unpacks over
   the old copy, so the install works after a fresh download. A test of
   the install path needs the network. Rejected by Tim.
-- **F4:** to fix: fail on a shot larger than 1600x900 or a failed
-  `magick`, and use `nullglob`.
-- **F5:** to fix: `require_checkout` in the `--daemon` branch, and fail
-  if the report's `user-emacs-directory` isn't the checkout.
-- **F6:** to fix: grep only the header lines.
+- **F4:** fixed in `fe0b7ff`: fails on a shot larger than 1600x900, a
+  failed `magick`, or no PNGs (`nullglob`); red tests `510cf0c`.
+- **F5:** fixed in `fe0b7ff`: `require_checkout` in the `--daemon`
+  branch, and the report's new `user-emacs-directory-truename` line
+  must be the checkout (GUI starts too); red tests `510cf0c`.
+- **F6:** fixed in `fe0b7ff`: only the header is grepped; red tests
+  `510cf0c` (fake reports whose *Messages* hold the passing lines).
 - **F7:** reproduced in Sonnet's run (empty `--init-directory` is the
-  current folder). To fix with that F1: check the arguments and the `cd`.
+  current folder). Fixed with that F1 in `fe0b7ff`; red test `510cf0c`.
 - **F8:** reproduced: a test file signalling an error on load hung
-  2m0s, then "no results written", exit 124, with the error hidden. To
-  fix: load the test file inside `tim/gui-ert-run` and write any error
-  to the report.
+  2m0s, then "no results written", exit 124, with the error hidden.
+  Fixed in `fe0b7ff`: `tim/gui-ert-run` loads the file
+  (`GUI_ERT_TESTS`) and writes any error to the report; red test
+  `510cf0c`.
 - **F9:** main claim confirmed: `org-latex-preview '(16)` and
   `org-clear-latex-preview` use `point-min`/`point-max`
   (`lisp/org/org.el` in 31.1), which respect narrowing. To fix: redraw
