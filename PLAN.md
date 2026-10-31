@@ -371,6 +371,17 @@ restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
+Open (Tim to decide; raised 1 Nov after round 6): staging after a
+crash, `kill -9`, or power loss. `kill-emacs-hook` doesn't run, so
+folders are orphaned for good (a clean quit only deletes its own
+buffers' folders). Worse, `recover-file` on a new note's auto-save
+restores links into the old staging folder, which the save then
+leaves as absolute `var/` links. Proposed: (1) refile by content,
+moving every linked file under the staging root (may also cover part
+of r6 F2); (2) a start-up sweep of folders whose Emacs PID is dead,
+keeping any folder named in an auto-save file under `var/auto-save/`.
+Settle before or with the round 6 fixes.
+
 Next: fix round 6's three Findings test-first (one red-test commit,
 one fix commit), run every suite, then review round 7 (Argon, Manual
 run). When a round needs no code change:
