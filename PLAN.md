@@ -354,7 +354,8 @@ in parts, then end with the count of Findings and of Target files read
 (46 here); reuse it.
 
 Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
-31 Oct, passing on re-runs): captured once as `light.png is 688x680`,
+31 Oct and once on 1 Nov, passing on re-runs; the 1 Nov detail
+wasn't kept): captured once as `light.png is 688x680`,
 the config's start-up frame size, while `dark.png` from the same run
 was right. So the new frame had its size and later went back to it
 between shots; not the 5 s wait. Hypothesis, unproven: PlasmaZones
