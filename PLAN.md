@@ -353,6 +353,13 @@ accepted, F2 rejected, plus a worse sibling of F3 found in triage
 in parts, then end with the count of Findings and of Target files read
 (46 here); reuse it.
 
+Review round 6 (head `98d0757`), Argon: 3 Findings, all accepted, not
+yet fixed ([record](docs/reviews/2026-11-01-item-5-diff-r6.md); each
+Finding's "To fix" plan is in its Triage notes): F1 a missing `~/org`
+misroutes attachments (`file-in-directory-p`), F2 open indirect views
+keep stale folder settings, F3 an empty checkout argument falls back
+to the script's own checkout.
+
 Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
 31 Oct and once on 1 Nov, passing on re-runs; the 1 Nov detail
 wasn't kept): captured once as `light.png is 688x680`,
@@ -363,7 +370,9 @@ restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
-Next: review round 6 on the new diff (Argon, Manual run). When a round needs no code change:
+Next: fix round 6's three Findings test-first (one red-test commit,
+one fix commit), run every suite, then review round 7 (Argon, Manual
+run). When a round needs no code change:
 tick the item and merge to `main` from Tim's terminal (this worktree
 session can't touch the main checkout): `git merge --no-ff
 org-basics`, run the tests on `main`, restart the daemon (`systemctl

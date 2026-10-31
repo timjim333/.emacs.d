@@ -1,0 +1,35 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:467",
+      "claim": "`tim/org-note-attachment-dir` uses `file-in-directory-p`, which returns `nil` when `org-directory` (`~/org/`) does not exist on disk yet, misrouting a first note's attachments to `<note-dir>/attachments/<name>/` instead of `~/org/attachments/<note-path>/`.",
+      "evidence": "`config.org:464-472` computes `root` (`(file-name-as-directory (file-truename org-directory))`) and `file` (`(file-truename file)`), then branches on `(file-in-directory-p file root)`. As commit `24a309a` noted when fixing a staging test (`\"The staging test used file-in-directory-p, which needs the folder to exist; it now compares prefixes\"`), Emacs's `file-in-directory-p` checks `file-directory-p` and returns `nil` when `root` does not exist on disk yet. `~/org/` does not exist yet on glacier (`AGENTS.md:62`, `docs/reviews/2026-10-29-item-5-diff-r2.md:57`). When a first note such as `C-x C-f ~/org/topics/aviation.org` is saved (`C-x C-s`), `write-file-functions` (`tim/org-refile-staged-images`, `config.org:506-531`) runs before `basic-save-buffer` creates `~/org/topics/`: if an image was staged before the save, line 507 resolves `dir` to `~/org/topics/attachments/aviation/`, line 517's `(make-directory dir t)` creates it (and `~/org/` as a parent) and moves the staged image there, and line 529's `(tim/org-set-attachment-dir)` then sees `~/org/` existing and switches `org-download-image-dir` to `~/org/attachments/topics/aviation/`, splitting the note's attachments across two folders; if no image was staged before the first save, line 528 clears `tim/org-staging-dir` and line 529 sets `org-download-image-dir` to `~/org/topics/attachments/aviation/` for every image added later in that session. `test/org-images-test.el:25` missed this because `tim/test-with-notes` creates `root` upfront with `(make-temp-file \"notes-\" t)`.",
+      "alternative": "Since `root` and `file` at `config.org:464-465` are already canonical true names and `root` has a trailing slash, replace `(file-in-directory-p file root)` at `config.org:467` with `(string-prefix-p root file)`, and add a case in `test/org-images-test.el` that opens and saves a note before `org-directory` exists on disk.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:490",
+      "claim": "Open indirect buffers (`C-c C-x b` or `org-capture`) keep stale `org-download` settings and `default-directory` when their base buffer is saved for the first time or saved under a new name (`C-x C-w`), leaving later images stranded in a deleted staging folder or linked from the wrong directory.",
+      "evidence": "`org-tree-to-indirect-buffer` (`C-c C-x b`, tested at `test/org-images-test.el:303-321`) clones buffer-local variables (`org-download-image-dir`, `org-download-abbreviate-filename-function`, and `default-directory`) from the base buffer when opened, and a non-cloned indirect buffer in `org-mode` (`test/org-images-test.el:291-293`) sets its own buffer-local `org-download` variables at mode entry. When a draft or new `C-x C-f` note with an open indirect view is saved for the first time (including pressing `C-x C-s` inside the indirect view itself, as `save-buffer` delegates to `(buffer-base-buffer)`), `tim/org-refile-staged-images` (`config.org:526-529`) deletes `tim/org-staging-dir`, sets `tim/org-staging-dir` to `nil`, and calls `tim/org-set-attachment-dir` only in the base buffer; likewise, `after-set-visited-file-name-hook` (`config.org:561`) runs only in the base buffer on `C-x C-w` or a draft's first save. The still-open indirect buffer keeps `org-download-image-dir` pointing at the deleted `var/org-download-staging/buffer-XXXXX/` folder and `org-download-abbreviate-filename-function` set to `#'expand-file-name` (or, after `C-x C-w` on an existing note, keeps the old note's attachment folder). Adding an image in the indirect view after that first save recreates the staging folder and inserts an absolute staging link; saving again writes that staging path permanently to disk (since the base buffer's `tim/org-staging-dir` is already `nil` at `config.org:506`), and neither `tim/org-refile-staged-images` nor `tim/org-discard-staged-images` (`config.org:537`) ever moves or deletes it. Furthermore, `tim/org-link-path` (`config.org:488`) uses the current buffer's `default-directory`, which in an open indirect buffer is not updated when its base buffer is saved to a different folder.",
+      "alternative": "When `tim/org-set-attachment-dir` (`config.org:490`) runs in a base buffer (`(null (buffer-base-buffer))`), also call `tim/org-set-attachment-dir` in every live buffer whose `buffer-base-buffer` is that buffer; and in `tim/org-link-path` (`config.org:488`), read `default-directory` from `(or (buffer-base-buffer) (current-buffer))`. Add a test in `test/org-images-test.el` that keeps an indirect view open across a draft's first save to a subfolder and attaches a second image in the indirect view.",
+      "confidence": "high"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/start-check:99",
+      "claim": "Passing an empty checkout argument (`\"\"`) to `bin/start-check` or `test/gui-ert` silently falls back to the script's own checkout instead of failing `require_checkout`.",
+      "evidence": "`bin/start-check:99-100` uses `${1:-$here/..}` and `test/gui-ert:30-31` uses `${2:-$here/..}`. Because `:-` substitutes the default when the parameter is either unset or empty (`\"\"`), invoking `bin/start-check \"$wt\"` or `test/gui-ert test/org-look-test.el \"$wt\"` when `$wt` expands to `\"\"` (for example, from a failed lookup in a caller) substitutes `$here/..` rather than reaching `bin/checkout.sh:16`'s `[[ -z $1 ]]` guard, and can exit `0` after checking the wrong checkout.",
+      "alternative": "Use `${1-$here/..}` (without `:`) in `bin/start-check:99-100` and `${2-$here/..}` in `test/gui-ert:30-31` so the default applies only when the argument is omitted, and check `[[ -z $2 || -z $1 || $top != \"$1\" ]]` in `bin/checkout.sh:16` so an explicit `\"\"` always fails. Add empty-string checkout cases to `test/start-check-test` and `test/gui-ert-test`.",
+      "confidence": "high"
+    }
+  ]
+}
+

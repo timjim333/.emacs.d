@@ -1,0 +1,1 @@
+{"route": "manual", "reviewer": "gemini", "fallback": false, "model": "gemini-4-argon", "thinking": "high", "base": "eb8b2bcda0fe6fe2c501ccf52cec1fdbcd363175", "head": "98d0757680581d74e4ac2b5c7476689595af9e67"}
