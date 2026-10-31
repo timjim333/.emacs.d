@@ -213,10 +213,11 @@ Acceptance tests:
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
 **Handoff:** All five rounds done, on branch `org-basics` (not merged;
-unticked until round 4 of the review passes). The branch also renames
-`CONTEXT.md` to `GLOSSARY.md` and ticks item 4. Tests 1–10 and round
-5's (a)–(e) pass, as do `bin/start-check`, `test/start-check-test`, and
-all four `test/*-test.el` files. Tim checked at the screen: the theme
+unticked until a review round needs no code change). The branch also
+renames `CONTEXT.md` to `GLOSSARY.md` and ticks item 4. Tests 1–10 and
+round 5's (a)–(e) pass, as do `bin/start-check`, the three tool suites
+(`test/start-check-test`, `test/gui-ert-test`, `test/screenshot-test`),
+and all four `test/*-test.el` files. Tim checked at the screen: the theme
 following KDE live (both ways), `C-c I`, and dropping an image file.
 
 Adversarial review: round 1 (Gemini) 0 Findings
@@ -280,14 +281,16 @@ Decisions (Tim agreed):
   only. casual on `C-o` in Dired and the Agenda. org-present enlarges,
   hides the cursor, and is read-only; focus by `M-x focus-mode`. Test
   (a) calls the hook directly; a test can't flip KDE's mode.
-- Images in a buffer with no file (F10, 31 Oct): staged under
+- Images in a buffer not yet written (r4 F10, r5 F4): staged under
   `~/.local/share/emacs/var/org-download-staging/<buffer>/` with
   absolute links, moved to the note's folder on the first save, and
   deleted when the buffer is killed unsaved or Emacs quits, as its
   text is discarded too. Not `~/.cache`: they're the only copy. A name
   clash stops the save. `C-x C-w` sends new images to the new name's
-  folder and leaves earlier ones. Indirect buffers (capture) use the
-  base file's folder.
+  folder and leaves earlier ones. Indirect buffers (capture, `C-c C-x
+  b`) defer to the base buffer, which alone refiles or discards. Links
+  are relative between true names, so a symlinked notes root works.
+  Cost: under 1 µs per save once written.
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
@@ -334,28 +337,21 @@ as ligatures in Python; (c) casual's menu opens from Agenda and Dired;
 the current paragraph.
 
 Review round 4 (head `afed512`): Gemini 3.8 Flash returned 0
-Findings with a 9-token answer on a 346k packet
+Findings with a 9-token answer
 ([record](docs/reviews/2026-10-30-item-5-diff-r4.md)), so two more
-runs on copies of its workspace, both triaged with Tim on 31 Oct and
-their workspaces deleted:
-- Sonnet second run: 5 Findings, 4 accepted, F3 rejected
-  ([record](docs/reviews/2026-10-30-item-5-diff-second-r4.md)).
-- Manual run, Gemini 4 Argon on high: 10 Findings, 8 accepted, F9
-  partly rejected, F3 rejected
-  ([record](docs/reviews/2026-10-30-item-5-diff-manual-r4.md)). Its
-  F7 is Sonnet's F1. The prompt told it to read the whole packet in
-  parts and end with a count of Findings and Target files read (33);
-  reuse that prompt for later Manual runs.
+runs: Sonnet, 5 Findings, 4 accepted
+([record](docs/reviews/2026-10-30-item-5-diff-second-r4.md)); and a
+Manual run with Gemini 4 Argon on high, 10 Findings, 8 accepted
+([record](docs/reviews/2026-10-30-item-5-diff-manual-r4.md)). Fixed
+in two rounds: test tools (red `510cf0c`, fixes `fe0b7ff`) and config
+(red `fa22d88`, fixes `24a309a`).
 
-Fix rounds (agreed with Tim):
-1. Test tools: done. Red tests `510cf0c`, fixes `fe0b7ff`; all three
-   tool suites and the four GUI ERT files pass.
-2. Config: done. Red tests `fa22d88`, fixes `24a309a`; all four GUI
-   ERT files and `bin/start-check` pass. Argon F9 (widen before the
-   LaTeX redraw), Sonnet F2 (the theme hook skips an unchanged mode),
-   and Argon F10, which became staging (below).
-3. Review round 5 on the new diff (skill step 7), with Argon through
-   Antigravity if Tim wants it again.
+Review round 5 (head `df51861`), Argon Manual run: 9 Findings, 8
+accepted, F2 rejected, plus a worse sibling of F3 found in triage
+([record](docs/reviews/2026-10-31-item-5-diff-r5.md)). Red tests
+`8a1f38f`, fixes `6c4d7ca`. Manual-run prompt: read the whole packet
+in parts, then end with the count of Findings and of Target files read
+(46 here); reuse it.
 
 Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
 31 Oct, passing on re-runs): captured once as `light.png is 688x680`,
@@ -366,7 +362,7 @@ restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
-Next: fix round 3 (review round 5). When a round needs no code change:
+Next: review round 6 on the new diff (Argon, Manual run). When a round needs no code change:
 tick the item and merge to `main` from Tim's terminal (this worktree
 session can't touch the main checkout): `git merge --no-ff
 org-basics`, run the tests on `main`, restart the daemon (`systemctl

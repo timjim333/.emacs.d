@@ -1,0 +1,95 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:492",
+      "claim": "`tim/org-attachment-dir` resolves symlinks with `file-truename`, while `tim/org-set-attachment-dir` and `tim/org-refile-staged-images` compute relative `file:` links against `default-directory` without resolving symlinks, writing non-portable `../<real-dir>/...` links when a note is visited through a symlink.",
+      "evidence": "`config.org:474-482` passes both `org-directory` and `buffer-file-name` through `file-truename` (from Round 2 F7), so `tim/org-attachment-dir` returns a truename path. However, `config.org:492` sets `org-download-abbreviate-filename-function` to `#'file-relative-name` and `config.org:519` calls `(file-relative-name target)`, both of which compare paths lexically against `default-directory` (which keeps symlinks when `find-file-visit-truename` is `nil`). With `org-directory` a symlink `/tmp/base/org` -> `/tmp/base/real-org` (`test/org-images-test.el:266-272`) and a note opened at `/tmp/base/org/topics/aviation.org`, `default-directory` is `/tmp/base/org/topics/` while `target` is `/tmp/base/real-org/attachments/topics/aviation/shot.png`, so `file-relative-name` writes `[[file:../../real-org/attachments/topics/aviation/shot.png]]`, climbing out of the notes root and breaking on other synced Devices (`config.org:436`). The same happens outside `~/org` when visiting an Org file via a symlink such as `~/.config/emacs/` (`AGENTS.md:39`). `tim/org-attachment-dir-through-symlink` (`test/org-images-test.el:263-281`) missed this because it opens `(expand-file-name \"a.org\" real)` rather than `link` and never checks the written link.",
+      "alternative": "Define a helper `(defun tim/org-relative-attachment (file) (file-relative-name (file-truename file) (file-truename default-directory)))` and use `#'tim/org-relative-attachment` at `config.org:492` and `(tim/org-relative-attachment target)` at `config.org:519`. Extend `tim/org-attachment-dir-through-symlink` to open a note through `link`, attach an image, and assert `[[file:../attachments/...]]`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:516",
+      "claim": "`tim/org-refile-staged-images` rewrites staged `file:` links without widening narrowed buffers, so saving a narrowed unsaved buffer moves the staged images and deletes `tim/org-staging-dir` while leaving links outside the narrowed region pointing at the deleted staging folder.",
+      "evidence": "`config.org:514-524` renames each staged image to `target`, runs `(save-excursion (goto-char (point-min)) (while (search-forward (concat \"file:\" file) nil t) ...))` without `org-with-wide-buffer`, deletes `tim/org-staging-dir`, clears `tim/org-staging-dir` to `nil`, and calls `(org-link-preview-refresh)`. Resting on Emacs's `basic-save-buffer` (`lisp/files.el`), `write-file-functions` runs before Emacs widens the buffer to write the full text to disk. If an unsaved Org buffer stages an image under one heading and is narrowed to another subtree (`org-narrow-to-subtree` or `org-present`) when saved for the first time, `search-forward` misses the link outside the narrowed region and writes the file with a permanently broken `file:` link into `var/org-download-staging/`. Commit `24a309a` fixed the same narrowing issue in `tim/org-refresh-latex-previews` (`config.org:346`).",
+      "alternative": "Wrap the `save-excursion` link-rewrite loop and `(org-link-preview-refresh)` in `org-with-wide-buffer`, and add a narrowed-buffer first-save test to `test/org-images-test.el`.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:490",
+      "claim": "`tim/org-set-attachment-dir` compares `org-download-image-dir` with the buffer-local `tim/org-staging-dir`, so an indirect buffer on an unsaved Org buffer links staged images relatively and breaks `tim/org-refile-staged-images` on first save.",
+      "evidence": "`tim/org-staging-dir` is `defvar-local` (`config.org:451`). When an indirect buffer (such as `clone-indirect-buffer`) is created on an unsaved Org buffer, `(tim/org-attachment-dir)` delegates via `(buffer-base-buffer)` (`config.org:464-465`) and returns the base buffer's `tim/org-staging-dir`, whereas `tim/org-staging-dir` in the indirect buffer is `nil`. In `tim/org-set-attachment-dir` (`config.org:490-492`), `(equal org-download-image-dir tim/org-staging-dir)` evaluates to `nil`, setting `org-download-abbreviate-filename-function` to `#'file-relative-name` instead of `#'expand-file-name`. Pasting an image in the indirect buffer stages the file in the base buffer's staging folder with a relative `file:../../...` link; when the base buffer is saved, `tim/org-refile-staged-images` (`config.org:518`) searches only for the absolute `(concat \"file:\" file)`, misses the link, moves the file, and deletes the staging folder.",
+      "alternative": "Check `(string-prefix-p (expand-file-name tim/org-staging-directory) org-download-image-dir)` at `config.org:490`, and add an indirect-buffer case on an unsaved draft in `test/org-images-test.el`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:438",
+      "claim": "`config.org` and `AGENTS.md` say images added to an Org buffer not yet saved are staged and discarded if killed unsaved, whereas `tim/org-attachment-dir` checks `(not buffer-file-name)` and writes straight to `~/org/attachments/` for new files opened with `C-x C-f`.",
+      "evidence": "`config.org:438-441` states `\"In a buffer not yet saved, images wait in a staging folder under ~/.local/share/emacs/var/org-download-staging/ and move to the note's folder on its first save; killing the buffer unsaved, or quitting, discards them with its text\"`, and `AGENTS.md:42-44` likewise says `\"Org buffers not yet saved\"`. However, `config.org:466` checks `((not buffer-file-name) ...)`. Opening a new note with `C-x C-f ~/org/topics/new.org` sets `buffer-file-name` immediately while the file does not yet exist on disk: pasting an image creates `~/org/attachments/topics/new/` at once, and killing the buffer unsaved leaves the attachment folder behind.",
+      "alternative": "Either narrow the wording in `config.org:438` and `AGENTS.md:42-43` to match `PLAN.md:283` and `config.org:449` (`\"a buffer with no file\"`), or stage whenever `(not (file-exists-p buffer-file-name))` while computing the destination folder in `tim/org-refile-staged-images` through a non-staging helper so the pre-write refile does not resolve back to staging.",
+      "confidence": "high"
+    },
+    {
+      "id": "F5",
+      "severity": "minor",
+      "category": "bug",
+      "location": "test/gui-ert.el:21",
+      "claim": "`test/gui-ert.el` never checks `init-file-had-error`, so an init error in `config.org` after the section under test lets `test/gui-ert` exit 0 on a broken config.",
+      "evidence": "Commit `fe0b7ff` added `(when init-file-had-error (error \"The config had an init error; run bin/start-check on it\"))` to `bin/screenshot.el:82-83` (`test/screenshot-test:109-114`), but omitted that check from `test/gui-ert.el:21-36`. As `test/start-check-test:61-63` and `test/screenshot-test:109-114` confirm, GUI Emacs catches an init error, sets `init-file-had-error` to `t`, and still runs `-l gui-ert.el -f tim/gui-ert-run`. An error in `* Help`, `* Completion`, or `* Git` (`config.org:697-837`) after `* Org basics` has loaded still lets `test/gui-ert` pass `org-rendering-test.el`, `org-behaviour-test.el`, and `org-images-test.el` with exit status 0.",
+      "alternative": "Check `(when init-file-had-error (error \"The config had an init error; run bin/start-check on it\"))` inside `tim/gui-ert-run`'s `condition-case` before `(load (getenv \"GUI_ERT_TESTS\") nil t)` (`test/gui-ert.el:22`), and add a broken-config case to `test/gui-ert-test`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F6",
+      "severity": "minor",
+      "category": "bug",
+      "location": "test/gui-ert.el:30",
+      "claim": "`tim/gui-ert-run` slices `*Messages*` from a saved character position without binding `message-log-max` to `t` or guarding the timer, so `*Messages*` truncation can drop ERT output or signal `args-out-of-range` and hang until the 120 s timeout.",
+      "evidence": "`test/gui-ert.el:30-35` captures `start` as `(with-current-buffer (messages-buffer) (point-max))`, runs `(ert-run-tests-batch t)`, and writes `(buffer-substring start (point-max))` to `GUI_ERT_REPORT` inside an unprotected timer. Neither `early-init.el`, `config.org`, nor `test/gui-ert.el` alters `message-log-max` (1000 lines by default in Emacs). Resting on Emacs's `*Messages*` truncation behaviour, once startup messages plus ERT output (such as multi-hundred-line failure backtraces) exceed 1000 lines, Emacs deletes lines from the top of `*Messages*`: if net character count still grows, `start` shifts past the beginning of ERT's output; if long startup lines are evicted for shorter ERT lines so `(point-max)` drops below `start`, `buffer-substring` signals `args-out-of-range` before `GUI_ERT_REPORT` is written or `kill-emacs` runs, hanging until `timeout 120` kills Emacs with `\"no results written\"` (`test/gui-ert:34,43`).",
+      "alternative": "Bind `(message-log-max t)` around `(ert-run-tests-batch t)` (or erase `(messages-buffer)` at the start of the timer with `inhibit-read-only` and `message-log-max` bound to `t`), and wrap the timer body in `condition-case` so an unexpected error writes `GUI_ERT_REPORT` and calls `(kill-emacs 1)`.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F7",
+      "severity": "minor",
+      "category": "bug",
+      "location": "bin/start-check:80",
+      "claim": "`bin/start-check` does not check `$#`, so extra arguments such as `bin/start-check --daemon <checkout>` or `bin/start-check <checkout> --daemon` are silently ignored and can exit 0 after checking the wrong target.",
+      "evidence": "Unlike `bin/screenshot:27` (`[[ $# -ne 2 ]]`) and `test/gui-ert:18` (`[[ $# -lt 1 || $# -gt 2 ]]`), `bin/start-check:80-99` checks only `${1:-}`. Running `bin/start-check --daemon /path/to/worktree` ignores `$2`, checks `~/.config/emacs` instead, and prints `PASS` even when the daemon is running another checkout; running `bin/start-check /path/to/worktree --daemon` ignores `--daemon` and runs two GUI starts.",
+      "alternative": "Reject `[[ $# -gt 1 ]]` at the top of `bin/start-check` with its `Usage:` summary on stderr and `exit 2`, and add an extra-argument case to `test/start-check-test`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F8",
+      "severity": "nit",
+      "category": "bug",
+      "location": "config.org:3",
+      "claim": "`config.org` still carries `#+DATE: 2026-10-30` after commit `24a309a` modified it on 31 Oct 2026.",
+      "evidence": "The global convention (`Global guidance`, Code) requires: `\"Every source file, in any language, has a header with author and date... Each commit bumps the date in the files it changes.\"` Commit `24a309a` modified `config.org` on 31 Oct 2026 (`PLAN.md:283,353-356`), and all 13 other source and test files modified on 31 Oct (`bin/*`, `test/*`) were bumped to `2026-10-31`, while `config.org:3` remained `2026-10-30`.",
+      "alternative": "Bump `config.org:3` to `#+DATE: 2026-10-31` (or the date of the next commit touching `config.org`).",
+      "confidence": "high"
+    },
+    {
+      "id": "F9",
+      "severity": "nit",
+      "category": "bug",
+      "location": "PLAN.md:216",
+      "claim": "Item 5's opening handoff summary still says it is waiting on review round 4 and lists only `test/start-check-test`, contradicting the later paragraphs added below it.",
+      "evidence": "`PLAN.md:215-219` reads `\"All five rounds done, on branch org-basics (not merged; unticked until round 4 of the review passes)... as do bin/start-check, test/start-check-test, and all four test/*-test.el files\"`, whereas `PLAN.md:336-375` records that review round 4 already ran (finding 12 accepted issues across two runs), `test/gui-ert-test` and `test/screenshot-test` were added (`PLAN.md:242,246`), and review round 5 is next. `Global guidance` (Project workflow) states: `\"Handoff notes: the current state, decisions, gotchas and the next step. Rewrite these; don't append.\"`",
+      "alternative": "Rewrite item 5's opening handoff summary so it reflects review round 5 and all three tool test suites rather than appending conflicting status at the end.",
+      "confidence": "high"
+    }
+  ]
+}
+
