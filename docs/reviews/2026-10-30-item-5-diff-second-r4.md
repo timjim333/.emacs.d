@@ -34,7 +34,8 @@ A Manual run (Antigravity) on another copy is recorded as `-manual-r4`.
 - **F2:** confirmed from r3 F8 (each new pgtk frame runs the hook). To
   fix: the hook remembers the mode it last applied and does nothing
   when the mode is unchanged, so a hand-picked theme lasts until the
-  desktop actually switches mode.
+  desktop actually switches mode. Fixed in `24a309a`, red test
+  `fa22d88`.
 - **F3:** the claims are true, but each pin is deliberate. The count
   of 10 checks that every table row, and not the header, reaches
   `org-tag-persistent-alist`; adding a tag edits the test in the same

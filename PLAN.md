@@ -280,6 +280,14 @@ Decisions (Tim agreed):
   only. casual on `C-o` in Dired and the Agenda. org-present enlarges,
   hides the cursor, and is read-only; focus by `M-x focus-mode`. Test
   (a) calls the hook directly; a test can't flip KDE's mode.
+- Images in a buffer with no file (F10, 31 Oct): staged under
+  `~/.local/share/emacs/var/org-download-staging/<buffer>/` with
+  absolute links, moved to the note's folder on the first save, and
+  deleted when the buffer is killed unsaved or Emacs quits, as its
+  text is discarded too. Not `~/.cache`: they're the only copy. A name
+  clash stops the save. `C-x C-w` sends new images to the new name's
+  folder and leaves earlier ones. Indirect buffers (capture) use the
+  base file's folder.
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
@@ -312,6 +320,10 @@ Gotchas:
   left `test/gui-ert-test` committed non-executable (exit 126).
 - The tool suites run `bin/` and `test/` scripts from the worktree, so
   don't edit those while a suite runs in the background.
+- In Emacs 31.1, `before-save-hook` runs before a first save asks for
+  the file name and demotes errors, so the staging refile is on
+  `write-file-functions`, which `set-visited-file-name` clears; the
+  setup reruns from `after-set-visited-file-name-hook`.
 - `shellcheck -x` on the scripts: the remaining `~` in quotes are
   display text, on purpose.
 
@@ -338,13 +350,10 @@ their workspaces deleted:
 Fix rounds (agreed with Tim):
 1. Test tools: done. Red tests `510cf0c`, fixes `fe0b7ff`; all three
    tool suites and the four GUI ERT files pass.
-2. Config: Argon F9 (`org-with-wide-buffer` in the LaTeX redraw, test
-   with a narrowed buffer), Argon F10 (also set the attachment folder
-   on `after-set-visited-file-name-hook`; `C-c i` refuses without a
-   file), and Sonnet F2 (the theme hook remembers the last mode it
-   applied and skips an unchanged one, so a hand-picked theme survives
-   new frames; Tim chose this over a doc line). Red test first for
-   each; plan in the records' Triage notes.
+2. Config: done. Red tests `fa22d88`, fixes `24a309a`; all four GUI
+   ERT files and `bin/start-check` pass. Argon F9 (widen before the
+   LaTeX redraw), Sonnet F2 (the theme hook skips an unchanged mode),
+   and Argon F10, which became staging (below).
 3. Review round 5 on the new diff (skill step 7), with Argon through
    Antigravity if Tim wants it again.
 
@@ -357,7 +366,7 @@ restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
-Next: round 2 above, then round 3. When a round needs no code change:
+Next: fix round 3 (review round 5). When a round needs no code change:
 tick the item and merge to `main` from Tim's terminal (this worktree
 session can't touch the main checkout): `git merge --no-ff
 org-basics`, run the tests on `main`, restart the daemon (`systemctl
@@ -397,7 +406,8 @@ Journal), and a "refile as log entry" command for phone captures.
    heading and a Journal line whose link opens that entry.
 
 **Handoff:** Not started. First settle how image links survive a
-move (item 5 review r3 F2): links are relative to the note, so
+move (item 5 review r3 F2). Saving as (`C-x C-w`) into another
+folder breaks them the same way. Links are relative to the note, so
 refiling a heading from `inbox.org` into `notes/coding.org` leaves
 `[[file:attachments/inbox/x.png]]` pointing at a missing file. Verify
 in Org's source that refile doesn't rewrite them, then choose: a

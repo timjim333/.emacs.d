@@ -64,10 +64,18 @@ Sonnet's F1, found independently; one fix covers both.
   in `org-with-wide-buffer`; test with the buffer narrowed. Side point
   rejected by Tim: a fragment being edited under org-fragtog shows as
   an image after a redraw until the cursor re-enters it; rare, and the
-  fix would lean on org-fragtog's internals.
+  fix would lean on org-fragtog's internals. Fixed in `24a309a`, red
+  test `fa22d88`.
 - **F10:** confirmed in `files.el`: `set-visited-file-name` calls
   `(set-auto-mode t)`, which keeps the mode and skips `org-mode-hook`;
   org-download falls back to `.` when its folder is nil. To fix: also
   run on `after-set-visited-file-name-hook`, and make `C-c i` refuse in
   a buffer with no file. Capture buffers (indirect, no file name) are
-  item 6's: take the folder from the base buffer.
+  item 6's: take the folder from the base buffer. Changed with Tim on
+  31 Oct: rather than refusing, a buffer with no file stages images
+  under `var/org-download-staging/`, moves them to the note's folder on
+  the first save, and deletes them if the buffer is killed unsaved or
+  Emacs quits, as its text is discarded too. `~/.cache` was rejected:
+  staged images are the only copy, so they aren't cache. Indirect
+  buffers take the base buffer's folder now (two lines). Fixed in
+  `24a309a`, red test `fa22d88`.
