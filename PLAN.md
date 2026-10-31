@@ -351,7 +351,8 @@ accepted, F2 rejected, plus a worse sibling of F3 found in triage
 ([record](docs/reviews/2026-10-31-item-5-diff-r5.md)). Red tests
 `8a1f38f`, fixes `6c4d7ca`. Manual-run prompt: read the whole packet
 in parts, then end with the count of Findings and of Target files read
-(46 here); reuse it.
+(46 here); reuse it. Its exact text is in `~/.claude/skill-ideas.md`
+("a Manual run alongside an Automated one").
 
 Review round 6 (head `98d0757`), Argon: 3 Findings, all accepted, not
 yet fixed ([record](docs/reviews/2026-11-01-item-5-diff-r6.md); each
@@ -411,8 +412,10 @@ Journal), and a "refile as log entry" command for phone captures.
 8. One `l` capture creates an entry under the chosen project's `Log`
    heading and a Journal line whose link opens that entry.
 
-**Handoff:** Not started. First settle how image links survive a
-move (item 5 review r3 F2). Saving as (`C-x C-w`) into another
+**Handoff:** Not started. Tim wants to save as he types (likely
+`auto-save-visited-mode`, which saves on idle): measure a save's cost
+once org-node re-indexes on save; item 5's staging adds under 1 µs.
+First settle how image links survive a move (item 5 review r3 F2). Saving as (`C-x C-w`) into another
 folder breaks them the same way. Links are relative to the note, so
 refiling a heading from `inbox.org` into `notes/coding.org` leaves
 `[[file:attachments/inbox/x.png]]` pointing at a missing file. Verify
