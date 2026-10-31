@@ -39,6 +39,10 @@ repo, which holds only Config.
 - `~/.config/emacs`: link to this repo, read by Emacs.
 - `~/.local/share/emacs/`: State. `elpa/` (packages), `var/` and `etc/`
   (no-littering), `tree-sitter/` (grammars), and `custom.el`.
+  `var/org-download-staging/` holds images pasted into Org buffers not
+  yet saved; each moves to its note on the first save, and is deleted
+  if the buffer is killed unsaved or Emacs quits. Leftovers mean a
+  crash; not safe to delete while such a buffer is open.
 - `~/.cache/emacs/eln-cache/`: native-compiled code; safe to delete.
 - `~/.cache/emacs/org-latex/`: LaTeX preview images (set in
   `early-init.el`, so no `ltximg/` lands in `~/org`); safe to delete.

@@ -243,7 +243,8 @@ font's own, from ligature's wiki.
 Emacs 31's =toolkit-theme-set-functions= follows the desktop's light or
 dark mode (on KDE through GNOME's =color-scheme= setting, which Plasma
 keeps in step), so no auto-dark package is needed: light mode loads
-=doom-nord-light=. The hook also runs as each frame opens.
+=doom-nord-light=. The hook also runs as each frame opens, so it acts
+only when the mode changes: a theme picked by hand lasts until then.
 
 #+begin_src emacs-lisp
 (use-package doom-themes
@@ -259,12 +260,18 @@ keeps in step), so no auto-dark package is needed: light mode loads
   (mapc #'disable-theme custom-enabled-themes))
 (advice-add 'load-theme :before #'tim/disable-themes)
 
+(defvar tim/toolkit-theme-mode nil
+  "The desktop mode `tim/apply-toolkit-theme' last applied.")
+
 (defun tim/apply-toolkit-theme (mode)
   "Load `doom-nord-light' if MODE is `light', else `doom-nord'.
-Does nothing if that theme is already on."
-  (let ((theme (if (eq mode 'light) 'doom-nord-light 'doom-nord)))
-    (unless (custom-theme-enabled-p theme)
-      (load-theme theme t))))
+Does nothing if MODE is the mode last applied, or that theme is
+already on."
+  (unless (eq mode tim/toolkit-theme-mode)
+    (setq tim/toolkit-theme-mode mode)
+    (let ((theme (if (eq mode 'light) 'doom-nord-light 'doom-nord)))
+      (unless (custom-theme-enabled-p theme)
+        (load-theme theme t)))))
 (add-hook 'toolkit-theme-set-functions #'tim/apply-toolkit-theme)
 #+end_src
 
@@ -331,12 +338,14 @@ Org buffers.
 
 (defun tim/org-refresh-latex-previews (&rest _)
   "Redraw LaTeX previews in every Org buffer that shows some.
-Runs after a theme is enabled, so previews take its colours."
+Runs after a theme is enabled, so previews take its colours.  Widens
+first, since Org's preview commands stop at the narrowing."
   (dolist (buffer (buffer-list))
     (with-current-buffer buffer
-      (when (and (derived-mode-p 'org-mode)
-                 (org-clear-latex-preview))
-        (org-latex-preview '(16))))))
+      (when (derived-mode-p 'org-mode)
+        (org-with-wide-buffer
+         (when (org-clear-latex-preview)
+           (org-latex-preview '(16))))))))
 (add-hook 'enable-theme-functions #'tim/org-refresh-latex-previews)
 
 (use-package org
@@ -426,15 +435,41 @@ Images live in =~/org/attachments/=, in a folder per note that mirrors
 the note's path (=topics/aviation.org= → =attachments/topics/aviation/=),
 and are linked with relative =file:= links so every Device can open
 them. Files outside =~/org= get =attachments/<name>/= beside them.
+In a buffer not yet saved, images wait in a staging folder under
+=~/.local/share/emacs/var/org-download-staging/= and move to the note's
+folder on its first save; killing the buffer unsaved, or quitting,
+discards them with its text. =C-x C-w= sends new images to the new
+name's folder but leaves earlier ones where they are.
 Images show inline, 400 pixels wide unless a =#+attr_org: :width= says
 otherwise.
 
 #+begin_src emacs-lisp
+(defvar tim/org-staging-directory
+  (no-littering-expand-var-file-name "org-download-staging/")
+  "Where images added to a buffer with no file wait for its first save.")
+
+(defvar-local tim/org-staging-dir nil
+  "This buffer's folder under `tim/org-staging-directory', or nil.")
+;; Kept when Org restarts (C-c C-c on a #+ line), or the staged images
+;; would be left behind.
+(put 'tim/org-staging-dir 'permanent-local t)
+
 (defun tim/org-attachment-dir ()
-  "Return the folder for images added to the current file, or nil.
+  "Return the folder for images added to the current buffer.
 Notes under `org-directory' use attachments/<note path>/ there; other
-files use attachments/<file name>/ beside them."
-  (when buffer-file-name
+files use attachments/<file name>/ beside them.  An indirect buffer
+(such as a capture) uses its base buffer's folder, and a buffer with
+no file stages images in a folder of its own."
+  (cond
+   ((buffer-base-buffer)
+    (with-current-buffer (buffer-base-buffer) (tim/org-attachment-dir)))
+   ((not buffer-file-name)
+    (or tim/org-staging-dir
+        (setq tim/org-staging-dir
+              (file-name-as-directory
+               (make-temp-name
+                (expand-file-name "buffer-" tim/org-staging-directory))))))
+   (t
     ;; True names, so a symlinked notes root still gives a path inside it.
     (let ((root (file-name-as-directory (file-truename org-directory)))
           (file (file-truename buffer-file-name)))
@@ -444,13 +479,76 @@ files use attachments/<file name>/ beside them."
                               (file-relative-name file root))
                              (expand-file-name "attachments" root))
          (expand-file-name (concat "attachments/" (file-name-base file))
-                           (file-name-directory file)))))))
+                           (file-name-directory file))))))))
 
 (defun tim/org-set-attachment-dir ()
-  "Point org-download at this file's attachment folder."
-  (setq-local org-download-image-dir (tim/org-attachment-dir)))
+  "Point org-download at this buffer's attachment folder.
+Staged images are linked by absolute path, so the links still work
+when a first save changes the buffer's folder."
+  (setq-local org-download-image-dir (tim/org-attachment-dir))
+  (setq-local org-download-abbreviate-filename-function
+              (if (equal org-download-image-dir tim/org-staging-dir)
+                  #'expand-file-name
+                #'file-relative-name)))
 
-(add-hook 'org-mode-hook #'tim/org-set-attachment-dir)
+(defun tim/org-refile-staged-images ()
+  "Move this buffer's staged images to its attachment folder.
+Runs before each write, so the file is written with links relative to
+it, and returns nil so the write goes ahead.  Stops the save, moving
+nothing, if a name is already taken there."
+  (when (and tim/org-staging-dir buffer-file-name
+             (file-directory-p tim/org-staging-dir))
+    (let* ((dir (tim/org-attachment-dir))
+           (staged (directory-files tim/org-staging-dir t
+                                    directory-files-no-dot-files-regexp))
+           (taken (seq-filter
+                   (lambda (f)
+                     (file-exists-p
+                      (expand-file-name (file-name-nondirectory f) dir)))
+                   staged)))
+      (when taken
+        (user-error "Can't move staged image %s: %s has a file of that name"
+                    (car taken) dir))
+      (make-directory dir t)
+      (dolist (file staged)
+        (let ((target (expand-file-name (file-name-nondirectory file) dir)))
+          (rename-file file target)
+          (save-excursion
+            (goto-char (point-min))
+            (while (search-forward (concat "file:" file) nil t)
+              (replace-match (concat "file:" (file-relative-name target))
+                             t t)))))
+      (delete-directory tim/org-staging-dir)
+      (setq tim/org-staging-dir nil)
+      (tim/org-set-attachment-dir)
+      (org-link-preview-refresh)))
+  nil)
+
+(defun tim/org-discard-staged-images ()
+  "Delete this buffer's staged images, as its text is being discarded."
+  (when (and tim/org-staging-dir (file-directory-p tim/org-staging-dir))
+    (delete-directory tim/org-staging-dir t)))
+
+(defun tim/org-discard-all-staged-images ()
+  "Delete the staged images of every buffer, as Emacs quits.
+Only this Emacs's buffers: another Emacs may be staging images too."
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer (tim/org-discard-staged-images))))
+
+(defun tim/org-setup-attachments ()
+  "Set this Org buffer's attachment folder, and keep it right as the
+buffer's file changes.  The refile goes on `write-file-functions',
+not `before-save-hook': that runs before a first save asks for the
+name, and ignores errors.  Changing the file name clears it, so this
+runs again then."
+  (tim/org-set-attachment-dir)
+  (add-hook 'after-set-visited-file-name-hook #'tim/org-setup-attachments
+            nil t)
+  (add-hook 'write-file-functions #'tim/org-refile-staged-images nil t)
+  (add-hook 'kill-buffer-hook #'tim/org-discard-staged-images nil t))
+
+(add-hook 'org-mode-hook #'tim/org-setup-attachments)
+(add-hook 'kill-emacs-hook #'tim/org-discard-all-staged-images)
 
 (setq org-startup-with-inline-images t
       org-image-actual-width        '(400))

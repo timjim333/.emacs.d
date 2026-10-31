@@ -129,8 +129,8 @@ so the link still finds it if the buffer's folder changes."
     (with-current-buffer (tim/test-open-draft)
       (unwind-protect
           (progn
-            (should (file-in-directory-p org-download-image-dir
-                                         tim/org-staging-directory))
+            (should (string-prefix-p tim/org-staging-directory
+                                     org-download-image-dir))
             (org-download-image png)
             (let ((staged (tim/test-staged-files)))
               (should (= (length staged) 1))
