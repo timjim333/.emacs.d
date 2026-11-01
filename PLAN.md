@@ -300,7 +300,10 @@ Decisions (Tim agreed):
   `org-download-dnd`: it passes errors on through the obsolete
   `dnd-handle-one-url`, which calls Org's list-taking handler with one
   string (`wrong-type-argument listp`, found by Tim's screen check of
-  `30b26d0`; red `c01f30f`).
+  `30b26d0`; red `c01f30f`, fix `6f6acb5`). Tim's recheck passed
+  (1 Nov): a drop and `C-c I` in a buffer with no file both refuse
+  with the message; a PDF dropped on a new note gets Org's prompt; a
+  JPEG gets a relative link into `attachments/scratch-drop/`.
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
