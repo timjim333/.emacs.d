@@ -213,7 +213,7 @@ Acceptance tests:
    outside the repo"; AGENTS.md "Testing a change" uses the script.
 
 **Handoff:** All five rounds done, on branch `org-basics` (not merged;
-unticked until a review round needs no code change). The branch also
+unticked until an Argon review round needs no code change). The branch also
 renames `CONTEXT.md` to `GLOSSARY.md` and ticks item 4. Tests 1–10 and
 round 5's (a)–(e) pass, as do `bin/start-check`, the three tool suites
 (`test/start-check-test`, `test/gui-ert-test`, `test/screenshot-test`),
