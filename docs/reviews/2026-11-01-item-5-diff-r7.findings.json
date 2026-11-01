@@ -1,0 +1,55 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:586",
+      "claim": "Cancelling or refusing Emacs's missing-directory prompt on a first save aborts the write after `tim/org-refile-staged-images` has already moved staged images into `attachments/`, rewritten buffer links, and cleared `tim/org-staging-dir`.",
+      "evidence": "As commit `e31ce6c` notes (\"The refile runs from write-file-functions, before Emacs offers to create the note's folder\") and `test/org-images-test.el:356-357` confirms by stubbing `y-or-n-p` around `save-buffer`, `tim/org-refile-staged-images` (`config.org:566-596`) runs before `basic-save-buffer` checks `(file-name-directory buffer-file-name)` and asks `Directory ... does not exist; create? (y or n)`. If a user visits or saves a new note in a mistyped or non-existent subfolder (e.g. `C-x C-f ~/org/typo/note.org`), stages an image, presses `C-x C-s`, and answers `n` or `C-g` at that prompt, lines 586-593 have already created `~/org/attachments/typo/note/`, moved the staged image there, rewritten the buffer's `file:` link, deleted `tim/org-staging-dir`, and set `tim/org-staging-dir` to `nil` while the note itself remains unwritten. Killing the unsaved buffer then leaves the image orphaned under `~/org/attachments/typo/note/` (breaking `config.org:441-442`), and saving to a corrected path with `C-x C-w` leaves the image in `attachments/typo/note/` (and writes a broken relative link if the corrected path has a different directory depth).",
+      "alternative": "In `tim/org-refile-staged-images`, before `(make-directory dir t)` (`config.org:586`) and before clearing `tim/org-staging-dir` (`config.org:589`), check whether `(file-name-directory buffer-file-name)` exists; if not, ask `(y-or-n-p (format \"Directory %s does not exist; create? \" parent))` and either `(make-directory parent t)` (so `basic-save-buffer` does not prompt a second time) or signal `quit`/`user-error` before touching staged files or `tim/org-staging-dir`. Add a test in `test/org-images-test.el` where `y-or-n-p` returns `nil`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:650",
+      "claim": "`tim/org-orphan-staging-folders` calls `insert-file-contents` on every entry in `tim/org-auto-save-directory` without filtering to regular files, crashing `M-x tim/org-download-staging-clean` when a subdirectory or broken symlink is present.",
+      "evidence": "`config.org:650-656` maps `(insert-file-contents file)` directly over `(directory-files tim/org-auto-save-directory t directory-files-no-dot-files-regexp)`, unlike line 667 which filters `folders` with `(seq-filter #'file-directory-p folders)`. From Emacs's documented `directory-files` and `insert-file-contents` behaviour, `directory-files` returns subdirectories and symlinks as well as regular files, and calling `insert-file-contents` on a directory signals `file-error` (`Is a directory`). Moreover, from memory of `no-littering` (`config.org:105`, source not in the packet), `no-littering` sets `auto-save-list-file-prefix` to `var/auto-save/sessions/`, creating a `sessions/` subdirectory inside `tim/org-auto-save-directory` (`~/.local/share/emacs/var/auto-save/`) during normal auto-save runs — which makes `M-x tim/org-download-staging-clean` fail even when no orphan staging folders exist. `test/org-images-test.el:474` missed this because it binds `tim/org-auto-save-directory` to a fresh folder holding only `#!draft#`.",
+      "alternative": "Filter `(directory-files tim/org-auto-save-directory ...)` with `(seq-filter #'file-regular-p ...)` (and skip reading `auto-saves` altogether when no orphan staging folders exist), and create a `sessions/` subdirectory inside `tim/org-auto-save-directory` in `tim/org-staging-clean-deletes-orphans-only` (`test/org-images-test.el:481`).",
+      "confidence": "medium"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:546",
+      "claim": "`tim/org-refile-staged-image` checks only the current Emacs process's buffers via `tim/org-staging-owner`, so saving a link staged by an open draft in another running Emacs moves and deletes that draft's staged file instead of copying it.",
+      "evidence": "`config.org:607` (\"another Emacs may be staging images too\") and `config.org:635-643` (`tim/org-staging-emacs-live-p`) explicitly account for concurrent Emacs processes (such as the systemd daemon alongside a standalone GUI Emacs). However, `tim/org-refile-staged-image` (`config.org:545-550`) checks only `(let ((owner (tim/org-staging-owner folder))) (if (and owner (not (eq owner (current-buffer)))) (copy-file ...) (rename-file ...) ...))`, where `tim/org-staging-owner` (`config.org:531-537`) searches only this Emacs's `(buffer-list)`. For a folder `buffer-<other-pid>-.../` belonging to another live Emacs process, `owner` is `nil`, so saving a note that links that image renames the file out of the other Emacs's staging folder and deletes the emptied folder.",
+      "alternative": "Move `tim/org-staging-emacs-live-p` (`config.org:635`) above `tim/org-refile-staged-image` and copy when either `(and owner (not (eq owner (current-buffer))))` or `(folder`'s PID differs from `(emacs-pid)` and `(tim/org-staging-emacs-live-p folder)` is non-nil). Add a case in `test/org-images-test.el` stubbing or spawning a live Emacs PID different from `(emacs-pid)`.",
+      "confidence": "high"
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org:762",
+      "claim": "`use-package org-download` defers loading `org-download` until `C-c i`, `C-c I`, or `M-x org-download-image` runs, so dropping an image file onto an Org buffer earlier in the session does not trigger `org-download`.",
+      "evidence": "`config.org:703-705` states that \"dropping an image file on the buffer ... adds that file\", but `config.org:762-767` configures `(use-package org-download :after org :commands (org-download-image org-download-screenshot) :bind ...)`, which defers loading `org-download`. Resting on memory of `org-download` (not in the packet), `org-download` registers `org-download-dnd` in `dnd-protocol-alist` only when `org-download.el` loads or `org-download-enable` is called, not in its ELPA autoloads. Both checks in the repo masked this: `test/org-images-test.el:16` has a top-level `(require 'org-download)`, and the manual screen check (`PLAN.md:221`, commit `fdec479`) ran `C-c I` before dropping an image.",
+      "alternative": "Add `:hook (org-mode . org-download-enable)` to `(use-package org-download ...)` (or `:demand t` with `:after org`), and assert in `test/org-rendering-test.el` (which does not `(require 'org-download)`) that opening an Org buffer registers `org-download-dnd` in `dnd-protocol-alist`.",
+      "confidence": "low"
+    },
+    {
+      "id": "F5",
+      "severity": "nit",
+      "category": "bug",
+      "location": "PLAN.md:293",
+      "claim": "Item 5's and item 6's handoff notes still state that staging costs under 1 µs per save once written, after commit `e31ce6c` replaced the `nil` variable check with a full-buffer regexp scan on every save.",
+      "evidence": "`PLAN.md:293` says \"Cost: under 1 µs per save once written\" and item 6's handoff at `PLAN.md:426-427` says \"measure a save's cost once org-node re-indexes on save; item 5's staging adds under 1 µs\". Those figures came from commit `6c4d7ca` (`docs/reviews/2026-10-31-item-5-diff-r5.md:53-54`), when `tim/org-refile-staged-images` short-circuited on `tim/org-staging-dir` being `nil`. Commit `e31ce6c` removed that guard (`config.org:566`) so every save now widens the buffer and runs `tim/org-staged-links` (`config.org:518-529`; commit `e31ce6c`: \"The per-save cost is one regexp search of the buffer\"), without updating `PLAN.md:293` or `PLAN.md:427`.",
+      "alternative": "Update `PLAN.md:293` and `PLAN.md:427` to describe the per-save regexp scan (or re-time a 548 kB save after `e31ce6c` and record the new figure), and merge `PLAN.md:364-371` into the staging bullet at `PLAN.md:284-293`.",
+      "confidence": "high"
+    }
+  ]
+}
+
