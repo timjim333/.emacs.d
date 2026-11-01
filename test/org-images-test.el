@@ -6,7 +6,7 @@
 ;;; Commentary:
 
 ;; Images in notes: where org-download saves them, the links it
-;; writes, and HEIC to WebP.  Uses the real Wayland clipboard and
+;; writes, refusing a buffer with no file, and HEIC to WebP.  Uses the real Wayland clipboard and
 ;; ImageMagick.  Run it with `test/gui-ert test/org-images-test.el'.
 
 ;;; Code:
@@ -19,14 +19,12 @@
 (defmacro tim/test-with-notes (bindings &rest body)
   "Run BODY with `org-directory' bound to a fresh temp folder.
 BINDINGS names variables bound to files in it, as (VAR RELATIVE-PATH).
-Screenshots and staged images go in the folder too, so parallel runs
-don't share them."
+Screenshots go in the folder too, so parallel runs don't share them."
   (declare (indent 1))
   `(let* ((root (file-name-as-directory (make-temp-file "notes-" t)))
           (org-directory root)
           (org-download-screenshot-file
            (expand-file-name "screenshot.png" root))
-          (tim/org-staging-directory (expand-file-name "staging/" root))
           ,@(mapcar (lambda (b) `(,(car b) (expand-file-name ,(cadr b) root)))
                     bindings))
      (unwind-protect
@@ -116,104 +114,22 @@ relatively, and shows it inline, with no :ID: or #+DOWNLOADED: line."
   (org-mode)
   (current-buffer))
 
-(defun tim/test-staged-files ()
-  "Return the files staged for the current buffer."
-  (directory-files org-download-image-dir t
-                   directory-files-no-dot-files-regexp))
-
-(ert-deftest tim/org-unsaved-buffer-stages-images ()
-  "In a buffer with no file, an image is staged and linked absolutely,
-so the link still finds it if the buffer's folder changes."
+(ert-deftest tim/org-buffer-without-file-refuses-images ()
+  "A buffer with no file can't add an image, by any way in, and says
+why; nothing is written."
   (tim/test-with-notes ((png "clip.png"))
     (tim/test-make-image png)
     (with-current-buffer (tim/test-open-draft)
       (unwind-protect
-          (progn
-            (should (string-prefix-p tim/org-staging-directory
-                                     org-download-image-dir))
-            (org-download-image png)
-            (let ((staged (tim/test-staged-files)))
-              (should (= (length staged) 1))
-              (should (string-search (concat "[[file:" (car staged) "]]")
-                                     (buffer-string)))))
-        (set-buffer-modified-p nil)
-        (kill-buffer)))))
-
-(ert-deftest tim/org-first-save-refiles-staged-images ()
-  "The first save moves staged images to the note's attachment folder
-and rewrites their links, before the file is written."
-  (tim/test-with-notes ((note "topics/aviation.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (make-directory (file-name-directory note) t)
-    (with-current-buffer (tim/test-open-draft)
-      (org-download-image png)
-      (let ((staging org-download-image-dir)
-            (name (file-name-nondirectory (car (tim/test-staged-files)))))
-        (cl-letf (((symbol-function 'read-file-name)
-                   (lambda (&rest _) note)))
-          (save-buffer))
-        (let ((link (concat "[[file:../attachments/topics/aviation/" name "]]")))
-          (should (file-exists-p
-                   (expand-file-name (concat "attachments/topics/aviation/" name)
-                                     root)))
-          (should-not (file-exists-p staging))
-          (should (string-search link (buffer-string)))
-          (should (string-search link (with-temp-buffer
-                                        (insert-file-contents note)
-                                        (buffer-string))))
-          (should (equal (file-name-as-directory org-download-image-dir)
-                         (expand-file-name "attachments/topics/aviation/"
-                                           root))))))))
-
-(ert-deftest tim/org-refile-refuses-to-overwrite ()
-  "If the note's folder already has a file of that name, the save stops
-and the staged image stays where it is."
-  (tim/test-with-notes ((note "topics/aviation.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (make-directory (file-name-directory note) t)
-    (with-current-buffer (tim/test-open-draft)
-      (unwind-protect
-          (progn
-            (org-download-image png)
-            (let* ((staged (car (tim/test-staged-files)))
-                   (dir (expand-file-name "attachments/topics/aviation/" root)))
-              (make-directory dir t)
-              (with-temp-file (expand-file-name
-                               (file-name-nondirectory staged) dir)
-                (insert "already here"))
-              (should-error (write-file note) :type 'user-error)
-              (should (file-exists-p staged))
-              (should-not (file-exists-p note))))
-        (set-buffer-modified-p nil)
-        (kill-buffer)))))
-
-(ert-deftest tim/org-killing-unsaved-buffer-discards-staged-images ()
-  "Killing a buffer that was never saved deletes its staged images,
-as its text, which links them, is discarded too."
-  (tim/test-with-notes ((png "clip.png"))
-    (tim/test-make-image png)
-    (with-current-buffer (tim/test-open-draft)
-      (org-download-image png)
-      (let ((staging org-download-image-dir))
-        (should (file-exists-p staging))
-        (set-buffer-modified-p nil)
-        (kill-buffer)
-        (should-not (file-exists-p staging))))))
-
-(ert-deftest tim/org-quitting-discards-staged-images ()
-  "Quitting Emacs deletes the staged images of buffers never saved."
-  (should (memq 'tim/org-discard-all-staged-images kill-emacs-hook))
-  (tim/test-with-notes ((png "clip.png"))
-    (tim/test-make-image png)
-    (with-current-buffer (tim/test-open-draft)
-      (unwind-protect
-          (progn
-            (org-download-image png)
-            (let ((staging org-download-image-dir))
-              (tim/org-discard-all-staged-images)
-              (should-not (file-exists-p staging))))
+          (let ((text (buffer-string)))
+            (should-error (org-download-image png) :type 'user-error)
+            (cl-letf (((symbol-function 'shell-command)
+                       (lambda (&rest _) (error "Took a screenshot"))))
+              (should-error (org-download-screenshot) :type 'user-error))
+            (should (equal (buffer-string) text))
+            (should (equal (directory-files root nil
+                                            directory-files-no-dot-files-regexp)
+                           '("clip.png"))))
         (set-buffer-modified-p nil)
         (kill-buffer)))))
 
@@ -228,7 +144,7 @@ as its text, which links them, is discarded too."
 
 (ert-deftest tim/org-indirect-buffer-uses-base-folder ()
   "An indirect buffer (as Org capture makes) uses its base file's
-folder, so its images aren't staged."
+folder."
   (tim/test-with-notes ((note "inbox.org"))
     (tim/test-open-note note)
     (let ((indirect (make-indirect-buffer (current-buffer) "indirect" t)))
@@ -247,8 +163,7 @@ folder, so its images aren't staged."
           (real (expand-file-name "real-org" base))
           (link (expand-file-name "org" base))
           (png (expand-file-name "clip.png" base))
-          (org-directory link)
-          (tim/org-staging-directory (expand-file-name "staging/" base)))
+          (org-directory link))
      (make-directory (expand-file-name "topics" real) t)
      (make-symbolic-link real link)
      (tim/test-make-image png)
@@ -270,79 +185,27 @@ relative to the note as visited, not through the real folder."
              "\\[\\[file:\\.\\./attachments/topics/aviation/[^]/]+\\.png\\]\\]"
              (buffer-string)))))
 
-(ert-deftest tim/org-refile-through-symlink-stays-in-notes ()
-  "A draft first saved through a symlinked notes root gets the same
-relative links as a note visited there."
-  (tim/test-with-symlinked-notes
-    (with-current-buffer (tim/test-open-draft)
-      (org-download-image png)
-      (write-file (expand-file-name "topics/draft.org" link))
-      (should (string-match-p
-               "\\[\\[file:\\.\\./attachments/topics/draft/[^]/]+\\.png\\]\\]"
-               (buffer-string))))))
-
-(ert-deftest tim/org-indirect-buffer-on-draft-stages-absolutely ()
-  "An indirect buffer made without cloning, on a draft, stages images
-with absolute links, so the draft's first save refiles them."
-  (tim/test-with-notes ((note "draft.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (let* ((draft (tim/test-open-draft))
-           (indirect (make-indirect-buffer draft "indirect")))
-      (with-current-buffer indirect
-        (org-mode)
-        (goto-char (point-max))
-        (org-download-image png))
-      (kill-buffer indirect)
-      (with-current-buffer draft
-        (write-file note)
-        (should (string-match-p
-                 "\\[\\[file:attachments/draft/[^]/]+\\.png\\]\\]"
-                 (buffer-string)))))))
-
-(ert-deftest tim/org-closing-indirect-view-keeps-staged-images ()
-  "Closing an indirect view of a draft (C-c C-x b, which clones the
-buffer) leaves the draft's staged images alone."
-  (tim/test-with-notes ((png "clip.png"))
-    (tim/test-make-image png)
-    (with-current-buffer (tim/test-open-draft)
-      (unwind-protect
-          (let ((draft (current-buffer)))
-            (goto-char (point-max))
-            (org-download-image png)
-            (goto-char (point-min))
-            (org-tree-to-indirect-buffer)
-            (let ((staging (buffer-local-value 'tim/org-staging-dir draft)))
-              (kill-buffer (seq-find (lambda (b) (eq (buffer-base-buffer b)
-                                                     draft))
-                                     (buffer-list)))
-              (should (file-exists-p staging))))
-        (set-buffer-modified-p nil)
-        (kill-buffer)))))
-
-(ert-deftest tim/org-new-note-stages-until-written ()
-  "A note opened with C-x C-f but not yet on disk stages its images;
-the first save refiles them, and killing it unsaved leaves nothing."
+(ert-deftest tim/org-new-note-links-images-at-once ()
+  "A note opened with C-x C-f but not yet on disk adds images straight
+to its own folder, with the relative link it keeps when saved."
   (tim/test-with-notes ((note "topics/new.org")
-                        (other "topics/dropped.org")
                         (png "clip.png"))
     (tim/test-make-image png)
     (make-directory (file-name-directory note) t)
     (find-file note)
-    (should (string-prefix-p tim/org-staging-directory org-download-image-dir))
+    (should (equal (file-name-as-directory org-download-image-dir)
+                   (expand-file-name "attachments/topics/new/" root)))
     (org-download-image png)
-    (save-buffer)
-    (should (string-match-p
-             "\\[\\[file:\\.\\./attachments/topics/new/[^]/]+\\.png\\]\\]"
-             (buffer-string)))
-    (find-file other)
-    (org-download-image png)
-    (let ((staging org-download-image-dir))
-      (set-buffer-modified-p nil)
-      (kill-buffer)
-      (should-not (file-exists-p staging))
-      (should-not (file-exists-p
-                   (expand-file-name "attachments/topics/dropped" root))))))
+    (let ((re "\\[\\[file:\\.\\./attachments/topics/new/\\([^]/]+\\.png\\)\\]\\]"))
+      (should (string-match re (buffer-string)))
+      (should (file-exists-p
+               (expand-file-name (concat "attachments/topics/new/"
+                                         (match-string 1 (buffer-string)))
+                                 root)))
+      (save-buffer)
+      (should (string-match-p re (with-temp-buffer
+                                   (insert-file-contents note)
+                                   (buffer-string)))))))
 
 (ert-deftest tim/org-new-note-before-notes-root-exists ()
   "A new note saved before the notes root exists still puts its images
@@ -361,57 +224,12 @@ in attachments/ under the root, not beside the note."
       (should (file-directory-p
                (expand-file-name "org/attachments/topics/new" root))))))
 
-(ert-deftest tim/org-refused-folder-moves-nothing ()
-  "Answering no to creating a new note's missing folder stops the save
-before any staged image moves, so the draft still has them; yes asks
-only once."
-  (tim/test-with-notes ((note "typo/new.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (find-file note)
-    (org-download-image png)
-    (let ((staging tim/org-staging-dir)
-          (text (buffer-string))
-          (asked 0))
-      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) nil)))
-        (should-error (save-buffer)))
-      (should (equal tim/org-staging-dir staging))
-      (should (equal (buffer-string) text))
-      (should (= (length (tim/test-staged-files)) 1))
-      (should-not (file-exists-p (expand-file-name "attachments" root)))
-      (cl-letf (((symbol-function 'y-or-n-p)
-                 (lambda (&rest _) (cl-incf asked) t)))
-        (save-buffer))
-      (should (= asked 1))
-      (should (file-exists-p note))
-      (should (string-match-p
-               "\\[\\[file:\\.\\./attachments/typo/new/[^]/]+\\.png\\]\\]"
-               (buffer-string))))))
-
 (defun tim/test-indirect-view (base)
   "Open a C-c C-x b view of BASE's first heading and return it."
   (with-current-buffer base
     (goto-char (point-min))
     (org-tree-to-indirect-buffer))
   (seq-find (lambda (b) (eq (buffer-base-buffer b) base)) (buffer-list)))
-
-(ert-deftest tim/org-indirect-view-follows-first-save ()
-  "An image added in a view kept open across its draft's first save
-goes to the note's folder, with a relative link."
-  (tim/test-with-notes ((note "topics/draft.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (make-directory (file-name-directory note) t)
-    (let* ((draft (tim/test-open-draft))
-           (view (tim/test-indirect-view draft)))
-      (with-current-buffer draft (write-file note))
-      (with-current-buffer view
-        (goto-char (point-max))
-        (org-download-image png))
-      (with-current-buffer draft
-        (should (string-match-p
-                 "\\[\\[file:\\.\\./attachments/topics/draft/[^]/]+\\.png\\]\\]"
-                 (buffer-string)))))))
 
 (ert-deftest tim/org-indirect-view-follows-write-file ()
   "An image added in a view kept open across C-x C-w of its note into
@@ -432,114 +250,6 @@ another folder goes to the new name's folder, linked from there."
         (should (string-match-p
                  "\\[\\[file:\\.\\./attachments/other/b/[^]/]+\\.png\\]\\]"
                  (buffer-string)))))))
-
-(defun tim/test-stage (folder name)
-  "Make an image NAME in FOLDER under the staging root; return its path."
-  (let ((file (expand-file-name name (expand-file-name
-                                      folder tim/org-staging-directory))))
-    (make-directory (file-name-directory file) t)
-    (tim/test-make-image file)
-    file))
-
-(ert-deftest tim/org-save-refiles-any-staged-link ()
-  "Saving moves any file the text links under the staging root, as
-after recovering a crashed draft's auto-save, and relinks it."
-  (tim/test-with-notes ((note "topics/aviation.org"))
-    (let ((staged (tim/test-stage "buffer-999999999-abc" "x.png")))
-      (tim/test-open-note note)
-      (insert "[[file:" staged "]]\n")
-      (save-buffer)
-      (should (string-search "[[file:../attachments/topics/aviation/x.png]]"
-                             (buffer-string)))
-      (should (file-exists-p
-               (expand-file-name "attachments/topics/aviation/x.png" root)))
-      (should-not (file-exists-p (file-name-directory staged))))))
-
-(ert-deftest tim/org-save-copies-live-drafts-images ()
-  "A link copied from an open draft into a note is refiled as a copy,
-so the draft's own link still works."
-  (tim/test-with-notes ((note "topics/aviation.org")
-                        (png "clip.png"))
-    (tim/test-make-image png)
-    (let ((draft (tim/test-open-draft)))
-      (unwind-protect
-          (let (staged)
-            (with-current-buffer draft
-              (goto-char (point-max))
-              (org-download-image png)
-              (setq staged (car (tim/test-staged-files))))
-            (tim/test-open-note note)
-            (insert "[[file:" staged "]]\n")
-            (save-buffer)
-            (should (file-exists-p staged))
-            (should (string-search
-                     (concat "[[file:../attachments/topics/aviation/"
-                             (file-name-nondirectory staged) "]]")
-                     (buffer-string))))
-        (with-current-buffer draft
-          (set-buffer-modified-p nil)
-          (kill-buffer))))))
-
-(ert-deftest tim/org-save-copies-other-emacs-images ()
-  "A link into a folder another running Emacs stages is refiled as a
-copy, as that Emacs's draft still links the file."
-  (tim/test-with-notes ((note "topics/aviation.org"))
-    (let ((other (start-process "other-emacs" nil
-                                (expand-file-name invocation-name
-                                                  invocation-directory)
-                                "-Q" "--batch" "--eval" "(sleep-for 60)")))
-      (unwind-protect
-          (let ((staged (tim/test-stage
-                         (format "buffer-%d-abc" (process-id other)) "x.png")))
-            (tim/test-open-note note)
-            (insert "[[file:" staged "]]\n")
-            (save-buffer)
-            (should (file-exists-p staged))
-            (should (file-exists-p
-                     (expand-file-name "attachments/topics/aviation/x.png"
-                                       root))))
-        (delete-process other)))))
-
-(ert-deftest tim/org-staging-folder-names-its-emacs ()
-  "A staging folder's name holds this Emacs's PID, so a later clean-up
-can tell whether its Emacs is still running."
-  (tim/test-with-notes ()
-    (with-current-buffer (tim/test-open-draft)
-      (unwind-protect
-          (should (string-prefix-p
-                   (expand-file-name (format "buffer-%d-" (emacs-pid))
-                                     tim/org-staging-directory)
-                   tim/org-staging-dir))
-        (set-buffer-modified-p nil)
-        (kill-buffer)))))
-
-(ert-deftest tim/org-staging-clean-deletes-orphans-only ()
-  "The clean-up deletes folders whose Emacs has gone, keeping any an
-auto-save file names (they may still be recovered) and any whose Emacs
-is running.  The auto-save folder holds a sessions/ folder, as
-no-littering makes one there."
-  (tim/test-with-notes ()
-    (let* ((tim/org-auto-save-directory (expand-file-name "auto-save/" root))
-           (live (file-name-directory
-                  (tim/test-stage (format "buffer-%d-live" (emacs-pid)) "a.png")))
-           (dead (file-name-directory
-                  (tim/test-stage "buffer-999999999-dead" "b.png")))
-           (old (file-name-directory (tim/test-stage "buffer-old" "c.png")))
-           (saved (tim/test-stage "buffer-999999999-saved" "d.png")))
-      (make-directory (expand-file-name "sessions/" tim/org-auto-save-directory)
-                      t)
-      (with-temp-file (expand-file-name "#!draft#" tim/org-auto-save-directory)
-        (insert "* Heading\n[[file:" saved "]]\n"))
-      (should (equal (sort (mapcar #'car (tim/org-orphan-staging-folders))
-                           #'string<)
-                     (sort (list dead old (file-name-directory saved))
-                           #'string<)))
-      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
-        (tim/org-download-staging-clean))
-      (should (file-exists-p live))
-      (should (file-exists-p saved))
-      (should-not (file-exists-p dead))
-      (should-not (file-exists-p old)))))
 
 (ert-deftest tim/org-paste-without-image-says-so ()
   "With no image on the clipboard, C-c i says so and links nothing."

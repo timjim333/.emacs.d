@@ -55,6 +55,9 @@ broken=$(test_file broken '(ert-deftest gui-ert-test-ok () (should t))' \
 expect "a load error fails early with its error" fail \
     "test file went wrong" 60 "$broken"
 
+empty=$(test_file empty)
+expect "a file with no tests fails" fail "no tests ran" 60 "$empty"
+
 # *Messages* keeps only its last message-log-max lines; a long run
 # mustn't lose the start of its report.
 chatty=$(test_file chatty '(setq message-log-max 50)' \
