@@ -392,7 +392,9 @@ missing folder first, F2 the clean-up skips `sessions/`, F3 copy for
 another live Emacs, F4 org-download loads with Org (`:demand t`) and
 (red `fab1b13`, fix `039462c`, after Tim's screen check still got Org's
 prompt) goes ahead of Org 9.7's buffer-local drop handler, F5 the cost
-figure above. Tim to recheck a real drop at the screen. Every suite and all four
+figure above. Tim's screen recheck passed (1 Nov): a fresh start, a
+drop with no prompt, an absolute staging link, and the staged file
+deleted on kill. Every suite and all four
 `test/*-test.el` files passed after the fixes (1 Nov).
 
 Next: review round 8 (Argon, Manual run). When a round needs no code
