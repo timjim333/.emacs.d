@@ -562,12 +562,27 @@ with no file, before a screenshot is taken."
     (user-error "Save this buffer to a file before adding an image"))
   (tim/org-set-attachment-dir))
 
+(defun tim/org-download-dnd (url action)
+  "Add a dropped image file or web link at URL with org-download.
+Its errors show as they are; org-download's own handler passes any
+error on to Org's, through an API Emacs 30 made obsolete, which then
+fails.  Any other file goes to Org's handler, which asks whether to
+attach, open, or link it."
+  (if (or (not (string-prefix-p "file:" url))
+          (let ((case-fold-search t))
+            (string-match-p (concat (image-file-name-regexp) "\\|\\.hei[cf]\\'")
+                            url)))
+      (progn (org-download-image url) action)
+    (let ((dnd-protocol-alist
+           (rassq-delete-all 'tim/org-download-dnd
+                             (copy-alist dnd-protocol-alist))))
+      (dnd-handle-multiple-urls (selected-window) (list url) action))))
+
 (defun tim/org-download-take-drops ()
-  "Let org-download take dropped files and data in this Org buffer.
-Org puts its own handler first in a buffer-local list, which asks
-whether to attach, open, or link the file."
+  "Let org-download take dropped images and data in this Org buffer.
+Org puts its own handler first in a buffer-local list."
   (setq-local dnd-protocol-alist
-              (append '(("^\\(https?\\|ftp\\|file\\|nfs\\):" . org-download-dnd)
+              (append '(("^\\(https?\\|ftp\\|file\\|nfs\\):" . tim/org-download-dnd)
                         ("^data:" . org-download-dnd-base64))
                       dnd-protocol-alist)))
 

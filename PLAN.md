@@ -292,9 +292,15 @@ Decisions (Tim agreed):
   "unlinked attachments" question. Indirect buffers (capture, `C-c
   C-x b`) use the base buffer's folder. Links are relative between
   true names, so a symlinked notes root works.
-- Drops: org-download loads with Org (`:demand t`) and goes ahead of
-  Org 9.7's buffer-local drop handler, which otherwise asks "What to
-  do with file?" (r7 F4).
+- Drops: org-download loads with Org (`:demand t`), and
+  `tim/org-download-dnd` goes ahead of Org 9.7's buffer-local drop
+  handler (r7 F4). It sends image files (by extension, HEIC included)
+  and web links to org-download and lets its errors show; any other
+  file goes to Org's handler ("What to do with file?"). Not
+  `org-download-dnd`: it passes errors on through the obsolete
+  `dnd-handle-one-url`, which calls Org's list-taking handler with one
+  string (`wrong-type-argument listp`, found by Tim's screen check of
+  `30b26d0`; red `c01f30f`).
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
