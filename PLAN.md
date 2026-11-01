@@ -290,7 +290,10 @@ Decisions (Tim agreed):
   folder and leaves earlier ones. Indirect buffers (capture, `C-c C-x
   b`) defer to the base buffer, which alone refiles or discards. Links
   are relative between true names, so a symlinked notes root works.
-  Cost: under 1 µs per save once written.
+  Every save scans the text for staged links: 0.74 ms on a 508 kB
+  file with 6000 `file:` links (1 Nov, after `e31ce6c`). A missing
+  folder for a new note is asked about before anything moves (r7 F1).
+  A file another live Emacs stages is copied, not moved (r7 F3).
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
@@ -382,7 +385,15 @@ restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
-Next: review round 7 (Argon, Manual run). When a round needs no code
+Review round 7 (head `84a2057`), Argon: 5 Findings, all accepted
+([record](docs/reviews/2026-11-01-item-5-diff-r7.md)). Red tests
+`3cc9d63`, fixes `14e5a46`: F1 the refile asks about a new note's
+missing folder first, F2 the clean-up skips `sessions/`, F3 copy for
+another live Emacs, F4 org-download loads with Org (`:demand t`) so
+drops reach it, F5 the cost figure above. Every suite and all four
+`test/*-test.el` files passed after the fixes (1 Nov).
+
+Next: review round 8 (Argon, Manual run). When a round needs no code
 change:
 tick the item and merge to `main` from Tim's terminal (this worktree
 session can't touch the main checkout): `git merge --no-ff
@@ -424,7 +435,8 @@ Journal), and a "refile as log entry" command for phone captures.
 
 **Handoff:** Not started. Tim wants to save as he types (likely
 `auto-save-visited-mode`, which saves on idle): measure a save's cost
-once org-node re-indexes on save; item 5's staging adds under 1 µs.
+once org-node re-indexes on save; item 5's staging adds about
+0.7 ms on a 500 kB file.
 First settle how image links survive a move (item 5 review r3 F2). Saving as (`C-x C-w`) into another
 folder breaks them the same way. Links are relative to the note, so
 refiling a heading from `inbox.org` into `notes/coding.org` leaves
