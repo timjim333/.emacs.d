@@ -779,7 +779,16 @@ An indirect view keeps the settings it was opened with, which its base
 buffer's first save or `C-x C-w' can make stale."
   (tim/org-set-attachment-dir))
 
-;; Loaded with Org, as loading it is what lets it take dropped files.
+(defun tim/org-download-take-drops ()
+  "Let org-download take dropped files and data in this Org buffer.
+Org puts its own handler first in a buffer-local list, which asks
+whether to attach, open, or link the file."
+  (setq-local dnd-protocol-alist
+              (append '(("^\\(https?\\|ftp\\|file\\|nfs\\):" . org-download-dnd)
+                        ("^data:" . org-download-dnd-base64))
+                      dnd-protocol-alist)))
+
+;; Loaded with Org, so its drop handler is there from the first Org buffer.
 (use-package org-download
   :after org
   :demand t
@@ -794,7 +803,8 @@ buffer's first save or `C-x C-w' can make stale."
   (setq org-download-annotate-function #'tim/org-download-note-web-source)
   (advice-add 'org-download-image :around #'tim/org-download-heic-as-webp)
   ;; Every way in (paste, screenshot, drop) passes through it.
-  (advice-add 'org-download-image :before #'tim/org-download-refresh-dir))
+  (advice-add 'org-download-image :before #'tim/org-download-refresh-dir)
+  (add-hook 'org-mode-hook #'tim/org-download-take-drops))
 
 (setq image-use-external-converter t)
 #+end_src
