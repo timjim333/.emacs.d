@@ -1,7 +1,7 @@
 ;;; org-rendering-test.el --- Item 5 round 2 tests -*- lexical-binding: t -*-
 
 ;; Author: Tim Jim
-;; Date: 2026-10-31
+;; Date: 2026-11-01
 
 ;;; Commentary:
 
@@ -177,6 +177,13 @@ Fails if Org renames the internal function the pin overrides."
     (should-not olivetti-mode)
     (call-interactively (key-binding (kbd "C-c o")))
     (should olivetti-mode)))
+
+(ert-deftest tim/org-download-handles-drops-from-start ()
+  "Opening an Org file is enough for a dropped image to go through
+org-download.  This file doesn't load org-download itself, so the
+config must."
+  (tim/test-with-org "* Heading\n"
+    (should (rassq 'org-download-dnd dnd-protocol-alist))))
 
 (ert-deftest tim/org-directory-is-notes-folder ()
   "Org looks for notes in ~/org/."

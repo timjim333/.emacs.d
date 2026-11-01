@@ -361,6 +361,33 @@ in attachments/ under the root, not beside the note."
       (should (file-directory-p
                (expand-file-name "org/attachments/topics/new" root))))))
 
+(ert-deftest tim/org-refused-folder-moves-nothing ()
+  "Answering no to creating a new note's missing folder stops the save
+before any staged image moves, so the draft still has them; yes asks
+only once."
+  (tim/test-with-notes ((note "typo/new.org")
+                        (png "clip.png"))
+    (tim/test-make-image png)
+    (find-file note)
+    (org-download-image png)
+    (let ((staging tim/org-staging-dir)
+          (text (buffer-string))
+          (asked 0))
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (&rest _) nil)))
+        (should-error (save-buffer)))
+      (should (equal tim/org-staging-dir staging))
+      (should (equal (buffer-string) text))
+      (should (= (length (tim/test-staged-files)) 1))
+      (should-not (file-exists-p (expand-file-name "attachments" root)))
+      (cl-letf (((symbol-function 'y-or-n-p)
+                 (lambda (&rest _) (cl-incf asked) t)))
+        (save-buffer))
+      (should (= asked 1))
+      (should (file-exists-p note))
+      (should (string-match-p
+               "\\[\\[file:\\.\\./attachments/typo/new/[^]/]+\\.png\\]\\]"
+               (buffer-string))))))
+
 (defun tim/test-indirect-view (base)
   "Open a C-c C-x b view of BASE's first heading and return it."
   (with-current-buffer base
@@ -453,6 +480,26 @@ so the draft's own link still works."
           (set-buffer-modified-p nil)
           (kill-buffer))))))
 
+(ert-deftest tim/org-save-copies-other-emacs-images ()
+  "A link into a folder another running Emacs stages is refiled as a
+copy, as that Emacs's draft still links the file."
+  (tim/test-with-notes ((note "topics/aviation.org"))
+    (let ((other (start-process "other-emacs" nil
+                                (expand-file-name invocation-name
+                                                  invocation-directory)
+                                "-Q" "--batch" "--eval" "(sleep-for 60)")))
+      (unwind-protect
+          (let ((staged (tim/test-stage
+                         (format "buffer-%d-abc" (process-id other)) "x.png")))
+            (tim/test-open-note note)
+            (insert "[[file:" staged "]]\n")
+            (save-buffer)
+            (should (file-exists-p staged))
+            (should (file-exists-p
+                     (expand-file-name "attachments/topics/aviation/x.png"
+                                       root))))
+        (delete-process other)))))
+
 (ert-deftest tim/org-staging-folder-names-its-emacs ()
   "A staging folder's name holds this Emacs's PID, so a later clean-up
 can tell whether its Emacs is still running."
@@ -469,7 +516,8 @@ can tell whether its Emacs is still running."
 (ert-deftest tim/org-staging-clean-deletes-orphans-only ()
   "The clean-up deletes folders whose Emacs has gone, keeping any an
 auto-save file names (they may still be recovered) and any whose Emacs
-is running."
+is running.  The auto-save folder holds a sessions/ folder, as
+no-littering makes one there."
   (tim/test-with-notes ()
     (let* ((tim/org-auto-save-directory (expand-file-name "auto-save/" root))
            (live (file-name-directory
@@ -478,7 +526,8 @@ is running."
                   (tim/test-stage "buffer-999999999-dead" "b.png")))
            (old (file-name-directory (tim/test-stage "buffer-old" "c.png")))
            (saved (tim/test-stage "buffer-999999999-saved" "d.png")))
-      (make-directory tim/org-auto-save-directory)
+      (make-directory (expand-file-name "sessions/" tim/org-auto-save-directory)
+                      t)
       (with-temp-file (expand-file-name "#!draft#" tim/org-auto-save-directory)
         (insert "* Heading\n[[file:" saved "]]\n"))
       (should (equal (sort (mapcar #'car (tim/org-orphan-staging-folders))
