@@ -536,14 +536,33 @@ when a first save changes the buffer's folder."
                           folder)))
             (buffer-list)))
 
+(defun tim/org-staging-emacs-live-p (folder)
+  "Non-nil if FOLDER's name holds the PID of a running Emacs."
+  (let ((name (file-name-nondirectory (directory-file-name folder))))
+    (and (string-match "\\`buffer-\\([0-9]+\\)-" name)
+         (string-prefix-p
+          "emacs"
+          (or (alist-get 'comm (process-attributes
+                                (string-to-number (match-string 1 name))))
+              "")))))
+
+(defun tim/org-staging-elsewhere-p (folder)
+  "Non-nil if another draft still stages into FOLDER: an open buffer
+here, or another running Emacs."
+  (let ((owner (tim/org-staging-owner folder)))
+    (or (and owner (not (eq owner (current-buffer))))
+        (and (not (string-prefix-p
+                   (format "buffer-%d-" (emacs-pid))
+                   (file-name-nondirectory (directory-file-name folder))))
+             (tim/org-staging-emacs-live-p folder)))))
+
 (defun tim/org-refile-staged-image (file dir)
   "Move the staged FILE into DIR and relink it from this buffer.
 Copies it instead if another draft still stages it, and deletes a
 staging folder it empties."
   (let* ((target (expand-file-name (file-name-nondirectory file) dir))
-         (folder (file-name-directory file))
-         (owner (tim/org-staging-owner folder)))
-    (if (and owner (not (eq owner (current-buffer))))
+         (folder (file-name-directory file)))
+    (if (tim/org-staging-elsewhere-p folder)
         (copy-file file target)
       (rename-file file target)
       (when (directory-empty-p folder)
@@ -562,7 +581,9 @@ text links from elsewhere (an auto-save recovered after a crash) moves
 too, or is copied if a draft still open stages it.  Runs before each
 write, so the file is written with links relative to it, and returns
 nil so the write goes ahead.  Stops the save, moving nothing, if a
-name is already taken there."
+name is already taken there.  Asks about a missing folder for the note
+itself, which Emacs would otherwise ask only after the move, so that
+no stops the save before anything moves."
   (when (and buffer-file-name (not (buffer-base-buffer)))
     (let ((files (seq-filter
                   #'file-exists-p
@@ -575,6 +596,7 @@ name is already taken there."
                            (tim/org-staged-links))))))
       (when files
         (let ((dir (tim/org-note-attachment-dir buffer-file-name))
+              (parent (file-name-directory buffer-file-name))
               names)
           (dolist (file files)
             (let ((name (file-name-nondirectory file)))
@@ -583,6 +605,11 @@ name is already taken there."
                 (user-error "Can't move staged image %s: %s has a file of that name"
                             file dir))
               (push name names)))
+          (unless (file-exists-p parent)
+            (if (y-or-n-p (format-message
+                           "Directory `%s' does not exist; create? " parent))
+                (make-directory parent t)
+              (error "Canceled")))
           (make-directory dir t)
           (dolist (file files)
             (tim/org-refile-staged-image file dir))))
@@ -632,16 +659,6 @@ name clears it, so this runs again then."
 (add-hook 'org-mode-hook #'tim/org-setup-attachments)
 (add-hook 'kill-emacs-hook #'tim/org-discard-all-staged-images)
 
-(defun tim/org-staging-emacs-live-p (folder)
-  "Non-nil if FOLDER's name holds the PID of a running Emacs."
-  (let ((name (file-name-nondirectory (directory-file-name folder))))
-    (and (string-match "\\`buffer-\\([0-9]+\\)-" name)
-         (string-prefix-p
-          "emacs"
-          (or (alist-get 'comm (process-attributes
-                                (string-to-number (match-string 1 name))))
-              "")))))
-
 (defun tim/org-orphan-staging-folders ()
   "Return the staging folders whose Emacs has gone, as (FOLDER . FILES).
 FILES are the auto-save files that link into FOLDER.  A folder named
@@ -652,8 +669,11 @@ without a PID (made before PIDs were added) counts as gone."
                                 (insert-file-contents file)
                                 (buffer-string))))
                  (and (file-directory-p tim/org-auto-save-directory)
-                      (directory-files tim/org-auto-save-directory t
-                                       directory-files-no-dot-files-regexp))))
+                      ;; Not sessions/, which no-littering puts there.
+                      (seq-filter #'file-regular-p
+                                  (directory-files
+                                   tim/org-auto-save-directory t
+                                   directory-files-no-dot-files-regexp)))))
         (folders (and (file-directory-p tim/org-staging-directory)
                       (directory-files tim/org-staging-directory t
                                        directory-files-no-dot-files-regexp))))
@@ -759,9 +779,10 @@ An indirect view keeps the settings it was opened with, which its base
 buffer's first save or `C-x C-w' can make stale."
   (tim/org-set-attachment-dir))
 
+;; Loaded with Org, as loading it is what lets it take dropped files.
 (use-package org-download
   :after org
-  :commands (org-download-image org-download-screenshot)
+  :demand t
   :bind (:map org-mode-map
          ("C-c i" . tim/org-paste-image)
          ("C-c I" . org-download-screenshot))
