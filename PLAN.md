@@ -365,8 +365,11 @@ Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
 31 Oct and once on 1 Nov, passing on re-runs; the 1 Nov detail
 wasn't kept): captured once as `light.png is 688x680`,
 the config's start-up frame size, while `dark.png` from the same run
-was right. So the new frame had its size and later went back to it
-between shots; not the 5 s wait. Hypothesis, unproven: PlasmaZones
+was right. On 1 Nov evening it was `dark.png` instead, the first
+shot (log kept: `/tmp/screenshot-test.FV4pbV`,
+`/tmp/emacs-screenshot.EdJrUN`), so it isn't specific to the second
+frame. The frame had its size and later went back to it; not the 5 s
+wait. Hypothesis, unproven: PlasmaZones
 restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
@@ -381,7 +384,9 @@ its weekly quota left, resetting about 6 Nov): 4 Findings, all
 accepted ([record](docs/reviews/2026-11-01-item-5-diff-r8.md)). F1
 (quit deletes staging an auto-save links) and F2 (unlinked staged
 images kept) went with the staging, per F3's option B; F4 `test/gui-ert`
-now fails a file with no tests. Red tests `9d89028`.
+now fails a file with no tests. Red tests `9d89028`, fix `30b26d0`.
+After it, every suite and all four `test/*-test.el` files passed
+(1 Nov), screenshot-test on a re-run (below).
 
 Next: review round 9 with Argon (Manual run) once its quota resets.
 Item 5 merges only after a clean Argon round. When a round needs no
