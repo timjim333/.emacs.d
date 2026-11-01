@@ -389,8 +389,10 @@ Review round 7 (head `84a2057`), Argon: 5 Findings, all accepted
 ([record](docs/reviews/2026-11-01-item-5-diff-r7.md)). Red tests
 `3cc9d63`, fixes `14e5a46`: F1 the refile asks about a new note's
 missing folder first, F2 the clean-up skips `sessions/`, F3 copy for
-another live Emacs, F4 org-download loads with Org (`:demand t`) so
-drops reach it, F5 the cost figure above. Every suite and all four
+another live Emacs, F4 org-download loads with Org (`:demand t`) and
+(red `fab1b13`, fix `039462c`, after Tim's screen check still got Org's
+prompt) goes ahead of Org 9.7's buffer-local drop handler, F5 the cost
+figure above. Tim to recheck a real drop at the screen. Every suite and all four
 `test/*-test.el` files passed after the fixes (1 Nov).
 
 Next: review round 8 (Argon, Manual run). When a round needs no code
