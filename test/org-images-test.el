@@ -126,12 +126,41 @@ why; nothing is written."
             (cl-letf (((symbol-function 'shell-command)
                        (lambda (&rest _) (error "Took a screenshot"))))
               (should-error (org-download-screenshot) :type 'user-error))
+            (should-error (tim/test-drop png) :type 'user-error)
             (should (equal (buffer-string) text))
             (should (equal (directory-files root nil
                                             directory-files-no-dot-files-regexp)
                            '("clip.png"))))
         (set-buffer-modified-p nil)
         (kill-buffer)))))
+
+(defun tim/test-drop (file)
+  "Drop FILE on the selected window, as dragging it from Dolphin does."
+  (dnd-handle-multiple-urls (selected-window)
+                            (list (concat "file://" file)) 'copy))
+
+(ert-deftest tim/org-dropped-image-goes-to-note-folder ()
+  "Dropping an image file on a note adds it to the note's folder."
+  (tim/test-with-notes ((note "topics/aviation.org")
+                        (png "clip.png"))
+    (tim/test-make-image png)
+    (tim/test-open-note note)
+    (tim/test-drop png)
+    (should (string-match-p
+             "\\[\\[file:\\.\\./attachments/topics/aviation/[^]/]+\\.png\\]\\]"
+             (buffer-string)))))
+
+(ert-deftest tim/org-dropped-other-file-goes-to-org ()
+  "Dropping a file that isn't an image leaves it to Org's own handler,
+which links it in place rather than copying it."
+  (tim/test-with-notes ((note "topics/aviation.org")
+                        (pdf "paper.pdf"))
+    (with-temp-file pdf (insert "%PDF-1.4\n"))
+    (tim/test-open-note note)
+    (let ((org-yank-dnd-method 'file-link))
+      (tim/test-drop pdf))
+    (should (string-search "paper.pdf]]" (buffer-string)))
+    (should-not (file-exists-p (expand-file-name "attachments" root)))))
 
 (ert-deftest tim/org-write-file-moves-attachment-dir ()
   "After C-x C-w to a new name, new images go to the new note's folder."

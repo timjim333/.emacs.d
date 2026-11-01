@@ -179,15 +179,15 @@ Fails if Org renames the internal function the pin overrides."
     (should olivetti-mode)))
 
 (ert-deftest tim/org-download-handles-drops-from-start ()
-  "Opening an Org file is enough for a dropped image to go through
-org-download, ahead of Org's own drop handler.  This file doesn't load
+  "Opening an Org file is enough for a dropped file to reach the
+config's handler, ahead of Org's own drop handler.  This file doesn't load
 org-download itself, so the config must."
   (tim/test-with-org "* Heading\n"
     (dolist (uri '("file:///tmp/x.png" "file:/tmp/x.png"))
       (should (eq (cdr (seq-find (lambda (entry)
                                    (string-match-p (car entry) uri))
                                  dnd-protocol-alist))
-                  'org-download-dnd)))))
+                  'tim/org-download-dnd)))))
 
 (ert-deftest tim/org-directory-is-notes-folder ()
   "Org looks for notes in ~/org/."
