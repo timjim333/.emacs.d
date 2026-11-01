@@ -374,8 +374,11 @@ the config's start-up frame size, while `dark.png` from the same run
 was right. On 1 Nov evening it was `dark.png` instead, the first
 shot (log kept: `/tmp/screenshot-test.FV4pbV`,
 `/tmp/emacs-screenshot.EdJrUN`), so it isn't specific to the second
-frame. The frame had its size and later went back to it; not the 5 s
-wait. Hypothesis, unproven: PlasmaZones
+frame. Later the same evening a different case failed: "a shot
+larger than 1600x900 fails" passed its oversized shot (kept:
+`/tmp/screenshot-test.xkVFcR`, `/tmp/emacs-screenshot.U25YVe`), so
+frames also get pulled to the usual size. Both passed on a re-run.
+The frame size isn't what Emacs asked for; not the 5 s wait. Hypothesis, unproven: PlasmaZones
 restoring its remembered geometry late. Next: loop the test with
 PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
