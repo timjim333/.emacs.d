@@ -1,0 +1,20 @@
+{
+  "route": "automated",
+  "reviewer": "sonnet",
+  "fallback": false,
+  "model": "claude-sonnet-5-5",
+  "model_version": "claude-sonnet-5-5",
+  "effort": "high",
+  "cost_usd": 1.25481,
+  "tokens": {
+    "prompt": 267701,
+    "answer": 1726,
+    "thinking": 16675,
+    "total": 286102
+  },
+  "attempts": 1,
+  "started": "2026-11-01T11:16:34+00:00",
+  "finished": "2026-11-01T11:18:58+00:00",
+  "base": "eb8b2bcda0fe6fe2c501ccf52cec1fdbcd363175",
+  "head": "bda9ed99caac44f31c19c04408624dba7ac441b6"
+}

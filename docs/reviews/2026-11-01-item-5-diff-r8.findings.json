@@ -1,0 +1,44 @@
+{
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "major",
+      "category": "bug",
+      "location": "config.org: tim/org-discard-all-staged-images (kill-emacs-hook)",
+      "claim": "On any `kill-emacs`, the quit hook deletes every staging folder without asking and without checking auto-save files. That includes `systemctl --user restart emacs`, SIGTERM at logout, and `emacsclient -e '(kill-emacs)'`. The auto-saved text of a new note (opened with C-x C-f) can still link those images, so after recovery its links are dead.",
+      "evidence": "`(add-hook 'kill-emacs-hook #'tim/org-discard-all-staged-images)` calls `delete-directory ... t` on each buffer's `tim/org-staging-dir`. Nothing in that path looks at `var/auto-save/`. Yet `tim/org-download-staging-clean` and the handoff (\"keeping any an auto-save in var/auto-save/ links\") treat auto-save-linked folders as the only copy worth keeping, and the Round 5 note says staged images \"are the only copy\". The two mechanisms contradict each other. PLAN's merge steps themselves restart the daemon, and a draft with modified text is only prompted about by `save-buffers-kill-emacs`, not by `kill-emacs`. I did not run this; I am reasoning from the code and from my memory that Emacs runs `kill-emacs-hook` on SIGTERM.",
+      "alternative": "Make the quit hook apply the same rule as the clean-up: delete only folders that no auto-save file links. Or delete on quit only when `save-buffers-kill-emacs` was used interactively. Or drop the quit hook and leave cleanup to `tim/org-download-staging-clean`.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F2",
+      "severity": "minor",
+      "category": "bug",
+      "location": "config.org: tim/org-refile-staged-images",
+      "claim": "The first save moves every file in the buffer's own staging folder into the note's attachment folder, whether or not the text still links it. An image pasted and then deleted from the text is therefore kept, synced, and pushed to GitHub and Drive. The docs say unlinked staged images are discarded with the text.",
+      "evidence": "`files` is built as `(append (directory-files tim/org-staging-dir ...) (tim/org-staged-links))`, so the folder listing is used regardless of what the buffer text links. config.org says images are \"discarded with its text\". Scenario: C-c i pastes a screenshot of something private, the user deletes the link line, then saves. The PNG lands in `attachments/<note>/` and is committed by the hourly job.",
+      "alternative": "Move only files that `tim/org-staged-links` finds in the text. Delete the rest of the staging folder at first save, as the kill path already does.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F3",
+      "severity": "minor",
+      "category": "design",
+      "location": "config.org: Images section (staging, tim/org-download-staging-clean)",
+      "claim": "Pasting into a buffer with no file grew into a staging subsystem: PID-named folders, live-Emacs detection through `process-attributes`, auto-save scanning, a clean-up command, copy-vs-move rules between Emacs processes, and four hooks. That is far beyond item 5's goals and conflicts with the project's \"surgical changes, no speculative features\" convention. Each review round has added more code to it.",
+      "evidence": "The item 5 Goal is \"images (org-download, relative links, ...)\". The original Finding (r4 F10) asked only that `C-c i` refuse, or set the folder, when `buffer-file-name` is nil. Since then the code has grown to roughly 250 lines and now includes cross-process PID heuristics (comm prefix \"emacs\"). Almost every round-5 to round-7 Finding was a bug in this machinery, and F1 and F2 above are still open.",
+      "alternative": "`user-error \"Save the buffer before adding an image\"` when the buffer has no file or the file isn't on disk yet. Staging can come back later if it is actually missed.",
+      "confidence": "medium"
+    },
+    {
+      "id": "F4",
+      "severity": "minor",
+      "category": "test-gap",
+      "location": "test/gui-ert.el:tim/gui-ert-run",
+      "claim": "`test/gui-ert` exits 0 when the test file defines no ERT tests, or when none of them is selected. A typo in a test file, or a file that only `require`s things, reports success.",
+      "evidence": "The run uses `(ert-run-tests-batch t)` and exits via `(kill-emacs (if (zerop failed) 0 1))`, where `failed` is `(ert-stats-completed-unexpected stats)`. With zero tests, `failed` is 0 and the exit is 0. The runner never checks `(ert-stats-total stats)`. PLAN's merge gate is \"run every test/*-test.el file\".",
+      "alternative": "Fail when `(zerop (ert-stats-total stats))`, and add a `test/gui-ert-test` case with an empty test file.",
+      "confidence": "medium"
+    }
+  ]
+}
