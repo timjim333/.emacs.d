@@ -435,36 +435,15 @@ Images live in =~/org/attachments/=, in a folder per note that mirrors
 the note's path (=topics/aviation.org= → =attachments/topics/aviation/=),
 and are linked with relative =file:= links so every Device can open
 them. Files outside =~/org= get =attachments/<name>/= beside them.
-In a buffer not yet written to disk (no file, or a new note from
-=C-x C-f=), images wait in a staging folder under
-=~/.local/share/emacs/var/org-download-staging/= and move to the note's
-folder on its first save; killing the buffer unsaved, or quitting,
-discards them with its text. =C-x C-w= sends new images to the new
-name's folder but leaves earlier ones where they are. Every save moves
-any staged image the text links into the note's folder, so a draft
-recovered after a crash (=M-x recover-file=) is fixed when saved; one
-linked from a draft still open is copied instead. A crash leaves its
-staging folders behind: =M-x tim/org-download-staging-clean= lists and
-deletes them, keeping any an auto-save file still links.
+A new note from =C-x C-f= adds images to its folder before its first
+save. A buffer with no file refuses, as it has no folder yet; save it
+first. =C-x C-w= sends new images to the new name's folder but leaves
+earlier ones where they are, and a new note never saved leaves its
+images behind in its folder.
 Images show inline, 400 pixels wide unless a =#+attr_org: :width= says
 otherwise.
 
 #+begin_src emacs-lisp
-(defvar tim/org-staging-directory
-  (no-littering-expand-var-file-name "org-download-staging/")
-  "Where images added to a buffer not yet written wait for its first save.")
-
-(defvar tim/org-auto-save-directory
-  (no-littering-expand-var-file-name "auto-save/")
-  "Where auto-save files go; the staging clean-up keeps folders they link.")
-
-(defvar-local tim/org-staging-dir nil
-  "This buffer's folder under `tim/org-staging-directory', or nil.
-Non-nil until the buffer is first written.")
-;; Kept when Org restarts (C-c C-c on a #+ line), or the staged images
-;; would be left behind.
-(put 'tim/org-staging-dir 'permanent-local t)
-
 (defun tim/org-note-attachment-dir (file)
   "Return the folder for images added to FILE.
 Notes under `org-directory' use attachments/<note path>/ there; other
@@ -483,14 +462,12 @@ files use attachments/<file name>/ beside them."
                          (file-name-directory file))))))
 
 (defun tim/org-attachment-dir ()
-  "Return the folder for images added to the current buffer.
-An indirect buffer (such as a capture) uses its base buffer's folder,
-and a buffer not yet written uses its staging folder."
-  (cond
-   ((buffer-base-buffer)
-    (with-current-buffer (buffer-base-buffer) (tim/org-attachment-dir)))
-   (tim/org-staging-dir)
-   (t (tim/org-note-attachment-dir buffer-file-name))))
+  "Return the folder for images added to the current buffer, or nil.
+An indirect buffer (such as a capture) uses its base buffer's folder;
+a buffer with no file has none."
+  (if (buffer-base-buffer)
+      (with-current-buffer (buffer-base-buffer) (tim/org-attachment-dir))
+    (and buffer-file-name (tim/org-note-attachment-dir buffer-file-name))))
 
 (defun tim/org-link-path (file)
   "Return FILE relative to the current buffer's folder, for a link.
@@ -505,215 +482,18 @@ than through the real folder."
                                           (current-buffer))))))
 
 (defun tim/org-set-attachment-dir ()
-  "Point org-download at this buffer's attachment folder.
-Staged images are linked by absolute path, so the links still work
-when a first save changes the buffer's folder."
+  "Point org-download at this buffer's attachment folder."
   (setq-local org-download-image-dir (tim/org-attachment-dir))
-  (setq-local org-download-abbreviate-filename-function
-              (if (string-prefix-p tim/org-staging-directory
-                                   org-download-image-dir)
-                  #'expand-file-name
-                #'tim/org-link-path)))
-
-(defun tim/org-staged-links ()
-  "Return the files under `tim/org-staging-directory' this buffer links."
-  (let ((re (concat "file:\\(" (regexp-quote tim/org-staging-directory)
-                    "[^]\n]+\\)"))
-        files)
-    (save-excursion
-      (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (while (re-search-forward re nil t)
-          (push (match-string-no-properties 1) files))))
-    (delete-dups (nreverse files))))
-
-(defun tim/org-staging-owner (folder)
-  "Return the buffer, not an indirect one, staging into FOLDER, or nil."
-  (seq-find (lambda (buffer)
-              (and (not (buffer-base-buffer buffer))
-                   (equal (buffer-local-value 'tim/org-staging-dir buffer)
-                          folder)))
-            (buffer-list)))
-
-(defun tim/org-staging-emacs-live-p (folder)
-  "Non-nil if FOLDER's name holds the PID of a running Emacs."
-  (let ((name (file-name-nondirectory (directory-file-name folder))))
-    (and (string-match "\\`buffer-\\([0-9]+\\)-" name)
-         (string-prefix-p
-          "emacs"
-          (or (alist-get 'comm (process-attributes
-                                (string-to-number (match-string 1 name))))
-              "")))))
-
-(defun tim/org-staging-elsewhere-p (folder)
-  "Non-nil if another draft still stages into FOLDER: an open buffer
-here, or another running Emacs."
-  (let ((owner (tim/org-staging-owner folder)))
-    (or (and owner (not (eq owner (current-buffer))))
-        (and (not (string-prefix-p
-                   (format "buffer-%d-" (emacs-pid))
-                   (file-name-nondirectory (directory-file-name folder))))
-             (tim/org-staging-emacs-live-p folder)))))
-
-(defun tim/org-refile-staged-image (file dir)
-  "Move the staged FILE into DIR and relink it from this buffer.
-Copies it instead if another draft still stages it, and deletes a
-staging folder it empties."
-  (let* ((target (expand-file-name (file-name-nondirectory file) dir))
-         (folder (file-name-directory file)))
-    (if (tim/org-staging-elsewhere-p folder)
-        (copy-file file target)
-      (rename-file file target)
-      (when (directory-empty-p folder)
-        (delete-directory folder)))
-    (save-excursion
-      (save-restriction
-        (widen)
-        (goto-char (point-min))
-        (while (search-forward (concat "file:" file) nil t)
-          (replace-match (concat "file:" (tim/org-link-path target)) t t))))))
-
-(defun tim/org-refile-staged-images ()
-  "Move staged images this buffer holds or links to its attachment folder.
-Its own staging folder empties on the first write.  A staged file the
-text links from elsewhere (an auto-save recovered after a crash) moves
-too, or is copied if a draft still open stages it.  Runs before each
-write, so the file is written with links relative to it, and returns
-nil so the write goes ahead.  Stops the save, moving nothing, if a
-name is already taken there.  Asks about a missing folder for the note
-itself, which Emacs would otherwise ask only after the move, so that
-no stops the save before anything moves."
-  (when (and buffer-file-name (not (buffer-base-buffer)))
-    (let ((files (seq-filter
-                  #'file-exists-p
-                  (delete-dups
-                   (append (and tim/org-staging-dir
-                                (file-directory-p tim/org-staging-dir)
-                                (directory-files
-                                 tim/org-staging-dir t
-                                 directory-files-no-dot-files-regexp))
-                           (tim/org-staged-links))))))
-      (when files
-        (let ((dir (tim/org-note-attachment-dir buffer-file-name))
-              (parent (file-name-directory buffer-file-name))
-              names)
-          (dolist (file files)
-            (let ((name (file-name-nondirectory file)))
-              (when (or (member name names)
-                        (file-exists-p (expand-file-name name dir)))
-                (user-error "Can't move staged image %s: %s has a file of that name"
-                            file dir))
-              (push name names)))
-          (unless (file-exists-p parent)
-            (if (y-or-n-p (format-message
-                           "Directory `%s' does not exist; create? " parent))
-                (make-directory parent t)
-              (error "Canceled")))
-          (make-directory dir t)
-          (dolist (file files)
-            (tim/org-refile-staged-image file dir))))
-      (when tim/org-staging-dir
-        (when (file-directory-p tim/org-staging-dir)
-          (delete-directory tim/org-staging-dir))
-        (setq tim/org-staging-dir nil)
-        (tim/org-set-attachment-dir))
-      (when files
-        (org-link-preview-refresh))))
-  nil)
-
-(defun tim/org-discard-staged-images ()
-  "Delete this buffer's staged images, as its text is being discarded.
-An indirect buffer leaves them to its base buffer."
-  (when (and tim/org-staging-dir (not (buffer-base-buffer))
-             (file-directory-p tim/org-staging-dir))
-    (delete-directory tim/org-staging-dir t)))
-
-(defun tim/org-discard-all-staged-images ()
-  "Delete the staged images of every buffer, as Emacs quits.
-Only this Emacs's buffers: another Emacs may be staging images too."
-  (dolist (buffer (buffer-list))
-    (with-current-buffer buffer (tim/org-discard-staged-images))))
+  (setq-local org-download-abbreviate-filename-function #'tim/org-link-path))
 
 (defun tim/org-setup-attachments ()
-  "Set this Org buffer's attachment folder, and keep it right as the
-buffer's file changes.  A buffer whose file isn't on disk yet stages
-its images until it's written.  The refile goes on
-`write-file-functions', not `before-save-hook': that runs before a
-first save asks for the name, and ignores errors.  Changing the file
-name clears it, so this runs again then."
-  (when (and (not (buffer-base-buffer)) (not tim/org-staging-dir)
-             (not (and buffer-file-name (file-exists-p buffer-file-name))))
-    (setq tim/org-staging-dir
-          (file-name-as-directory
-           ;; The PID tells the clean-up whether this Emacs is running.
-           (make-temp-name
-            (expand-file-name (format "buffer-%d-" (emacs-pid))
-                              tim/org-staging-directory)))))
+  "Set this Org buffer's attachment folder, and again whenever its file
+name changes (`C-x C-w', or a first save of a buffer with no file)."
   (tim/org-set-attachment-dir)
-  (add-hook 'after-set-visited-file-name-hook #'tim/org-setup-attachments
-            nil t)
-  (add-hook 'write-file-functions #'tim/org-refile-staged-images nil t)
-  (add-hook 'kill-buffer-hook #'tim/org-discard-staged-images nil t))
+  (add-hook 'after-set-visited-file-name-hook #'tim/org-set-attachment-dir
+            nil t))
 
 (add-hook 'org-mode-hook #'tim/org-setup-attachments)
-(add-hook 'kill-emacs-hook #'tim/org-discard-all-staged-images)
-
-(defun tim/org-orphan-staging-folders ()
-  "Return the staging folders whose Emacs has gone, as (FOLDER . FILES).
-FILES are the auto-save files that link into FOLDER.  A folder named
-without a PID (made before PIDs were added) counts as gone."
-  (let ((auto-saves
-         (mapcar (lambda (file)
-                   (cons file (with-temp-buffer
-                                (insert-file-contents file)
-                                (buffer-string))))
-                 (and (file-directory-p tim/org-auto-save-directory)
-                      ;; Not sessions/, which no-littering puts there.
-                      (seq-filter #'file-regular-p
-                                  (directory-files
-                                   tim/org-auto-save-directory t
-                                   directory-files-no-dot-files-regexp)))))
-        (folders (and (file-directory-p tim/org-staging-directory)
-                      (directory-files tim/org-staging-directory t
-                                       directory-files-no-dot-files-regexp))))
-    (mapcar (lambda (folder)
-              (cons folder
-                    (mapcar #'car (seq-filter (lambda (saved)
-                                                (string-search folder (cdr saved)))
-                                              auto-saves))))
-            (seq-remove #'tim/org-staging-emacs-live-p
-                        (mapcar #'file-name-as-directory
-                                (seq-filter #'file-directory-p folders))))))
-
-(defun tim/org-download-staging-clean ()
-  "Delete staging folders left by an Emacs that has gone.
-A crash or `kill -9' skips the clean-up on quit.  Lists the folders
-first and asks; keeps any an auto-save file links into, since
-recovering that file (`M-x recover-file') and saving it refiles them."
-  (interactive)
-  (let* ((orphans (tim/org-orphan-staging-folders))
-         (doomed (mapcar #'car (seq-remove #'cdr orphans))))
-    (if (null orphans)
-        (message "No leftover staging folders")
-      (with-output-to-temp-buffer "*Staging clean-up*"
-        (dolist (orphan orphans)
-          (princ (format "%s  %d file(s)  %s\n" (car orphan)
-                         (length (directory-files
-                                  (car orphan) nil
-                                  directory-files-no-dot-files-regexp))
-                         (if (cdr orphan)
-                             (concat "kept: linked from "
-                                     (string-join (cdr orphan) ", "))
-                           "to delete")))))
-      (if (and doomed
-               (yes-or-no-p (format "Delete the %d folder(s) marked \"to delete\"? "
-                                    (length doomed))))
-          (progn
-            (dolist (folder doomed)
-              (delete-directory folder t))
-            (message "Deleted %d staging folder(s)" (length doomed)))
-        (message "Deleted nothing")))))
 
 (setq org-startup-with-inline-images t
       org-image-actual-width        '(400))
@@ -776,7 +556,10 @@ empty file."
 (defun tim/org-download-refresh-dir (&rest _)
   "Point org-download at the right folder just before adding an image.
 An indirect view keeps the settings it was opened with, which its base
-buffer's first save or `C-x C-w' can make stale."
+buffer's first save or `C-x C-w' can make stale.  Refuses in a buffer
+with no file, before a screenshot is taken."
+  (unless (tim/org-attachment-dir)
+    (user-error "Save this buffer to a file before adding an image"))
   (tim/org-set-attachment-dir))
 
 (defun tim/org-download-take-drops ()
@@ -802,8 +585,9 @@ whether to attach, open, or link the file."
   ;; A plain variable, not a user option, so :custom can't set it.
   (setq org-download-annotate-function #'tim/org-download-note-web-source)
   (advice-add 'org-download-image :around #'tim/org-download-heic-as-webp)
-  ;; Every way in (paste, screenshot, drop) passes through it.
+  ;; Every way in (paste, screenshot, drop) passes through the first.
   (advice-add 'org-download-image :before #'tim/org-download-refresh-dir)
+  (advice-add 'org-download-screenshot :before #'tim/org-download-refresh-dir)
   (add-hook 'org-mode-hook #'tim/org-download-take-drops))
 
 (setq image-use-external-converter t)

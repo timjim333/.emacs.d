@@ -36,10 +36,14 @@ and exits at once with status 1."
      (let* ((message-log-max t)
             (start (with-current-buffer (messages-buffer) (point-max)))
             (stats (ert-run-tests-batch t))
-            (failed (ert-stats-completed-unexpected stats)))
+            (failed (ert-stats-completed-unexpected stats))
+            (none (zerop (ert-stats-total stats))))
        (with-temp-file (getenv "GUI_ERT_REPORT")
          (insert (with-current-buffer (messages-buffer)
-                   (buffer-substring start (point-max)))))
-       (kill-emacs (if (zerop failed) 0 1))))))
+                   (buffer-substring start (point-max))))
+         ;; A file with a typo'd or missing test mustn't pass.
+         (when none
+           (insert "FAIL: no tests ran\n")))
+       (kill-emacs (if (and (zerop failed) (not none)) 0 1))))))
 
 ;;; gui-ert.el ends here

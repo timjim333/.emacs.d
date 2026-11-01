@@ -281,19 +281,20 @@ Decisions (Tim agreed):
   only. casual on `C-o` in Dired and the Agenda. org-present enlarges,
   hides the cursor, and is read-only; focus by `M-x focus-mode`. Test
   (a) calls the hook directly; a test can't flip KDE's mode.
-- Images in a buffer not yet written (r4 F10, r5 F4): staged under
-  `~/.local/share/emacs/var/org-download-staging/<buffer>/` with
-  absolute links, moved to the note's folder on the first save, and
-  deleted when the buffer is killed unsaved or Emacs quits, as its
-  text is discarded too. Not `~/.cache`: they're the only copy. A name
-  clash stops the save. `C-x C-w` sends new images to the new name's
-  folder and leaves earlier ones. Indirect buffers (capture, `C-c C-x
-  b`) defer to the base buffer, which alone refiles or discards. Links
-  are relative between true names, so a symlinked notes root works.
-  Every save scans the text for staged links: 0.74 ms on a 508 kB
-  file with 6000 `file:` links (1 Nov, after `e31ce6c`). A missing
-  folder for a new note is asked about before anything moves (r7 F1).
-  A file another live Emacs stages is copied, not moved (r7 F3).
+- Images and file names (r8 F3, option B, Tim agreed 1 Nov): a
+  buffer with a file name, on disk or not, adds images straight to its
+  note's folder with relative links; a buffer with no file refuses
+  ("Save this buffer to a file before adding an image"), checked
+  before a screenshot is taken. This replaced a staging folder (r4
+  F10 to r7) that drew most review Findings. `C-x C-w` sends new
+  images to the new name's folder and leaves earlier ones; a new note
+  never saved leaves its images in its folder. Both wait for item 6's
+  "unlinked attachments" question. Indirect buffers (capture, `C-c
+  C-x b`) use the base buffer's folder. Links are relative between
+  true names, so a symlinked notes root works.
+- Drops: org-download loads with Org (`:demand t`) and goes ahead of
+  Org 9.7's buffer-local drop handler, which otherwise asks "What to
+  do with file?" (r7 F4).
 - Left for later: the `attachments/phone/` "move into this note"
   command (item 7); `org-attach` isn't used.
 
@@ -326,10 +327,6 @@ Gotchas:
   left `test/gui-ert-test` committed non-executable (exit 126).
 - The tool suites run `bin/` and `test/` scripts from the worktree, so
   don't edit those while a suite runs in the background.
-- In Emacs 31.1, `before-save-hook` runs before a first save asks for
-  the file name and demotes errors, so the staging refile is on
-  `write-file-functions`, which `set-visited-file-name` clears; the
-  setup reruns from `after-set-visited-file-name-hook`.
 - `shellcheck -x` on the scripts: the remaining `~` in quotes are
   display text, on purpose.
 
@@ -364,17 +361,6 @@ Review round 6 (head `98d0757`), Argon: 3 Findings, all accepted
 folder in `tim/org-link-path`, F3 `${1-…}` and an empty-path check in
 `bin/checkout.sh` (covers `bin/screenshot` too).
 
-Crash staging (Tim agreed, 1 Nov), in the same commits: every save
-refiles any file its text links under the staging root, so a
-recovered draft saves relative links; a file another open draft
-stages is copied, not moved. Folders are named
-`buffer-<PID>-<random>/`. `M-x tim/org-download-staging-clean` lists
-folders whose Emacs has gone and deletes them after a yes/no prompt,
-keeping any an auto-save in `var/auto-save/` links. No start-up sweep:
-it would delete the only copy unasked. After the fixes, every suite
-and all four `test/*-test.el` files passed (1 Nov), screenshot-test
-included.
-
 Flaky `test/screenshot-test` "two shots give two PNGs" (twice on
 31 Oct and once on 1 Nov, passing on re-runs; the 1 Nov detail
 wasn't kept): captured once as `light.png is 688x680`,
@@ -386,25 +372,25 @@ PlasmaZones stopped (Tim, at the screen) to confirm, then check the
 frame size before each shot.
 
 Review round 7 (head `84a2057`), Argon: 5 Findings, all accepted
-([record](docs/reviews/2026-11-01-item-5-diff-r7.md)). Red tests
-`3cc9d63`, fixes `14e5a46`: F1 the refile asks about a new note's
-missing folder first, F2 the clean-up skips `sessions/`, F3 copy for
-another live Emacs, F4 org-download loads with Org (`:demand t`) and
-(red `fab1b13`, fix `039462c`, after Tim's screen check still got Org's
-prompt) goes ahead of Org 9.7's buffer-local drop handler, F5 the cost
-figure above. Tim's screen recheck passed (1 Nov): a fresh start, a
-drop with no prompt, an absolute staging link, and the staged file
-deleted on kill. Every suite and all four
-`test/*-test.el` files passed after the fixes (1 Nov).
+([record](docs/reviews/2026-11-01-item-5-diff-r7.md)); fixes `14e5a46`
+and `039462c`. Tim's screen check of a drop passed after the second.
+Its staging fixes (F1–F3, F5) were removed in round 8.
 
-Next: review round 8 (Argon, Manual run). When a round needs no code
-change:
-tick the item and merge to `main` from Tim's terminal (this worktree
-session can't touch the main checkout): `git merge --no-ff
-org-basics`, run the tests on `main`, restart the daemon (`systemctl
---user restart emacs`), and run `bin/start-check --daemon`. Then
-remove the worktree and branch. Tim's Dired and Agenda walkthrough is
-in item 8's handoff.
+Review round 8 (head `bda9ed9`), Sonnet, standing in for Argon (16% of
+its weekly quota left, resetting about 6 Nov): 4 Findings, all
+accepted ([record](docs/reviews/2026-11-01-item-5-diff-r8.md)). F1
+(quit deletes staging an auto-save links) and F2 (unlinked staged
+images kept) went with the staging, per F3's option B; F4 `test/gui-ert`
+now fails a file with no tests. Red tests `9d89028`.
+
+Next: review round 9 with Argon (Manual run) once its quota resets.
+Item 5 merges only after a clean Argon round. When a round needs no
+code change: tick the item and merge to `main` from Tim's terminal
+(this worktree session can't touch the main checkout): `git merge
+--no-ff org-basics`, run the tests on `main`, restart the daemon
+(`systemctl --user restart emacs`), and run `bin/start-check
+--daemon`. Then remove the worktree and branch. Tim's Dired and Agenda
+walkthrough is in item 8's handoff.
 
 ### 6. Notes: org-node, journal, capture
 
@@ -439,9 +425,10 @@ Journal), and a "refile as log entry" command for phone captures.
 
 **Handoff:** Not started. Tim wants to save as he types (likely
 `auto-save-visited-mode`, which saves on idle): measure a save's cost
-once org-node re-indexes on save; item 5's staging adds about
-0.7 ms on a 500 kB file.
-First settle how image links survive a move (item 5 review r3 F2). Saving as (`C-x C-w`) into another
+once org-node re-indexes on save.
+First settle how image links survive a move (item 5 review r3 F2),
+and whether one "unlinked attachments" command also covers images a
+never-saved new note leaves behind (item 5 r8 F3). Saving as (`C-x C-w`) into another
 folder breaks them the same way. Links are relative to the note, so
 refiling a heading from `inbox.org` into `notes/coding.org` leaves
 `[[file:attachments/inbox/x.png]]` pointing at a missing file. Verify
